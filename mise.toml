@@ -1,0 +1,47 @@
+# This repository's own tasks; its tools are the workspace's, read by walking up, and Nix's own are
+# what flake.lock pins.
+[env]
+_.path = ["/nix/var/nix/profiles/default/bin"]
+
+[tasks.fmt]
+description = "Format the Nix with nixfmt: `fmt [--dry-run]`"
+usage = 'flag "-n --dry-run" help="List what is not formatted and write nothing"'
+run = """
+if [ -z "${usage_dry_run:-}" ]; then mise run nixfmt; exit; fi
+mise run nixfmt --check; exit 0
+"""
+
+# Nix reads a flake's files from git's index, which jj leaves without what @ adds, so each Nix task
+# reads a copy of the flake's own files instead, the workspace's docs/lessons.md.
+[tasks.nixfmt]
+description = "Format the Nix with nixfmt, as flake.lock pins it: `nixfmt [--check]`"
+usage = 'flag "--check" help="Fail where anything is not formatted, and write nothing"'
+run = """
+t=$(mktemp -d) && cp flake.nix flake.lock "$t/" || exit 1
+nix run --inputs-from "path:$t" nixpkgs#nixfmt -- ${usage_check:+--check} $(find flake.nix system -name '*.nix')
+"""
+
+[tasks.nixed]
+description = "Lint the Nix with statix and deadnix and evaluate the flake for every system"
+run = """
+t=$(mktemp -d) && rsync -a --exclude=.jj --exclude=.git --include='*/' --include='*.nix' --include=flake.lock --exclude='*' --prune-empty-dirs ./ "$t/" || exit 1
+n() { nix run --inputs-from "path:$t" "nixpkgs#$1" -- "${@:2}"; }
+n statix check "$t" && n deadnix --fail "$t" && nix flake check --all-systems --no-build "path:$t"
+"""
+
+[tasks.update]
+description = "Move the flake's inputs to their branches' heads: `update [--dry-run]`"
+usage = '''
+flag "-n --dry-run" help="Say what would move and write nothing"
+flag "--major" help="Refused: a newer NixOS release is an edit to flake.nix"
+'''
+run = """
+[ -z "${usage_major:-}" ] || { echo "update: --major is refused; a newer NixOS release is an edit to flake.nix"; exit 0; }
+t=$(mktemp -d) && cp flake.nix flake.lock "$t/" && nix flake update --flake "path:$t" || exit 1
+! cmp -s flake.lock "$t/flake.lock" || echo "update: each input at its branch's head"
+[ -n "${usage_dry_run:-}" ] || cp "$t/flake.lock" flake.lock
+"""
+
+[tasks.verify]
+description = "What a commit has to pass: the Nix formatted and linted, the flake evaluated for every system"
+run = ["mise run nixfmt --check", "mise run nixed"]

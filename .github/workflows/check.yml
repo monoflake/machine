@@ -1,0 +1,37 @@
+# What verify runs, the flake evaluated for every system and never built.
+name: check
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+  repository_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: NixOS/nix-installer-action@62c1943b776c509394b550f3f983adc14e9212d6 # v1.0.0
+        with:
+          installer-version: 2.35.3
+
+      # nixfmt, statix and deadnix are the ones flake.lock pins.
+      - name: nixfmt
+        run: nix run --inputs-from . nixpkgs#nixfmt -- --check $(find flake.nix system -name '*.nix')
+
+      - name: statix
+        run: nix run --inputs-from . nixpkgs#statix -- check .
+
+      - name: deadnix
+        run: nix run --inputs-from . nixpkgs#deadnix -- --fail .
+
+      - name: evaluate
+        run: nix flake check --all-systems --no-build
