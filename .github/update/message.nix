@@ -1,10 +1,12 @@
-# The message a move of the flake's inputs is committed with, naming each held package it changed.
-# The subject and the body keep the workspace's widths, and what does not fit is counted.
+# The message a move of the flake's inputs is committed with, naming what it changed by version.
+# Each set takes a name to its versions, and the subject and the body keep the workspace's widths.
 {
   lib,
-  old,
-  new,
   moved,
+  held,
+  beneath,
+  rebuilt,
+  patched,
 }:
 let
   width = 96;
@@ -24,15 +26,23 @@ let
     in
     if found == null then builtins.length first else found;
   before = a: b: if rank a != rank b then rank a < rank b else a < b;
-  version = set: name: set.${name} or "none";
-  names = lib.sort before (
-    builtins.filter (name: version old name != version new name) (
-      lib.unique (builtins.attrNames old ++ builtins.attrNames new)
-    )
-  );
-  count = builtins.length names;
+  # The versions of name in one set and not the other, as they are written.
+  only =
+    set: other: name:
+    let
+      versions = lib.subtractLists (other.${name} or [ ]) (set.${name} or [ ]);
+    in
+    if versions == [ ] then "none" else lib.concatStringsSep ", " versions;
+  changed =
+    sets:
+    lib.sort before (
+      builtins.filter (name: sets.old.${name} or [ ] != sets.new.${name} or [ ]) (
+        lib.unique (builtins.attrNames sets.old ++ builtins.attrNames sets.new)
+      )
+    );
   shown = lib.removeSuffix "-unwrapped";
   more = rest: "and ${toString rest} more";
+  downward = count: lib.reverseList (lib.range 0 count);
 
   listed =
     words:
@@ -40,23 +50,29 @@ let
       lib.concatStrings words
     else
       "${lib.concatStringsSep ", " (lib.init words)} and ${lib.last words}";
+
+  # The subject naming as many of names as fit after prefix, the rest counted.
   subject =
-    taken:
+    sets: names: prefix:
     let
-      rest = count - taken;
-      heads = map (name: "${shown name} ${version new name}") (lib.take taken names);
+      count = builtins.length names;
+      line =
+        taken:
+        let
+          rest = count - taken;
+          heads = map (name: "${shown name} ${only sets.new sets.old name}") (lib.take taken names);
+        in
+        "build: update ${prefix}"
+        + (
+          if taken == 0 then
+            "${toString rest} packages"
+          else if rest == 0 then
+            listed heads
+          else
+            "${lib.concatStringsSep ", " heads} ${more rest}"
+        );
     in
-    "build: update "
-    + (
-      if taken == 0 then
-        "${toString rest} packages"
-      else if rest == 0 then
-        listed heads
-      else
-        "${lib.concatStringsSep ", " heads} ${more rest}"
-    );
-  downward = lib.reverseList (lib.range 0 count);
-  fitted = lib.findFirst (taken: lib.stringLength (subject taken) <= width) 0 downward;
+    lib.findFirst (text: lib.stringLength text <= width) (line 0) (map line (downward count));
 
   # Each word joins the line before it by its own separator, or opens a line where it would not fit.
   pack = lib.foldl' (
@@ -71,21 +87,45 @@ let
     else
       packed ++ [ word.text ]
   ) [ ];
-  body =
-    taken:
-    pack (
-      map (name: {
-        separator = ", ";
-        text = "${shown name} ${version old name} -> ${version new name}";
-      }) (lib.take taken names)
-      ++ lib.optional (taken < count) {
-        separator = " ";
-        text = more (count - taken);
-      }
-    );
-  fittedBody = lib.findFirst (packed: builtins.length packed <= lines) [ ] (map body downward);
+  fill =
+    room: words:
+    let
+      count = builtins.length words;
+      packed =
+        taken:
+        pack (
+          lib.take taken words
+          ++ lib.optional (taken < count) {
+            separator = " ";
+            text = more (count - taken);
+          }
+        );
+    in
+    lib.findFirst (fitted: builtins.length fitted <= room) [ ] (map packed (downward count));
+
+  entries =
+    sets:
+    map (name: {
+      separator = ", ";
+      text = "${shown name} ${only sets.old sets.new name} -> ${only sets.new sets.old name}";
+    });
+  cves = fill 1 (
+    lib.imap0 (index: patch: {
+      separator = ", ";
+      text = "${lib.optionalString (index == 0) "patch "}${patch.cve} in ${patch.package}";
+    }) patched
+  );
+
+  heldNames = changed held;
+  beneathNames = changed beneath;
+  head =
+    if heldNames != [ ] then
+      subject held heldNames ""
+    else if beneathNames != [ ] then
+      subject beneath beneathNames "dependencies "
+    else
+      "build: update ${listed moved}, ${toString rebuilt} rebuilt, no version changed";
+  versions = if heldNames != [ ] then entries held heldNames else entries beneath beneathNames;
+  body = fill (lines - builtins.length cves) versions ++ cves;
 in
-if count == 0 then
-  "build: update ${listed moved}, no package a machine holds changed\n"
-else
-  "${subject fitted}\n\n${lib.concatStringsSep "\n" fittedBody}\n"
+"${head}\n${lib.optionalString (body != [ ]) "\n${lib.concatStringsSep "\n" body}\n"}"

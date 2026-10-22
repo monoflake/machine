@@ -1,12 +1,15 @@
-# Moves the flake's inputs once a day, and commits the lock where the checks still pass on it.
+# Moves the flake's inputs and commits the lock where it still evaluates, then wakes check.
 name: update
 
 on:
   schedule:
     - cron: "23 7 * * *"
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
+  actions: write
   contents: write
 
 concurrency:
@@ -31,28 +34,35 @@ jobs:
           nix flake update
           git diff --quiet flake.lock && echo "moved=false" >> "$GITHUB_OUTPUT" || echo "moved=true" >> "$GITHUB_OUTPUT"
 
-      - name: nixfmt
-        if: steps.update.outputs.moved == 'true'
-        run: nix run --inputs-from . nixpkgs#nixfmt -- --check $(find flake.nix system .github -name '*.nix')
-
-      - name: statix
-        if: steps.update.outputs.moved == 'true'
-        run: nix run --inputs-from . nixpkgs#statix -- check .
-
-      - name: deadnix
-        if: steps.update.outputs.moved == 'true'
-        run: nix run --inputs-from . nixpkgs#deadnix -- --fail .
-
       - name: evaluate
         if: steps.update.outputs.moved == 'true'
         run: nix flake check --all-systems --no-build
 
+      # Both systems' derivations before and after say what changed beneath the held packages.
       - name: commit
         if: steps.update.outputs.moved == 'true'
         run: |
           rsync -a --exclude=.git ./ "$RUNNER_TEMP/new/"
-          nix eval --raw --impure --expr "import ./.github/update { old = \"path:$RUNNER_TEMP/old\"; new = \"path:$RUNNER_TEMP/new\"; }" > "$RUNNER_TEMP/message"
+          for v in old new; do
+            drvs=()
+            for s in x86_64-linux aarch64-linux; do
+              drvs+=("$(nix eval --raw "path:$RUNNER_TEMP/$v#checks.$s.machine.drvPath")^*")
+            done
+            nix derivation show -r "${drvs[@]}" | jq -f .github/update/closure.jq > "$RUNNER_TEMP/$v.json"
+          done
+          nix eval --raw --impure --expr "import ./.github/update {
+            old = \"path:$RUNNER_TEMP/old\";
+            new = \"path:$RUNNER_TEMP/new\";
+            closures = { old = \"$RUNNER_TEMP/old.json\"; new = \"$RUNNER_TEMP/new.json\"; };
+          }" > "$RUNNER_TEMP/message"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -F "$RUNNER_TEMP/message" flake.lock
           git push
+
+      # A push the token makes starts no workflow, so check is woken by name on what main holds now.
+      - name: wake check
+        if: ${{ !cancelled() }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run check.yml --ref main

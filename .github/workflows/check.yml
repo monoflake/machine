@@ -1,11 +1,8 @@
-# What verify runs, the flake evaluated for every system and never built.
+# What verify runs, the flake evaluated for every system and never built, woken by update.
 name: check
 
 on:
-  push:
-  pull_request:
   workflow_dispatch:
-  repository_dispatch:
 
 permissions:
   contents: read
