@@ -25,26 +25,15 @@ jobs:
         working-directory: repos/monoflake/machine
     steps:
       # The workspace above the repository, as it is checked out at home, whose scripts move pins.
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: canmi21/canmi/.github/actions/workspace@main
         with:
-          repository: canmi21/canmi
-          persist-credentials: false
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          path: repos/monoflake/machine
-      - uses: jdx/mise-action@fc42bcc7ddbf51124c30f95a877a0c5168a3bfde # v5.2.1
-        with:
-          working_directory: repos/monoflake/machine
+          path: monoflake/machine
+          credentials: true
+          scripts: true
 
       - uses: NixOS/nix-installer-action@62c1943b776c509394b550f3f983adc14e9212d6 # v1.0.0
         with:
           installer-version: 2.35.3 # NixOS/nix-installer
-
-      - name: workspace
-        working-directory: .
-        run: |
-          pnpm install --frozen-lockfile
-          pnpm exec rescript build
 
       # The flake as locked before is kept, so the message can say what moved.
       - name: update
