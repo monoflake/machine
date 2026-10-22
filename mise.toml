@@ -30,16 +30,18 @@ n statix check "$t" && n deadnix --fail "$t" && nix flake check --all-systems --
 """
 
 [tasks.update]
-description = "Move the flake's inputs to their branches' heads: `update [--dry-run]`"
+description = "Move the flake's inputs to their branches' heads and the workflows' actions within their majors: `update [--dry-run] [--major]`"
 usage = '''
 flag "-n --dry-run" help="Say what would move and write nothing"
-flag "--major" help="Refused: a newer NixOS release is an edit to flake.nix"
+flag "--major" help="Cross the actions' majors; a newer NixOS release is still an edit to flake.nix"
 '''
+depends = ["//:build"]
 run = """
-[ -z "${usage_major:-}" ] || { echo "update: --major is refused; a newer NixOS release is an edit to flake.nix"; exit 0; }
 t=$(mktemp -d) && cp flake.nix flake.lock "$t/" && nix flake update --flake "path:$t" || exit 1
 ! cmp -s flake.lock "$t/flake.lock" || echo "update: each input at its branch's head"
 [ -n "${usage_dry_run:-}" ] || cp "$t/flake.lock" flake.lock
+[ -z "${usage_major:-}" ] || echo "update: a newer NixOS release is an edit to flake.nix"
+node {{env.WORKSPACE}}/scripts/deps/actions.res.mjs ${usage_dry_run:+--dry-run} ${usage_major:+--major}
 """
 
 [tasks.verify]
