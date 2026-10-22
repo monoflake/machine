@@ -1,6 +1,9 @@
 # A machine's Nix, flakes on, no channels, registry or installer tools.
 {
-  imports = [ ./collect.nix ];
+  imports = [
+    ./collect.nix
+    ./upgrade.nix
+  ];
 
   nix.settings.experimental-features = [
     "nix-command"

@@ -35,6 +35,25 @@ in
         default = "zstd";
         description = "Compressor zswap uses for swapped pages; lz4 for a weak processor.";
       };
+      upgrade = {
+        flake = mkOption {
+          type = types.nullOr types.str;
+          default = null;
+          example = "git+ssh://git@github.com/monoflake/cloud?dir=machines/buf";
+          description = "Flake the machine upgrades itself from each day, its own configuration; null for none.";
+        };
+        at = mkOption {
+          type = types.str;
+          default = "04:00";
+          example = "13:00";
+          description = "Time of day, in UTC, the machine checks its flake and switches to what it names.";
+        };
+        keyFile = mkOption {
+          type = types.nullOr file;
+          default = null;
+          description = "Path to a file containing the SSH key the machine reads a private flake on GitHub with.";
+        };
+      };
       tailnet.authKeyFile = mkOption {
         type = types.nullOr file;
         default = null;

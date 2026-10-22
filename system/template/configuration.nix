@@ -7,6 +7,10 @@
     memory = 4096;
     keys = [ "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPlaceholderReplaceWithYourOwnPublicKey0000" ];
     # tailnet.authKeyFile = "/var/lib/secrets/tailnet";
+    # upgrade = {
+    #   flake = "git+ssh://git@github.com/you/machines?dir=machine";
+    #   at = "04:00";
+    # };
   };
   # monoflake.driver.bindings = [ "/var/lib/secrets/binding" ];
   system.stateVersion = "26.05";
