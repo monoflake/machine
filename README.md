@@ -3,6 +3,8 @@
 NixOS for running containers.  
 A system tuned for OCI container runtimes.
 
+![fastfetch on a machine](.github/assets/screenshot.webp)
+
 Start one from the template:
 
 ```sh
