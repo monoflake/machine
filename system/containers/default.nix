@@ -1,7 +1,10 @@
 # A machine's containers, containerd on the data disk with the btrfs snapshotter.
 { pkgs, ... }:
 {
-  imports = [ ./secrets.nix ];
+  imports = [
+    ./images.nix
+    ./secrets.nix
+  ];
 
   # The btrfs snapshotter, each layer a subvolume a qgroup holds, RFC vr5lw.
   virtualisation.containerd = {
