@@ -12,6 +12,8 @@ let
   width = 96;
   lines = 5;
   first = [
+    "workerd"
+    "wasmtime"
     "linux"
     "systemd"
     "nix"

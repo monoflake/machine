@@ -1,4 +1,5 @@
-# Moves the flake's inputs and commits the lock where it still evaluates, then wakes check.
+# Moves the flake's inputs and the runtimes' images manifest.toml pins, and commits both where the
+# flake still evaluates, then wakes check.
 name: update
 
 on:
@@ -19,12 +20,31 @@ jobs:
   update:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: repos/monoflake/machine
     steps:
+      # The workspace above the repository, as it is checked out at home, whose scripts move pins.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: canmi21/canmi
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: repos/monoflake/machine
+      - uses: jdx/mise-action@fc42bcc7ddbf51124c30f95a877a0c5168a3bfde # v5.2.1
+        with:
+          working_directory: repos/monoflake/machine
 
       - uses: NixOS/nix-installer-action@62c1943b776c509394b550f3f983adc14e9212d6 # v1.0.0
         with:
           installer-version: 2.35.3 # NixOS/nix-installer
+
+      - name: workspace
+        working-directory: .
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm exec rescript build
 
       # The flake as locked before is kept, so the message can say what moved.
       - name: update
@@ -32,7 +52,8 @@ jobs:
         run: |
           rsync -a --exclude=.git ./ "$RUNNER_TEMP/old/"
           nix flake update
-          git diff --quiet flake.lock && echo "moved=false" >> "$GITHUB_OUTPUT" || echo "moved=true" >> "$GITHUB_OUTPUT"
+          node "$GITHUB_WORKSPACE/scripts/deps/releases.res.mjs" system/containers/manifest.toml
+          git diff --quiet flake.lock system/containers/manifest.toml && echo "moved=false" >> "$GITHUB_OUTPUT" || echo "moved=true" >> "$GITHUB_OUTPUT"
 
       - name: evaluate
         if: steps.update.outputs.moved == 'true'
@@ -57,7 +78,7 @@ jobs:
           }" > "$RUNNER_TEMP/message"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -F "$RUNNER_TEMP/message" flake.lock
+          git commit -F "$RUNNER_TEMP/message" flake.lock system/containers/manifest.toml
           git push
 
       # A push the token makes starts no workflow, so check is woken by name on what main holds now.
@@ -65,4 +86,4 @@ jobs:
         if: ${{ !cancelled() }}
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh workflow run check.yml --ref main
+        run: gh workflow run check.yml --repo "$GITHUB_REPOSITORY" --ref main

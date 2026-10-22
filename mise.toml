@@ -3,6 +3,11 @@
 [env]
 _.path = ["/nix/var/nix/profiles/default/bin"]
 
+[tools]
+actionlint = "1"
+# What actionlint checks a workflow's shell with.
+shellcheck = "0.11" # pre-1.0, where a minor is the breaking release
+
 # What oxfmt formats here.
 [vars]
 formatted = "README.md"
@@ -28,13 +33,13 @@ nix run --inputs-from "path:$t" nixpkgs#nixfmt -- ${usage_check:+--check} $(find
 [tasks.nixed]
 description = "Lint the Nix with statix and deadnix and evaluate the flake for every system"
 run = """
-t=$(mktemp -d) && rsync -a --exclude=.jj --exclude=.git --include='*/' --include='*.nix' --include='*.json' --include=flake.lock --exclude='*' --prune-empty-dirs ./ "$t/" || exit 1
+t=$(mktemp -d) && rsync -a --exclude=.jj --exclude=.git --include='*/' --include='*.nix' --include='*.toml' --include=flake.lock --exclude='*' --prune-empty-dirs ./ "$t/" || exit 1
 n() { nix run --inputs-from "path:$t" "nixpkgs#$1" -- "${@:2}"; }
 n statix check "$t" && n deadnix --fail "$t" && nix flake check --all-systems --no-build "path:$t"
 """
 
 [tasks.update]
-description = "Move the flake's inputs to their branches' heads, the workflows' actions within their majors and the runtimes' images to their newest release: `update [--dry-run] [--major]`"
+description = "Move the flake's inputs to their branches' heads, the tools and the workflows' actions within their majors, and the runtimes' images to their newest release: `update [--dry-run] [--major]`"
 usage = '''
 flag "-n --dry-run" help="Say what would move and write nothing"
 flag "--major" help="Cross the actions' majors; a newer NixOS release is still an edit to flake.nix"
@@ -45,9 +50,9 @@ t=$(mktemp -d) && cp flake.nix flake.lock "$t/" && nix flake update --flake "pat
 ! cmp -s flake.lock "$t/flake.lock" || echo "update: each input at its branch's head"
 [ -n "${usage_dry_run:-}" ] || cp "$t/flake.lock" flake.lock
 [ -z "${usage_major:-}" ] || echo "update: a newer NixOS release is an edit to flake.nix"
-node {{env.WORKSPACE}}/scripts/deps/actions.res.mjs ${usage_dry_run:+--dry-run} ${usage_major:+--major} && node {{env.WORKSPACE}}/scripts/deps/releases.res.mjs system/containers/images.json ${usage_dry_run:+--dry-run}
+mise upgrade ${usage_dry_run:+--dry-run} actionlint shellcheck && node {{env.WORKSPACE}}/scripts/deps/actions.res.mjs ${usage_dry_run:+--dry-run} ${usage_major:+--major} && node {{env.WORKSPACE}}/scripts/deps/releases.res.mjs system/containers/manifest.toml ${usage_dry_run:+--dry-run}
 """
 
 [tasks.verify]
-description = "What a commit has to pass: everything formatted, the Nix linted, the flake evaluated for every system"
-run = ["oxfmt --check {{vars.formatted}}", "mise run nixfmt --check", "mise run nixed"]
+description = "What a commit has to pass: everything formatted, the Nix and the workflows linted, the flake evaluated for every system"
+run = ["oxfmt --check {{vars.formatted}}", "mise run nixfmt --check", "mise run nixed", "actionlint .github/workflows/*.yml"]
