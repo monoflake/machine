@@ -5,3 +5,7 @@ base = "https://github.com/canmi21/canmi.git"
 [update]
 actions = true
 releases = ["system/containers/manifest.toml"]
+
+# The id space its docs/rfcs holds RFCs in, the workspace's scripts/rfcs reading it.
+[rfcs]
+ids = "monoflake"
