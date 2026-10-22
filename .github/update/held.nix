@@ -23,10 +23,10 @@ let
     name = package.pname or (parsed package).name;
     value = package.version or (parsed package).version;
   };
-  # The runtimes' images manifest.toml pins are held as a package is, by name and version.
+  # The runtimes' images manifest.lock locks are held as a package is, by name and version.
   images = lib.mapAttrs (_: pin: pin.version) (
     lib.filterAttrs (_: lib.isAttrs) (
-      builtins.fromTOML (builtins.readFile (machine.outPath + "/system/containers/manifest.toml"))
+      builtins.fromTOML (builtins.readFile (machine.outPath + "/system/containers/manifest.lock"))
     )
   );
 in

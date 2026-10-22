@@ -1,9 +1,9 @@
 # The isolate runtimes' images, this machine's architecture's archive of each fetched by the address
-# and SHA-256 manifest.toml pins, for the driver to import, RFC vr5lw.
+# and SHA-256 manifest.lock locks, for the driver to import, RFC vr5lw.
 { lib, pkgs, ... }:
 let
   inherit (pkgs.stdenv.hostPlatform) system;
-  pinned = lib.filterAttrs (_: lib.isAttrs) (builtins.fromTOML (builtins.readFile ./manifest.toml));
+  pinned = lib.filterAttrs (_: lib.isAttrs) (builtins.fromTOML (builtins.readFile ./manifest.lock));
   archive =
     name: pin:
     pkgs.fetchurl {

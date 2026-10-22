@@ -1,4 +1,4 @@
-# Moves the flake's inputs and the runtimes' images manifest.toml pins, and commits both where the
+# Moves the flake's inputs and the runtimes' images manifest.lock locks, and commits both where the
 # flake still evaluates, then wakes check.
 name: update
 
@@ -53,7 +53,7 @@ jobs:
           rsync -a --exclude=.git ./ "$RUNNER_TEMP/old/"
           nix flake update
           node "$GITHUB_WORKSPACE/scripts/deps/releases.res.mjs" system/containers/manifest.toml
-          git diff --quiet flake.lock system/containers/manifest.toml && echo "moved=false" >> "$GITHUB_OUTPUT" || echo "moved=true" >> "$GITHUB_OUTPUT"
+          git diff --quiet flake.lock system/containers/manifest.lock && echo "moved=false" >> "$GITHUB_OUTPUT" || echo "moved=true" >> "$GITHUB_OUTPUT"
 
       - name: evaluate
         if: steps.update.outputs.moved == 'true'
@@ -78,7 +78,7 @@ jobs:
           }" > "$RUNNER_TEMP/message"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -F "$RUNNER_TEMP/message" flake.lock system/containers/manifest.toml
+          git commit -F "$RUNNER_TEMP/message" flake.lock system/containers/manifest.lock
           git push
 
       # A push the token makes starts no workflow, so check is woken by name on what main holds now.

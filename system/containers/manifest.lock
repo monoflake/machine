@@ -1,0 +1,29 @@
+# Written by `mise run update` from manifest.toml and monoflake/runtime's releases, the workspace's
+# scripts/deps/releases.res; edited by hand, it is written over at the next update.
+source = "monoflake/runtime"
+
+# https://github.com/monoflake/runtime/releases/tag/2026.10.22
+[workerd]
+version = "1.20261021.1"
+release = "2026.10.22"
+
+[workerd.x86_64-linux]
+url = "https://github.com/monoflake/runtime/releases/download/2026.10.22/workerd-1.20261021.1-linux-x86_64.tar"
+sha256 = "a11c8999f95989c961d5e155ef9b440bd127fa6302a92895ac38ef09217503cc"
+
+[workerd.aarch64-linux]
+url = "https://github.com/monoflake/runtime/releases/download/2026.10.22/workerd-1.20261021.1-linux-aarch64.tar"
+sha256 = "4014049152b1f1cb89548b7239de1908ddae38fdce51f90cfb2acf88811a2ca9"
+
+# https://github.com/monoflake/runtime/releases/tag/2026.10.22
+[wasmtime]
+version = "50.0.0"
+release = "2026.10.22"
+
+[wasmtime.x86_64-linux]
+url = "https://github.com/monoflake/runtime/releases/download/2026.10.22/wasmtime-50.0.0-linux-x86_64.tar"
+sha256 = "a63a254940f7edc185db0e2c3608d82bae1fc5240a5b3634b615b0cd643b9c2c"
+
+[wasmtime.aarch64-linux]
+url = "https://github.com/monoflake/runtime/releases/download/2026.10.22/wasmtime-50.0.0-linux-aarch64.tar"
+sha256 = "51ba585ebd0e50ea4ce501dc0e6717f30edb0404cfbc49cd496174908536d18a"
