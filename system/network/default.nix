@@ -1,4 +1,9 @@
 # A machine's network, DHCP with fixed nameservers, nftables, and the tailnet's interface trusted.
+let
+  tailnet = "tailscale0";
+  # The machine driver's port, DRIVE on a keypad, monoflake/driver's RFC 8c0rg.
+  driver = 37483;
+in
 {
   imports = [
     ./ssh.nix
@@ -13,6 +18,7 @@
       "8.8.8.8"
     ];
     nftables.enable = true;
-    firewall.trustedInterfaces = [ "tailscale0" ];
+    firewall.trustedInterfaces = [ tailnet ];
+    firewall.interfaces.${tailnet}.allowedTCPPorts = [ driver ];
   };
 }
