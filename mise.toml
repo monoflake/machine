@@ -18,7 +18,7 @@ description = "Format the Nix with nixfmt, as flake.lock pins it: `nixfmt [--che
 usage = 'flag "--check" help="Fail where anything is not formatted, and write nothing"'
 run = """
 t=$(mktemp -d) && cp flake.nix flake.lock "$t/" || exit 1
-nix run --inputs-from "path:$t" nixpkgs#nixfmt -- ${usage_check:+--check} $(find flake.nix system -name '*.nix')
+nix run --inputs-from "path:$t" nixpkgs#nixfmt -- ${usage_check:+--check} $(find flake.nix system .github -name '*.nix')
 """
 
 [tasks.nixed]

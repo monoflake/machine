@@ -1,0 +1,58 @@
+# Moves the flake's inputs once a day, and commits the lock where the checks still pass on it.
+name: update
+
+on:
+  schedule:
+    - cron: "23 7 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: NixOS/nix-installer-action@62c1943b776c509394b550f3f983adc14e9212d6 # v1.0.0
+        with:
+          installer-version: 2.35.3
+
+      # The flake as locked before is kept, so the message can say what moved.
+      - name: update
+        id: update
+        run: |
+          rsync -a --exclude=.git ./ "$RUNNER_TEMP/old/"
+          nix flake update
+          git diff --quiet flake.lock && echo "moved=false" >> "$GITHUB_OUTPUT" || echo "moved=true" >> "$GITHUB_OUTPUT"
+
+      - name: nixfmt
+        if: steps.update.outputs.moved == 'true'
+        run: nix run --inputs-from . nixpkgs#nixfmt -- --check $(find flake.nix system .github -name '*.nix')
+
+      - name: statix
+        if: steps.update.outputs.moved == 'true'
+        run: nix run --inputs-from . nixpkgs#statix -- check .
+
+      - name: deadnix
+        if: steps.update.outputs.moved == 'true'
+        run: nix run --inputs-from . nixpkgs#deadnix -- --fail .
+
+      - name: evaluate
+        if: steps.update.outputs.moved == 'true'
+        run: nix flake check --all-systems --no-build
+
+      - name: commit
+        if: steps.update.outputs.moved == 'true'
+        run: |
+          rsync -a --exclude=.git ./ "$RUNNER_TEMP/new/"
+          nix eval --raw --impure --expr "import ./.github/update { old = \"path:$RUNNER_TEMP/old\"; new = \"path:$RUNNER_TEMP/new\"; }" > "$RUNNER_TEMP/message"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -F "$RUNNER_TEMP/message" flake.lock
+          git push

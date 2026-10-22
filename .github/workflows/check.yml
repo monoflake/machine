@@ -25,7 +25,7 @@ jobs:
 
       # nixfmt, statix and deadnix are the ones flake.lock pins.
       - name: nixfmt
-        run: nix run --inputs-from . nixpkgs#nixfmt -- --check $(find flake.nix system -name '*.nix')
+        run: nix run --inputs-from . nixpkgs#nixfmt -- --check $(find flake.nix system .github -name '*.nix')
 
       - name: statix
         run: nix run --inputs-from . nixpkgs#statix -- check .
