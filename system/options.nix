@@ -92,7 +92,7 @@ in
         type = types.str;
         default = "127.0.0.1:36879";
         example = "0.0.0.0:36879";
-        description = "Address and port the entry, the service monoflake-entry, listens on, plain HTTP; loopback by default, where the tunnel in front of it reaches it.";
+        description = "Address and port the entry listens on, plain HTTP, held by the socket monoflake-entry.socket across the service monoflake-entry's restart; loopback by default, where the tunnel in front of it reaches it.";
       };
     };
     monoflake.tunnel = {

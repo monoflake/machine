@@ -64,4 +64,6 @@ of its own listens on loopback alone, where the tunnel in front of it reaches it
 
 The entry is a unit of its own, `monoflake-entry`, the command `entry` of the binary the driver
 runs, reading where a deployment runs from containerd alone, so it serves on while the driver is
-stopped, RFC rmll5; `dev local` restarts both.
+stopped, RFC rmll5; `dev local` restarts both. Its listener is held by `monoflake-entry.socket`, so a
+connection made while it restarts waits for it rather than being refused, and it answers what it has
+begun before it stops, RFC ehm48.

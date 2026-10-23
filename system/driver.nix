@@ -95,13 +95,19 @@ in
           };
         };
 
-        # The entry, the same binary's command `entry`, RFC rmll5, needing nothing of the driver,
-        # so it neither requires nor binds to it and serves on while the driver is stopped.
+        # The entry, the same binary's command `entry`, needing nothing of the driver, RFC rmll5;
+        # its listener its socket's, so a connection made while it restarts waits, RFC ehm48.
         monoflake-entry = {
           description = "The machine's entry, driver-machine entry";
           wantedBy = [ "multi-user.target" ];
           wants = [ "containerd.service" ];
-          after = [ "containerd.service" ];
+          requires = [ "monoflake-entry.socket" ];
+          after = [
+            "containerd.service"
+            "monoflake-entry.socket"
+          ];
+          # Restarted by a switch rather than stopped before it, so its socket waits a moment alone.
+          stopIfChanged = false;
           unitConfig = {
             ConditionPathExists = lib.mkIf (cfg.override != null) cfg.override;
             # Started again however often it ends, as the data plane is never given up on.
@@ -116,6 +122,8 @@ in
             ];
             Restart = "always";
             RestartSec = 1;
+            # The program answers what it has begun within 10 s of SIGTERM, then exits.
+            TimeoutStopSec = 15;
             # containerd's socket and its listener and nothing more, under every hardening left.
             DynamicUser = true;
             SupplementaryGroups = [ group ];
@@ -152,6 +160,14 @@ in
         };
         # Given each time containerd makes it, as its own setting takes a group's number alone.
         containerd.serviceConfig.ExecStartPost = "${pkgs.coreutils}/bin/chgrp ${group} ${socket}";
+      };
+
+      # The entry's address, held by systemd across the entry's restart, RFC ehm48; `--listen`
+      # names it still, for what reads the entry's address from its command line.
+      sockets.monoflake-entry = {
+        description = "The machine's entry's listener, held while the entry restarts";
+        wantedBy = [ "sockets.target" ];
+        listenStreams = [ cfg.entry ];
       };
 
       tmpfiles.rules = lib.mkIf (cfg.local != null) [ "d ${cfg.local} 0755 root root -" ];
