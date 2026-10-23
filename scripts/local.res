@@ -15,7 +15,7 @@ external stringify: {"system": string, "keys": array<string>} => string = "strin
 
 let container = "monoflake-local"
 let port = "2222"
-/** The entry on this computer, and the driver's own port for it inside, ENTRY on a keypad. */
+/** The entry on this computer, and its own port inside, ENTRY on a keypad. */
 let entry = "8080"
 let entered = "36879"
 /** The store, and what outlives the container, the disk, the driver's state and sshd's key. */

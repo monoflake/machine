@@ -1,4 +1,4 @@
-# The way in from outside, a Cloudflare Tunnel ending TLS in front of the driver's entry, RFC n0o4l.
+# The way in from outside, a Cloudflare Tunnel ending TLS in front of the entry, RFC n0o4l.
 # A quick tunnel's random address is written to `address` once it answers.
 {
   config,
@@ -45,7 +45,7 @@ in
 {
   config = lib.mkIf cfg.enable {
     systemd.services.monoflake-tunnel = {
-      description = "The way in from outside, a Cloudflare Tunnel to the driver's entry";
+      description = "The way in from outside, a Cloudflare Tunnel to the entry";
       wantedBy = [ "multi-user.target" ];
       wants = [ "network-online.target" ];
       after = [ "network-online.target" ];

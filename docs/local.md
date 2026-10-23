@@ -10,16 +10,16 @@ mise run builder up     # or down
 mise run local up       # starts it, or switches it to this checkout's local/; or down
 ```
 
-|               | Builder                     | Local machine                                  |
-| ------------- | --------------------------- | ---------------------------------------------- |
-| Container     | `monoflake-builder`         | `monoflake-local`                              |
-| Image         | `nixos/nix`, pinned         | `monoflake-empty:1`, an empty root it imports  |
-| Volumes       | `monoflake-builder`, `/nix` | `monoflake-local-nix`, `/nix`                  |
-|               |                             | `monoflake-local-state`, `/var/lib`            |
-| sshd, as root | `localhost:2221`            | `localhost:2222`                               |
-| The entry     |                             | `localhost:8080`, the driver's `36879` inside  |
-| What it runs  | sshd, Nix as a remote store | the machine module and `local/`, systemd first |
-| Scripts       | `scripts/builder.res`       | `scripts/local.res`                            |
+|               | Builder                     | Local machine                                        |
+| ------------- | --------------------------- | ---------------------------------------------------- |
+| Container     | `monoflake-builder`         | `monoflake-local`                                    |
+| Image         | `nixos/nix`, pinned         | `monoflake-empty:1`, an empty root it imports        |
+| Volumes       | `monoflake-builder`, `/nix` | `monoflake-local-nix`, `/nix`                        |
+|               |                             | `monoflake-local-state`, `/var/lib`                  |
+| sshd, as root | `localhost:2221`            | `localhost:2222`                                     |
+| The entry     |                             | `localhost:8080`, `monoflake-entry`'s `36879` inside |
+| What it runs  | sshd, Nix as a remote store | the machine module and `local/`, systemd first       |
+| Scripts       | `scripts/builder.res`       | `scripts/local.res`                                  |
 
 `down` stops and removes a container and keeps its volumes, so `up` starts again where it left
 off: the builder's store, and the local machine's store, disk, driver state and sshd host key. A
@@ -61,3 +61,7 @@ curl -H 'Host: app-1.b1.local' http://localhost:8080/
 
 A host naming no deployment is answered 404, and one naming a deployment not running 503. A machine
 of its own listens on loopback alone, where the tunnel in front of it reaches it.
+
+The entry is a unit of its own, `monoflake-entry`, the command `entry` of the binary the driver
+runs, reading where a deployment runs from containerd alone, so it serves on while the driver is
+stopped, RFC rmll5; `dev local` restarts both.
