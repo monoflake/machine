@@ -61,8 +61,8 @@
         description = "NixOS configuration for a Linux container host";
       };
 
-      # The template, as it stands and with the driver on as a test machine runs it, and the local
-      # machine, each built as a machine of each system would be, so the module is held to them.
+      # The template as it stands, with the driver on as a test machine runs it and with a tunnel to
+      # it, and the local machine, each built as a machine of each system would be.
       checks = nixpkgs.lib.genAttrs linux (
         s:
         let
@@ -85,6 +85,16 @@
               override = "/var/lib/monoflake/dev/driver-machine";
               local = "/var/lib/monoflake/artifacts";
               bindings = [ "/var/lib/secrets/binding" ];
+            };
+          };
+          tunnel = template {
+            monoflake.driver = {
+              enable = true;
+              override = "/var/lib/monoflake/dev/driver-machine";
+            };
+            monoflake.tunnel = {
+              enable = true;
+              host = "app-1.b1";
             };
           };
           local =

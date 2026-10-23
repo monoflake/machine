@@ -95,6 +95,29 @@ in
         description = "Address and port the driver's entry listens on, plain HTTP; loopback by default, where the tunnel in front of it reaches it.";
       };
     };
+    monoflake.tunnel = {
+      enable = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Whether to run a Cloudflare Tunnel, cloudflared, in front of the driver's entry as the service monoflake-tunnel.";
+      };
+      host = mkOption {
+        type = types.str;
+        example = "app-1.b1";
+        description = "Host every request through the tunnel is rewritten to, the deployment's address `app-<id>.b<binding>` the entry chooses by.";
+      };
+      origin = mkOption {
+        type = types.str;
+        default = "http://${config.monoflake.driver.entry}";
+        defaultText = lib.literalExpression ''"http://''${config.monoflake.driver.entry}"'';
+        description = "URL the tunnel sends requests to, the driver's entry by default.";
+      };
+      tokenFile = mkOption {
+        type = types.nullOr file;
+        default = null;
+        description = "Path to a file containing a named tunnel's token; null for a quick tunnel on a random trycloudflare.com address, written to /run/monoflake/tunnel/address.";
+      };
+    };
   };
 
   config.assertions = [

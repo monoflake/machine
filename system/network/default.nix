@@ -1,4 +1,5 @@
-# A machine's network, DHCP with fixed nameservers, nftables, and the tailnet's interface trusted.
+# A machine's network, DHCP with fixed nameservers, nftables, the tailnet's interface trusted, and
+# the tunnel.
 let
   tailnet = "tailscale0";
   # The machine driver's port, DRIVE on a keypad, monoflake/driver's RFC 8c0rg.
@@ -8,6 +9,7 @@ in
   imports = [
     ./ssh.nix
     ./tailnet.nix
+    ./tunnel.nix
   ];
 
   networking = {
