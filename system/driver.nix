@@ -30,7 +30,8 @@ let
     "--btrfs=${btrfs-progs}/bin/btrfs"
     "--largest=${toString largest}"
   ]
-  ++ map (file: "--bindings=${file}") cfg.bindings;
+  ++ map (file: "--bindings=${file}") cfg.bindings
+  ++ lib.optional (cfg.local != null) "--local=${cfg.local}";
 in
 {
   config = lib.mkIf cfg.enable {
@@ -46,10 +47,12 @@ in
       wantedBy = [ "multi-user.target" ];
       wants = [ "containerd.service" ];
       after = [ "containerd.service" ];
-      # `ip netns` and `btrfs` are called by name besides the binaries the arguments give.
+      # `ip netns`, `btrfs` and the bridge's masquerade's `nft` are called by name besides the
+      # binaries the arguments give.
       path = [
         pkgs.iproute2
         btrfs-progs
+        pkgs.nftables
       ];
       # A test machine's override not copied yet leaves the service inactive, never restarting.
       unitConfig = {
@@ -89,5 +92,6 @@ in
 
     # A test machine's override is copied in by monoflake/driver's `dev`, which rsync carries.
     environment.systemPackages = lib.mkIf (cfg.override != null) [ pkgs.rsync ];
+    systemd.tmpfiles.rules = lib.mkIf (cfg.local != null) [ "d ${cfg.local} 0755 root root -" ];
   };
 }

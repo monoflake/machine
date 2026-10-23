@@ -1,18 +1,18 @@
 # This repository's own tasks; its tools are the workspace's, read by walking up, and Nix's own are
 # what flake.lock pins.
 [env]
-_.path = ["/nix/var/nix/profiles/default/bin"]
+_.path = ["{{config_root}}/node_modules/.bin", "/nix/var/nix/profiles/default/bin"]
 
 # What oxfmt formats here.
 [vars]
-formatted = "README.md"
+formatted = "README.md 'docs/**/*.md'"
 
 [tasks.fmt]
-description = "Format the Nix with nixfmt and the prose with oxfmt: `fmt [--dry-run]`"
+description = "Format the Nix with nixfmt, the scripts with ReScript's formatter and the prose with oxfmt: `fmt [--dry-run]`"
 usage = 'flag "-n --dry-run" help="List what is not formatted and write nothing"'
 run = """
-if [ -z "${usage_dry_run:-}" ]; then oxfmt {{vars.formatted}} && mise run nixfmt; exit; fi
-oxfmt --list-different {{vars.formatted}}; mise run nixfmt --check; exit 0
+if [ -z "${usage_dry_run:-}" ]; then rescript format && oxfmt {{vars.formatted}} && mise run nixfmt; exit; fi
+rescript format --check; oxfmt --list-different {{vars.formatted}}; mise run nixfmt --check; exit 0
 """
 
 # Nix reads a flake's files from git's index, which jj leaves without what @ adds, so each Nix task
@@ -22,13 +22,13 @@ description = "Format the Nix with nixfmt, as flake.lock pins it: `nixfmt [--che
 usage = 'flag "--check" help="Fail where anything is not formatted, and write nothing"'
 run = """
 t=$(mktemp -d) && cp flake.nix flake.lock "$t/" || exit 1
-nix run --inputs-from "path:$t" nixpkgs#nixfmt -- ${usage_check:+--check} $(find flake.nix system .github -name '*.nix')
+nix run --inputs-from "path:$t" nixpkgs#nixfmt -- ${usage_check:+--check} $(find flake.nix system local .github -name '*.nix')
 """
 
 [tasks.nixed]
 description = "Lint the Nix with statix and deadnix and evaluate the flake for every system"
 run = """
-t=$(mktemp -d) && rsync -a --exclude=.jj --exclude=.git --include='*/' --include='*.nix' --include='*.lock' --exclude='*' --prune-empty-dirs ./ "$t/" || exit 1
+t=$(mktemp -d) && rsync -a --exclude=.jj --exclude=.git --exclude=node_modules --include='*/' --include='*.nix' --include='*.lock' --exclude='*' --prune-empty-dirs ./ "$t/" || exit 1
 n() { nix run --inputs-from "path:$t" "nixpkgs#$1" -- "${@:2}"; }
 n statix check "$t" && n deadnix --fail "$t" && nix flake check --all-systems --no-build "path:$t"
 """
@@ -47,6 +47,35 @@ t=$(mktemp -d) && cp flake.nix flake.lock "$t/" && nix flake update --flake "pat
 [ -z "${usage_major:-}" ] || echo "update: a newer NixOS release is an edit to flake.nix"
 """
 
+# The builder and the local machine, each a container in Docker on this computer, RFC n0o4l.
+[tasks.builder]
+description = "Start or stop the builder, the container every machine's system is built in: `builder <up|down> [--dry-run]`"
+usage = '''
+arg "<action>" help="up, started anew on its volume, or down, its store kept" {
+  choices "up" "down"
+}
+flag "-n --dry-run" help="Say what would be done and change nothing"
+'''
+run = 'rescript build > /dev/null && node scripts/builder.res.mjs "$usage_action" ${usage_dry_run:+--dry-run}'
+
+[tasks.local]
+description = "Start, switch or stop the local machine, a test machine in a container reached on localhost:2222: `local <up|down> [--dry-run]`"
+usage = '''
+arg "<action>" help="up, started or switched to this checkout's local/, or down, its store and state kept" {
+  choices "up" "down"
+}
+flag "-n --dry-run" help="Say what would be done and change nothing"
+'''
+run = 'rescript build > /dev/null && node scripts/local.res.mjs "$usage_action" ${usage_dry_run:+--dry-run}'
+
+[tasks.clean]
+description = "Remove what ReScript built, never an installed dependency or local state: `clean [--dry-run]`"
+usage = '''
+flag "-n --dry-run" help="List what would go and remove nothing"
+'''
+depends = ["//:build"]
+run = "node {{env.WORKSPACE}}/scripts/clean.res.mjs"
+
 [tasks.verify]
-description = "What a commit has to pass: everything formatted, the Nix linted, the flake evaluated for every system; the workflows are the workspace's check"
-run = ["oxfmt --check {{vars.formatted}}", "mise run nixfmt --check", "mise run nixed"]
+description = "What a commit has to pass: everything formatted, the scripts compiled, the Nix linted, the flake evaluated for every system; the workflows are the workspace's check"
+run = ["oxfmt --check {{vars.formatted}}", "rescript format --check", "rescript build", "mise run nixfmt --check", "mise run nixed"]

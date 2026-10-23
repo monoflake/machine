@@ -82,6 +82,12 @@ in
         default = [ ];
         description = "Paths to files each containing a binding token for the driver.";
       };
+      local = mkOption {
+        type = types.nullOr file;
+        default = null;
+        example = "/var/lib/monoflake/artifacts";
+        description = "Directory the driver takes `file:` artifacts from, set on a test machine alone; null refuses them.";
+      };
     };
   };
 

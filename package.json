@@ -1,0 +1,9 @@
+{
+	"name": "@monoflake/machine",
+	"private": true,
+	"type": "module",
+	"devDependencies": {
+		"@rescript/runtime": "^12.3.1",
+		"rescript": "^12.3.1"
+	}
+}

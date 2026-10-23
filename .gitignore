@@ -1,3 +1,6 @@
 .DS_Store
 result
 result-*
+node_modules/
+lib/
+*.res.mjs
