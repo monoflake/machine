@@ -29,6 +29,7 @@ let
     "--subnet=${subnet}"
     "--btrfs=${btrfs-progs}/bin/btrfs"
     "--largest=${toString largest}"
+    "--entry=${cfg.entry}"
   ]
   ++ map (file: "--bindings=${file}") cfg.bindings
   ++ lib.optional (cfg.local != null) "--local=${cfg.local}";

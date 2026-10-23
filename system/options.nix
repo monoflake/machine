@@ -88,6 +88,12 @@ in
         example = "/var/lib/monoflake/artifacts";
         description = "Directory the driver takes `file:` artifacts from, set on a test machine alone; null refuses them.";
       };
+      entry = mkOption {
+        type = types.str;
+        default = "127.0.0.1:36879";
+        example = "0.0.0.0:36879";
+        description = "Address and port the driver's entry listens on, plain HTTP; loopback by default, where the tunnel in front of it reaches it.";
+      };
     };
   };
 

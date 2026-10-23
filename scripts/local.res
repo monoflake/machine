@@ -15,6 +15,9 @@ external stringify: {"system": string, "keys": array<string>} => string = "strin
 
 let container = "monoflake-local"
 let port = "2222"
+/** The entry on this computer, and the driver's own port for it inside, ENTRY on a keypad. */
+let entry = "8080"
+let entered = "36879"
 /** The store, and what outlives the container, the disk, the driver's state and sshd's key. */
 let nix = "monoflake-local-nix"
 let state = "monoflake-local-state"
@@ -112,6 +115,8 @@ let booted = path =>
         // A listen address, on this computer alone.
         "--publish",
         `127.0.0.1:${port}:22`,
+        "--publish",
+        `127.0.0.1:${entry}:${entered}`,
         "--volume",
         `${nix}:/nix`,
         "--volume",
@@ -135,18 +140,31 @@ let booted = path =>
     }
   }
 
+/** Whether it runs and publishes the entry, so one started before the entry was published is
+ * started again rather than switched. */
+let current = () =>
+  Builder.running(container) &&
+  Builder.quiet("docker", ["port", container, `${entered}/tcp`])->Option.isSome
+
 let up = () =>
   system()
   ->Result.flatMap(system => arguments(system))
   ->Result.flatMap(arguments =>
-    if Builder.running(container) {
+    if current() {
       Builder.started([local])->Result.flatMap(config =>
         Builder.deployed(~config, ~target=container, arguments)
       )
     } else {
       Builder.started([])->Result.flatMap(config =>
         Builder.timed("build", () => Builder.built(~config, arguments), path => path)
-        ->Result.flatMap(path => Builder.timed("copy", () => seeded(path), _ => `into ${nix}`))
+        ->Result.flatMap(
+          path =>
+            Builder.timed(
+              "copy",
+              () => Builder.removed(container) ? seeded(path) : Error(`${container} not removed`),
+              _ => `into ${nix}`,
+            ),
+        )
         ->Result.flatMap(
           path => Builder.timed("boot", () => booted(path), _ => `${container} answers ssh`),
         )
@@ -159,12 +177,17 @@ if isMain {
   switch Builder.args->Array.find(a => !(a->String.startsWith("--"))) {
   | Some("up") if dry =>
     Console.log(`would start ${Builder.container} unless it runs, and build local/ in it`)
-    Console.log(`would switch ${container} to it over ssh on localhost:${port} if it runs`)
-    Console.log(`would otherwise copy it into the volume ${nix} and start ${container} on it,`)
-    Console.log(`  privileged, its state the volume ${state}, its sshd on localhost:${port}`)
+    Console.log(`would switch ${container} to it over ssh on localhost:${port} if it runs with`)
+    Console.log(`  its entry published`)
+    Console.log(`would otherwise remove ${container}, copy it into the volume ${nix} and start`)
+    Console.log(`  ${container} on it, privileged, its state the volume ${state}, its sshd on`)
+    Console.log(`  localhost:${port} and its entry on localhost:${entry}`)
   | Some("up") =>
     switch up() {
-    | Ok(_) => Console.log(`local: ${container} runs it, \`ssh -p ${port} root@localhost\``)
+    | Ok(_) =>
+      Console.log(
+        `local: ${container} runs it, \`ssh -p ${port} root@localhost\`, its entry on localhost:${entry}`,
+      )
     | Error(why) => Builder.fail(`local: ${why}`)
     }
   | Some("down") if dry =>

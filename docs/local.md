@@ -17,11 +17,14 @@ mise run local up       # starts it, or switches it to this checkout's local/; o
 | Volumes       | `monoflake-builder`, `/nix` | `monoflake-local-nix`, `/nix`                  |
 |               |                             | `monoflake-local-state`, `/var/lib`            |
 | sshd, as root | `localhost:2221`            | `localhost:2222`                               |
+| The entry     |                             | `localhost:8080`, the driver's `36879` inside  |
 | What it runs  | sshd, Nix as a remote store | the machine module and `local/`, systemd first |
 | Scripts       | `scripts/builder.res`       | `scripts/local.res`                            |
 
 `down` stops and removes a container and keeps its volumes, so `up` starts again where it left
-off: the builder's store, and the local machine's store, disk, driver state and sshd host key.
+off: the builder's store, and the local machine's store, disk, driver state and sshd host key. A
+local machine running without a port this script publishes is started again rather than switched,
+as Docker publishes a port only when it starts a container.
 Dropping a volume with `docker volume rm` starts that part afresh.
 
 ## The builder
@@ -48,3 +51,13 @@ At first boot it makes its binding token, `/var/lib/monoflake/binding`, which ne
 but by ssh. The driver runs what monoflake/driver's `mise run dev local` copies in, and takes
 `file:` artifacts from `/var/lib/monoflake/artifacts`. Its sshd's host key is the container's own,
 so `dev local` does not check it, as the tools for a virtual machine on `localhost` do not.
+
+Its entry is published on `localhost:8080`, plain HTTP, and hands a request to the deployment the
+leftmost two labels of its host name, `app-<id>.b<binding>`, the rest passed over, RFC n0o4l:
+
+```sh
+curl -H 'Host: app-1.b1.local' http://localhost:8080/
+```
+
+A host naming no deployment is answered 404, and one naming a deployment not running 503. A machine
+of its own listens on loopback alone, where the tunnel in front of it reaches it.

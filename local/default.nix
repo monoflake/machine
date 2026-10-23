@@ -14,7 +14,8 @@ in
   };
   disko.enableConfig = false;
 
-  # Docker gives the address and binds /etc/resolv.conf, and publishes only ssh, on localhost.
+  # Docker gives the address and binds /etc/resolv.conf, and publishes only ssh and the entry, on
+  # localhost.
   networking = {
     hostName = "local";
     useDHCP = lib.mkForce false;
@@ -83,6 +84,8 @@ in
     override = "/var/lib/monoflake/dev/driver-machine";
     local = "/var/lib/monoflake/artifacts";
     bindings = [ binding ];
+    # Docker's published port reaches the container's own interface, never its loopback.
+    entry = "0.0.0.0:36879";
   };
 
   system.stateVersion = "26.05";
