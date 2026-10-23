@@ -13,17 +13,17 @@
 @scope("JSON") @val
 external stringify: {"system": string, "keys": array<string>} => string = "stringify"
 
-let container = "monoflake-local"
+let container = "machine-local"
 let port = "2222"
 /** The entry on this computer, and its own port inside, ENTRY on a keypad. */
 let entry = "8080"
 let entered = "36879"
 /** The store, and what outlives the container, the disk, the driver's state and sshd's key. */
-let nix = "monoflake-local-nix"
-let state = "monoflake-local-state"
+let nix = "machine-local-nix"
+let state = "machine-local-state"
 /** An image of an empty root owned by root, which the system's activation fills; its tag is
  * raised when what it holds changes. */
-let empty = "monoflake-empty:1"
+let empty = "machine-empty:1"
 let local = {Builder.name: container, port, hostKey: "/var/lib/ssh/ssh_host_ed25519_key.pub"}
 
 /** The system Nix calls this computer's Docker's, by the architecture it runs containers of. */
@@ -50,7 +50,7 @@ let arguments = system =>
 
 let imported = () =>
   Builder.quiet("docker", ["image", "inspect", empty])->Option.isSome || {
-      let root = mkdtempSync(join([tmpdir(), "monoflake-empty-"]))
+      let root = mkdtempSync(join([tmpdir(), "empty-"]))
       chmodSync(root, 0o755)
       ["etc", "root", "var"]->Array.forEach(d => mkdirSync(join([root, d])))
       let archive = `${root}.tar`

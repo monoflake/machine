@@ -5,7 +5,7 @@ let
   # What outlives the container, a volume of its own.
   state = "/var/lib";
   disk = "${state}/disk/data.img";
-  binding = "${state}/monoflake/binding";
+  binding = "${state}/driver-machine/binding";
 in
 {
   boot = {
@@ -46,7 +46,7 @@ in
     ];
   };
   systemd.services = {
-    monoflake-disk = {
+    local-disk = {
       description = "The local machine's data disk, made once";
       before = [ "data.mount" ];
       requiredBy = [ "data.mount" ];
@@ -62,10 +62,10 @@ in
       '';
     };
     # The binding's token, `<id>.<secret>`, never leaving the machine but by ssh.
-    monoflake-binding = {
+    local-binding = {
       description = "The local machine's binding token, made once";
-      before = [ "monoflake-driver.service" ];
-      requiredBy = [ "monoflake-driver.service" ];
+      before = [ "driver-machine.service" ];
+      requiredBy = [ "driver-machine.service" ];
       serviceConfig = {
         Type = "oneshot";
         RemainAfterExit = true;
@@ -79,10 +79,10 @@ in
     };
   };
 
-  monoflake.driver = {
+  machine.driver = {
     enable = true;
-    override = "/var/lib/monoflake/dev/driver-machine";
-    local = "/var/lib/monoflake/artifacts";
+    override = "/var/lib/driver-machine/dev/driver-machine";
+    local = "/var/lib/driver-machine/artifacts";
     bindings = [ binding ];
     # Docker's published port reaches the container's own interface, never its loopback.
     entry = "0.0.0.0:36879";

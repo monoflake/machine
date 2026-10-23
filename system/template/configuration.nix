@@ -12,9 +12,9 @@
     #   at = "04:00";
     # };
   };
-  # monoflake.driver = {
+  # machine.driver = {
   #   enable = true;
-  #   override = "/var/lib/monoflake/dev/driver-machine";
+  #   override = "/var/lib/driver-machine/dev/driver-machine";
   #   bindings = [ "/var/lib/secrets/binding" ];
   # };
   system.stateVersion = "26.05";

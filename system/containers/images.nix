@@ -13,6 +13,6 @@ let
 in
 {
   environment.etc = lib.mapAttrs' (
-    name: pin: lib.nameValuePair "monoflake/images/${name}.tar" { source = archive name pin; }
+    name: pin: lib.nameValuePair "driver-machine/images/${name}.tar" { source = archive name pin; }
   ) pinned;
 }

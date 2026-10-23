@@ -2,8 +2,8 @@
 # KEYS, a store building for both architectures, and sshd's host key kept in the store's volume.
 set -eu
 export PATH=/root/.nix-profile/bin
-key=/nix/var/monoflake/ssh_host_ed25519_key
-mkdir -p /nix/var/monoflake /root/.ssh /var/empty /etc/ssh /etc/nix
+key=/nix/var/machine-builder/ssh_host_ed25519_key
+mkdir -p /nix/var/machine-builder /root/.ssh /var/empty /etc/ssh /etc/nix
 [ -f $key ] || ssh-keygen -q -t ed25519 -N '' -f $key
 printf '%s\n' "$KEYS" > /root/.ssh/authorized_keys
 chmod 700 /root/.ssh && chmod 600 /root/.ssh/authorized_keys

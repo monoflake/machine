@@ -7,10 +7,10 @@
   ...
 }:
 let
-  cfg = config.monoflake.tunnel;
+  cfg = config.machine.tunnel;
   # Where the service's own metrics answer, cloudflared's first default port.
   metrics = "127.0.0.1:20241";
-  address = "/run/monoflake/tunnel/address";
+  address = "/run/tunnel/address";
   # An explicit empty configuration, so no `.cloudflared` or `/etc/cloudflared` is ever read, and a
   # map, as an empty file is logged as an error.
   empty = pkgs.writeText "cloudflared.yml" "{}";
@@ -30,7 +30,7 @@ let
   curl = "${lib.getExe pkgs.curl} -s --max-time 5";
   # Writes the address the edge gave the quick tunnel once it answers from here, as a name looked up
   # before its record exists stays unresolved in the asker's cache for minutes, seen on 2026-10-23.
-  learned = pkgs.writeShellScript "monoflake-tunnel-address" ''
+  learned = pkgs.writeShellScript "tunnel-address" ''
     for _ in $(seq 90); do
       host=$(${curl} -f http://${metrics}/quicktunnel | ${lib.getExe pkgs.jq} -r .hostname)
       if [ -n "$host" ] && ${curl} -o /dev/null "https://$host/"; then
@@ -38,13 +38,13 @@ let
       fi
       sleep 1
     done
-    echo "monoflake-tunnel: the quick tunnel's address did not answer within 90 seconds" >&2
+    echo "tunnel: the quick tunnel's address did not answer within 90 seconds" >&2
     exit 1
   '';
 in
 {
   config = lib.mkIf cfg.enable {
-    systemd.services.monoflake-tunnel = {
+    systemd.services.tunnel = {
       description = "The way in from outside, a Cloudflare Tunnel to the entry";
       wantedBy = [ "multi-user.target" ];
       wants = [ "network-online.target" ];
@@ -57,7 +57,7 @@ in
         Restart = "always";
         RestartSec = 5;
         # Removed when the service stops, so a stale address is never read.
-        RuntimeDirectory = "monoflake/tunnel";
+        RuntimeDirectory = "tunnel";
         # An outbound client and nothing more, under every hardening that leaves.
         DynamicUser = true;
         CapabilityBoundingSet = "";

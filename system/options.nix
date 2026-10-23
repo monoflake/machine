@@ -59,63 +59,63 @@ in
         default = null;
         description = "Path to a file containing a Tailscale auth key, used to join the tailnet at boot.";
       };
-    };
-    monoflake.driver = {
-      enable = mkOption {
-        type = types.bool;
-        default = false;
-        description = "Whether to run the machine's driver, driver-machine, as the service monoflake-driver, and its entry as the service monoflake-entry.";
+      driver = {
+        enable = mkOption {
+          type = types.bool;
+          default = false;
+          description = "Whether to run the machine's driver, driver-machine, as the service driver-machine, and its entry as the service driver-machine-entry.";
+        };
+        package = mkOption {
+          type = types.nullOr types.package;
+          default = null;
+          description = "A release of driver-machine the services run; null until releases are opened.";
+        };
+        override = mkOption {
+          type = types.nullOr file;
+          default = null;
+          example = "/var/lib/driver-machine/dev/driver-machine";
+          description = "Path to a driver-machine binary the services run in place of a release, set on a test machine alone.";
+        };
+        bindings = mkOption {
+          type = types.listOf file;
+          default = [ ];
+          description = "Paths to files each containing a binding token for the driver.";
+        };
+        local = mkOption {
+          type = types.nullOr file;
+          default = null;
+          example = "/var/lib/driver-machine/artifacts";
+          description = "Directory the driver takes `file:` artifacts from, set on a test machine alone; null refuses them.";
+        };
+        entry = mkOption {
+          type = types.str;
+          default = "127.0.0.1:36879";
+          example = "0.0.0.0:36879";
+          description = "Address and port the entry listens on, plain HTTP, held by the socket driver-machine-entry.socket across the service driver-machine-entry's restart; loopback by default, where the tunnel in front of it reaches it.";
+        };
       };
-      package = mkOption {
-        type = types.nullOr types.package;
-        default = null;
-        description = "A release of driver-machine the services run; null until releases are opened.";
-      };
-      override = mkOption {
-        type = types.nullOr file;
-        default = null;
-        example = "/var/lib/monoflake/dev/driver-machine";
-        description = "Path to a driver-machine binary the services run in place of a release, set on a test machine alone.";
-      };
-      bindings = mkOption {
-        type = types.listOf file;
-        default = [ ];
-        description = "Paths to files each containing a binding token for the driver.";
-      };
-      local = mkOption {
-        type = types.nullOr file;
-        default = null;
-        example = "/var/lib/monoflake/artifacts";
-        description = "Directory the driver takes `file:` artifacts from, set on a test machine alone; null refuses them.";
-      };
-      entry = mkOption {
-        type = types.str;
-        default = "127.0.0.1:36879";
-        example = "0.0.0.0:36879";
-        description = "Address and port the entry listens on, plain HTTP, held by the socket monoflake-entry.socket across the service monoflake-entry's restart; loopback by default, where the tunnel in front of it reaches it.";
-      };
-    };
-    monoflake.tunnel = {
-      enable = mkOption {
-        type = types.bool;
-        default = false;
-        description = "Whether to run a Cloudflare Tunnel, cloudflared, in front of the entry as the service monoflake-tunnel.";
-      };
-      host = mkOption {
-        type = types.str;
-        example = "app-1.b1";
-        description = "Host every request through the tunnel is rewritten to, the deployment's address `app-<id>.b<binding>` the entry chooses by.";
-      };
-      origin = mkOption {
-        type = types.str;
-        default = "http://${config.monoflake.driver.entry}";
-        defaultText = lib.literalExpression ''"http://''${config.monoflake.driver.entry}"'';
-        description = "URL the tunnel sends requests to, the entry by default.";
-      };
-      tokenFile = mkOption {
-        type = types.nullOr file;
-        default = null;
-        description = "Path to a file containing a named tunnel's token; null for a quick tunnel on a random trycloudflare.com address, written to /run/monoflake/tunnel/address.";
+      tunnel = {
+        enable = mkOption {
+          type = types.bool;
+          default = false;
+          description = "Whether to run a Cloudflare Tunnel, cloudflared, in front of the entry as the service tunnel.";
+        };
+        host = mkOption {
+          type = types.str;
+          example = "app-1.b1";
+          description = "Host every request through the tunnel is rewritten to, the deployment's address `app-<id>.b<binding>` the entry chooses by.";
+        };
+        origin = mkOption {
+          type = types.str;
+          default = "http://${config.machine.driver.entry}";
+          defaultText = lib.literalExpression ''"http://''${config.machine.driver.entry}"'';
+          description = "URL the tunnel sends requests to, the entry by default.";
+        };
+        tokenFile = mkOption {
+          type = types.nullOr file;
+          default = null;
+          description = "Path to a file containing a named tunnel's token; null for a quick tunnel on a random trycloudflare.com address, written to /run/tunnel/address.";
+        };
       };
     };
   };

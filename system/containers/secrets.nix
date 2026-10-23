@@ -1,7 +1,7 @@
 # Where a container's secrets live, a tmpfs containerd waits for along with the data disk.
 {
   # A container's secrets, never swapped, root's alone, RFC vr5lw.
-  fileSystems."/run/monoflake/secrets" = {
+  fileSystems."/run/driver-machine/secrets" = {
     device = "tmpfs";
     fsType = "tmpfs";
     options = [
@@ -16,6 +16,6 @@
 
   systemd.services.containerd.unitConfig.RequiresMountsFor = [
     "/data"
-    "/run/monoflake/secrets"
+    "/run/driver-machine/secrets"
   ];
 }

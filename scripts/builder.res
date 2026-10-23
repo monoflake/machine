@@ -30,14 +30,14 @@ type process
 /** This repository, monoflake/machine, wherever the script is compiled from. */
 let root = join([fileURLToPath(importMetaUrl), "..", ".."])
 
-let container = "monoflake-builder"
-let volume = "monoflake-builder"
+let container = "machine-builder"
+let volume = "machine-builder"
 let port = "2221"
 let image = "nixos/nix:2.35.4@sha256:f159a58f390677f41e8e900a74b6e2f9c7f27b364122ae6acf7a652ce6c551c0"
 let store = `ssh-ng://${container}`
 /** A container reached by ssh, its name, the port it is published on and its host key's file. */
 type reached = {name: string, port: string, hostKey: string}
-let builder = {name: container, port, hostKey: "/nix/var/monoflake/ssh_host_ed25519_key.pub"}
+let builder = {name: container, port, hostKey: "/nix/var/machine-builder/ssh_host_ed25519_key.pub"}
 
 let args = argv->Array.slice(~start=2)
 let fail = why => {
@@ -137,7 +137,7 @@ let removed = name =>
 /** An ssh configuration naming each container by its port and host key, read from the container,
  * ahead of this computer's own, so neither is written to. */
 let configured = (containers: array<reached>) => {
-  let directory = mkdtempSync(join([tmpdir(), "monoflake-"]))
+  let directory = mkdtempSync(join([tmpdir(), "ssh-"]))
   let known = join([directory, "known_hosts"])
   // By the shell's own builtins, as nothing else is on a NixOS container's PATH under docker exec.
   let read =
@@ -190,7 +190,7 @@ let nixEnv = config => with_(env, Dict.fromArray([("NIX_SSHOPTS", `-F ${config}`
 /** A flake's directory copied whole but for what version control and tools keep, which Nix reads
  * as `path:`, since it reads a flake in place from git's index, the workspace's docs/lessons.md. */
 let copied = directory => {
-  let copy = mkdtempSync(join([tmpdir(), "monoflake-flake-"]))
+  let copy = mkdtempSync(join([tmpdir(), "flake-"]))
   ran(
     "rsync",
     [

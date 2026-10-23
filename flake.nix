@@ -80,19 +80,19 @@
         {
           machine = template { };
           driver = template {
-            monoflake.driver = {
+            machine.driver = {
               enable = true;
-              override = "/var/lib/monoflake/dev/driver-machine";
-              local = "/var/lib/monoflake/artifacts";
+              override = "/var/lib/driver-machine/dev/driver-machine";
+              local = "/var/lib/driver-machine/artifacts";
               bindings = [ "/var/lib/secrets/binding" ];
             };
           };
           tunnel = template {
-            monoflake.driver = {
+            machine.driver = {
               enable = true;
-              override = "/var/lib/monoflake/dev/driver-machine";
+              override = "/var/lib/driver-machine/dev/driver-machine";
             };
-            monoflake.tunnel = {
+            machine.tunnel = {
               enable = true;
               host = "app-1.b1";
             };

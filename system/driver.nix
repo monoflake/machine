@@ -7,7 +7,7 @@
   ...
 }:
 let
-  cfg = config.monoflake.driver;
+  cfg = config.machine.driver;
   inherit (pkgs.unstable)
     runc
     crun
@@ -16,7 +16,7 @@ let
     ;
   binary = if cfg.override != null then cfg.override else lib.getExe' cfg.package "driver-machine";
   # What the container kind's containers are given addresses from, on a bridge of its own.
-  bridge = "monoflake0";
+  bridge = "driver0";
   subnet = "10.88.0.0/16";
   # The most an artifact may be, a GiB.
   largest = 1073741824;
@@ -41,13 +41,13 @@ in
     assertions = [
       {
         assertion = (cfg.package != null) != (cfg.override != null);
-        message = "monoflake.driver needs exactly one of package and override set.";
+        message = "machine.driver needs exactly one of package and override set.";
       }
     ];
 
     systemd = {
       services = {
-        monoflake-driver = {
+        driver-machine = {
           description = "The machine's driver, driver-machine";
           wantedBy = [ "multi-user.target" ];
           wants = [ "containerd.service" ];
@@ -64,7 +64,7 @@ in
             ConditionPathExists = lib.mkIf (cfg.override != null) cfg.override;
             RequiresMountsFor = [
               "/data"
-              "/run/monoflake/secrets"
+              "/run/driver-machine/secrets"
             ];
           };
           serviceConfig = {
@@ -73,7 +73,7 @@ in
             ExecReload = "${pkgs.coreutils}/bin/kill -HUP $MAINPID";
             Restart = "on-failure";
             RestartSec = 2;
-            StateDirectory = "monoflake/driver";
+            StateDirectory = "driver-machine/state";
             StateDirectoryMode = "0700";
             # No mount namespace, where one `ip netns` mounts would never reach containerd, tried
             # on buf on 2026-10-22; /proc/sys stays open, which the CNI plugins write.
@@ -97,14 +97,14 @@ in
 
         # The entry, the same binary's command `entry`, needing nothing of the driver, RFC rmll5;
         # its listener its socket's, so a connection made while it restarts waits, RFC ehm48.
-        monoflake-entry = {
+        driver-machine-entry = {
           description = "The machine's entry, driver-machine entry";
           wantedBy = [ "multi-user.target" ];
           wants = [ "containerd.service" ];
-          requires = [ "monoflake-entry.socket" ];
+          requires = [ "driver-machine-entry.socket" ];
           after = [
             "containerd.service"
-            "monoflake-entry.socket"
+            "driver-machine-entry.socket"
           ];
           # Restarted by a switch rather than stopped before it, so its socket waits a moment alone.
           stopIfChanged = false;
@@ -164,7 +164,7 @@ in
 
       # The entry's address, held by systemd across the entry's restart, RFC ehm48; `--listen`
       # names it still, for what reads the entry's address from its command line.
-      sockets.monoflake-entry = {
+      sockets.driver-machine-entry = {
         description = "The machine's entry's listener, held while the entry restarts";
         wantedBy = [ "sockets.target" ];
         listenStreams = [ cfg.entry ];
