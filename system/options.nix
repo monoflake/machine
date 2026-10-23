@@ -60,10 +60,28 @@ in
         description = "Path to a file containing a Tailscale auth key, used to join the tailnet at boot.";
       };
     };
-    monoflake.driver.bindings = mkOption {
-      type = types.listOf file;
-      default = [ ];
-      description = "Paths to files each containing a binding token for the driver.";
+    monoflake.driver = {
+      enable = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Whether to run the machine's driver, driver-machine, as the service monoflake-driver.";
+      };
+      package = mkOption {
+        type = types.nullOr types.package;
+        default = null;
+        description = "A release of driver-machine the service runs; null until releases are opened.";
+      };
+      override = mkOption {
+        type = types.nullOr file;
+        default = null;
+        example = "/var/lib/monoflake/dev/driver-machine";
+        description = "Path to a driver-machine binary the service runs in place of a release, set on a test machine alone.";
+      };
+      bindings = mkOption {
+        type = types.listOf file;
+        default = [ ];
+        description = "Paths to files each containing a binding token for the driver.";
+      };
     };
   };
 

@@ -10,6 +10,7 @@
     # Ahead of `./containers`, as the order of the system's packages follows the imports.
     ./containers/runtimes.nix
     ./containers
+    ./driver.nix
     ./nix
     ./maintenance
   ];
