@@ -62,7 +62,8 @@
       };
 
       # The template as it stands, with the driver on as a test machine runs it and with a tunnel to
-      # it, and the local machine, each built as a machine of each system would be.
+      # it, the bound host's units in both, and the local machine, each built as a machine of each
+      # system would be.
       checks = nixpkgs.lib.genAttrs linux (
         s:
         let

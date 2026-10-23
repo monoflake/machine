@@ -18,6 +18,8 @@ mise run local up       # starts it, or switches it to this checkout's local/; o
 |               |                             | `machine-local-state`, `/var/lib`                         |
 | sshd, as root | `localhost:2221`            | `localhost:2222`                                          |
 | The entry     |                             | `localhost:8080`, `driver-machine-entry`'s `36879` inside |
+|               |                             | `localhost:36879`, the same, the port a control reaches   |
+| The driver    |                             | `localhost:37483`, `driver-machine`'s own port            |
 | What it runs  | sshd, Nix as a remote store | the machine module and `local/`, systemd first            |
 | Scripts       | `scripts/builder.res`       | `scripts/local.res`                                       |
 
@@ -59,11 +61,33 @@ leftmost two labels of its host name, `app-<id>.b<binding>`, the rest passed ove
 curl -H 'Host: app-1.b1.local' http://localhost:8080/
 ```
 
-A host naming no deployment is answered 404, and one naming a deployment not running 503. A machine
-of its own listens on loopback alone, where the tunnel in front of it reaches it.
+A host naming no deployment is answered 404, and one naming a deployment not running 503. Every
+machine's entry listens on every address, as its driver does, so a bound host's control reaches
+both at its private address; the firewall keeps both ports from the public interface.
 
 The entry is a unit of its own, `driver-machine-entry`, the command `entry` of the binary the
 driver runs, reading where a deployment runs from containerd alone, so it serves on while the
 driver is stopped, RFC rmll5; `dev local` restarts both. Its listener is held by
 `driver-machine-entry.socket`, so a connection made while it restarts waits for it rather than
 being refused, and it answers what it has begun before it stops, RFC ehm48.
+
+## Bound to a control on this computer
+
+The driver's management is published on `localhost:37483` and the entry on `localhost:36879`, so a
+control run here, `wrangler dev`, reaches both as it reaches a bound host's private address through
+its tunnel, RFC rxmd9. The local machine is bound to it as any host is, its control reached from
+inside at `host.docker.internal`, the one origin `machine.driver.plain` lets the driver fetch an
+artifact from over plain HTTP:
+
+```sh
+ssh -p 2222 root@localhost
+/var/lib/driver-machine/dev/driver-machine bind --insecure http://host.docker.internal:8787 < token
+```
+
+`bind` writes the binding's token, the tunnel's token where the control answered one, and the
+host's private address last, under `/var/lib/driver-machine/state/bound`, root's alone.
+`machine.tunnel.bound.enable` then holds the address on the interface `tunnel0`, where the driver
+and the entry answer on their ports, and runs the named tunnel `bound-tunnel` by the token; each
+waits until the host is bound, and `bound.path` starts both again and reloads the driver's tokens
+when it is bound again. A control on this computer holds no Cloudflare credential and answers no
+tunnel, so none runs.

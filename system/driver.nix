@@ -31,7 +31,8 @@ let
     "--largest=${toString largest}"
   ]
   ++ map (file: "--bindings=${file}") cfg.bindings
-  ++ lib.optional (cfg.local != null) "--local=${cfg.local}";
+  ++ lib.optional (cfg.local != null) "--local=${cfg.local}"
+  ++ lib.optional (cfg.plain != null) "--plain=${cfg.plain}";
   # The group given containerd's socket, so the entry reads it without being root.
   group = "containerd";
   socket = "/run/containerd/containerd.sock";

@@ -89,16 +89,22 @@ in
         };
         entry = mkOption {
           type = types.str;
-          default = "127.0.0.1:36879";
-          example = "0.0.0.0:36879";
-          description = "Address and port the entry listens on, plain HTTP, held by the socket driver-machine-entry.socket across the service driver-machine-entry's restart; loopback by default, where the tunnel in front of it reaches it.";
+          default = "0.0.0.0:36879";
+          example = "127.0.0.1:36879";
+          description = "Address and port the entry listens on, plain HTTP, held by the socket driver-machine-entry.socket across the service driver-machine-entry's restart; every address by default, as the driver's, so a bound host's control reaches it at its private address, and the firewall keeps the port from the public interface.";
+        };
+        plain = mkOption {
+          type = types.nullOr (types.strMatching "http://[^/?#@]+");
+          default = null;
+          example = "http://host.docker.internal:8787";
+          description = "Origin, `http://` and a host and port, the driver may fetch an artifact from over plain HTTP, set on a local machine alone; null refuses every plain address.";
         };
       };
       tunnel = {
         enable = mkOption {
           type = types.bool;
           default = false;
-          description = "Whether to run a Cloudflare Tunnel, cloudflared, in front of the entry as the service tunnel.";
+          description = "Whether to run a quick Cloudflare Tunnel, cloudflared, on a random trycloudflare.com address in front of the entry as the service tunnel, its address written to /run/tunnel/address.";
         };
         host = mkOption {
           type = types.str;
@@ -107,14 +113,17 @@ in
         };
         origin = mkOption {
           type = types.str;
-          default = "http://${config.machine.driver.entry}";
-          defaultText = lib.literalExpression ''"http://''${config.machine.driver.entry}"'';
-          description = "URL the tunnel sends requests to, the entry by default.";
+          default = "http://${
+            lib.replaceStrings [ "0.0.0.0:" ] [ "127.0.0.1:" ] config.machine.driver.entry
+          }";
+          defaultText = lib.literalExpression ''"http://''${config.machine.driver.entry}", every address written as loopback'';
+          description = "URL the tunnel sends requests to, the entry on loopback by default.";
         };
-        tokenFile = mkOption {
-          type = types.nullOr file;
-          default = null;
-          description = "Path to a file containing a named tunnel's token; null for a quick tunnel on a random trycloudflare.com address, written to /run/tunnel/address.";
+        bound.enable = mkOption {
+          type = types.bool;
+          default = config.machine.driver.enable;
+          defaultText = lib.literalExpression "config.machine.driver.enable";
+          description = "Whether to run the named tunnel `driver-machine bind` gives, with no ingress rules, as the service bound-tunnel, and hold the private address it gives on the interface tunnel0 as the service bound-address; each waits until the host is bound, and both start again when it is bound again.";
         };
       };
     };

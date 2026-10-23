@@ -18,6 +18,11 @@ let port = "2222"
 /** The entry on this computer, and its own port inside, ENTRY on a keypad. */
 let entry = "8080"
 let entered = "36879"
+/** The driver's management, its own port on this computer too, so a control here reaches it. */
+let driver = "37483"
+/** Each port published on this computer's loopback alone and its own inside, the entry twice, its
+ * own port the one a control here reaches. */
+let published = [(port, "22"), (entry, entered), (entered, entered), (driver, driver)]
 /** The store, and what outlives the container, the disk, the driver's state and sshd's key. */
 let nix = "machine-local-nix"
 let state = "machine-local-state"
@@ -108,15 +113,15 @@ let booted = path =>
         "unless-stopped",
         "--stop-signal",
         "SIGRTMIN+3",
+        // A listen address, on this computer alone.
+        ...published->Array.flatMap(((outside, inside)) => [
+          "--publish",
+          `127.0.0.1:${outside}:${inside}`,
+        ]),
         "--tmpfs",
         "/run:exec,mode=755,size=256m",
         "--tmpfs",
         "/tmp:exec,mode=1777,size=1g",
-        // A listen address, on this computer alone.
-        "--publish",
-        `127.0.0.1:${port}:22`,
-        "--publish",
-        `127.0.0.1:${entry}:${entered}`,
         "--volume",
         `${nix}:/nix`,
         "--volume",
@@ -140,11 +145,15 @@ let booted = path =>
     }
   }
 
-/** Whether it runs and publishes the entry, so one started before the entry was published is
+/** Whether it runs and publishes every port, so one started before a port was published is
  * started again rather than switched. */
 let current = () =>
   Builder.running(container) &&
-  Builder.quiet("docker", ["port", container, `${entered}/tcp`])->Option.isSome
+  published->Array.every(((outside, inside)) =>
+    Builder.quiet("docker", ["port", container, `${inside}/tcp`])->Option.mapOr(false, ports =>
+      ports->String.includes(`127.0.0.1:${outside}`)
+    )
+  )
 
 let up = () =>
   system()
@@ -181,12 +190,13 @@ if isMain {
     Console.log(`  its entry published`)
     Console.log(`would otherwise remove ${container}, copy it into the volume ${nix} and start`)
     Console.log(`  ${container} on it, privileged, its state the volume ${state}, its sshd on`)
-    Console.log(`  localhost:${port} and its entry on localhost:${entry}`)
+    Console.log(`  localhost:${port}, its entry on localhost:${entry} and localhost:${entered}`)
+    Console.log(`  and its driver on localhost:${driver}`)
   | Some("up") =>
     switch up() {
     | Ok(_) =>
       Console.log(
-        `local: ${container} runs it, \`ssh -p ${port} root@localhost\`, its entry on localhost:${entry}`,
+        `local: ${container} runs it, \`ssh -p ${port} root@localhost\`, its entry on localhost:${entry} and localhost:${entered}, its driver on localhost:${driver}`,
       )
     | Error(why) => Builder.fail(`local: ${why}`)
     }

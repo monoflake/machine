@@ -14,8 +14,8 @@ in
   };
   disko.enableConfig = false;
 
-  # Docker gives the address and binds /etc/resolv.conf, and publishes only ssh and the entry, on
-  # localhost.
+  # Docker gives the address and binds /etc/resolv.conf, and publishes only ssh, the entry and the
+  # driver, on localhost.
   networking = {
     hostName = "local";
     useDHCP = lib.mkForce false;
@@ -84,8 +84,8 @@ in
     override = "/var/lib/driver-machine/dev/driver-machine";
     local = "/var/lib/driver-machine/artifacts";
     bindings = [ binding ];
-    # Docker's published port reaches the container's own interface, never its loopback.
-    entry = "0.0.0.0:36879";
+    # The control run on the developer's computer, `wrangler dev`, by the name Docker gives it.
+    plain = "http://host.docker.internal:8787";
   };
 
   system.stateVersion = "26.05";
