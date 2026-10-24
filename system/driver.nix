@@ -77,7 +77,7 @@ in
             StateDirectory = "driver-machine/state";
             StateDirectoryMode = "0700";
             # No mount namespace, where one `ip netns` mounts would never reach containerd, tried
-            # on buf on 2026-10-22; /proc/sys stays open, which the CNI plugins write.
+            # on a test machine on 2026-10-22; /proc/sys stays open, which the CNI plugins write.
             NoNewPrivileges = true;
             ProtectClock = true;
             ProtectHostname = true;

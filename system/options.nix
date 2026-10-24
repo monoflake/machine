@@ -39,7 +39,7 @@ in
         flake = mkOption {
           type = types.nullOr types.str;
           default = null;
-          example = "git+ssh://git@github.com/monoflake/cloud?dir=machines/buf";
+          example = "git+ssh://git@github.com/monoflake/cloud?dir=machines/<name>";
           description = "Flake the machine upgrades itself from each day, its own configuration; null for none.";
         };
         at = mkOption {
