@@ -5,14 +5,14 @@ export PATH=/root/.nix-profile/bin
 key=/nix/var/machine-builder/ssh_host_ed25519_key
 mkdir -p /nix/var/machine-builder /root/.ssh /var/empty /etc/ssh /etc/nix
 [ -f $key ] || ssh-keygen -q -t ed25519 -N '' -f $key
-printf '%s\n' "$KEYS" > /root/.ssh/authorized_keys
+printf '%s\n' "$KEYS" >/root/.ssh/authorized_keys
 chmod 700 /root/.ssh && chmod 600 /root/.ssh/authorized_keys
 
 # sshd refuses a locked root and needs a user of its own.
-{ echo 'root:*:1::::::' && grep -v '^root:' /etc/shadow; } > /etc/shadow.new && mv /etc/shadow.new /etc/shadow
-grep -q '^sshd:' /etc/passwd || echo 'sshd:x:74:74::/var/empty:/bin/false' >> /etc/passwd
-grep -q '^sshd:' /etc/group || echo 'sshd:x:74:' >> /etc/group
-cat > /etc/ssh/sshd_config <<EOF
+{ echo 'root:*:1::::::' && grep -v '^root:' /etc/shadow; } >/etc/shadow.new && mv /etc/shadow.new /etc/shadow
+grep -q '^sshd:' /etc/passwd || echo 'sshd:x:74:74::/var/empty:/bin/false' >>/etc/passwd
+grep -q '^sshd:' /etc/group || echo 'sshd:x:74:' >>/etc/group
+cat >/etc/ssh/sshd_config <<EOF
 HostKey $key
 PidFile none
 PermitRootLogin prohibit-password
@@ -24,7 +24,7 @@ EOF
 # Docker Desktop runs x86_64 on Arm by Rosetta, which builds the same paths a native machine does.
 other=
 [ "$(uname -m)" != aarch64 ] || other="extra-platforms = x86_64-linux"
-cat > /etc/nix/nix.conf <<EOF
+cat >/etc/nix/nix.conf <<EOF
 build-users-group = nixbld
 experimental-features = nix-command flakes
 substituters = https://cache.nixos.org/

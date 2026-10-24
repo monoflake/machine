@@ -9,3 +9,7 @@ releases = ["system/containers/manifest.toml"]
 # The id space its docs/rfcs holds RFCs in, the workspace's scripts/rfcs reading it.
 [rfcs]
 ids = "monoflake"
+
+# Suffixes this repository alone tracks, formatted by nothing, the workspace's docs/lint-format.md.
+[format]
+unformatted = [".jq"]
