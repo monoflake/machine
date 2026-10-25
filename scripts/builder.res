@@ -267,10 +267,15 @@ let reused = () => running(container) ? configured([builder])->Option.filter(ans
 /** Whether the running builder was made from this image and with these keys. */
 let current = given =>
   quiet("docker", ["inspect", "--format", "{{.Config.Image}}", container]) == Some(image) &&
-    quiet(
-      "docker",
-      ["inspect", "--format", "{{range .Config.Env}}{{println .}}{{end}}", container],
-    )->Option.mapOr(false, env => env->String.includes(`KEYS=${given->Array.join("\n")}`))
+    quiet("docker", ["inspect", "--format", "{{json .Config.Env}}", container])
+    ->Option.flatMap(text =>
+      try JSON.parseOrThrow(text)->JSON.Decode.array catch {
+      | _ => None
+      }
+    )
+    ->Option.mapOr(false, env =>
+      env->Array.some(v => v == JSON.String(`KEYS=${given->Array.join("\n")}`))
+    )
 
 /** The lock held while one caller makes or removes the builder, a directory `mkdir` makes at once,
  * its holder's process id inside. */
@@ -297,7 +302,9 @@ let taken = () =>
     writeFileSync(holder, Int.toString(pid))
     Some()
   } else {
-    let id = existsSync(holder) ? readFileSync(holder)->String.trim->Int.fromString : None
+    let id = try readFileSync(holder)->String.trim->Int.fromString catch {
+    | _ => None
+    }
     id->Option.mapOr(false, id => !alive(id)) ? released() : ()
     None
   }
@@ -308,7 +315,7 @@ let held = make =>
   | None => Error(`a running caller held ${lock} past five minutes`)
   | Some() =>
     let result = try make() catch {
-    | _ => Error(`making ${container} threw`)
+    | _ => Error(`what ran holding ${lock} threw`)
     }
     released()
     result
