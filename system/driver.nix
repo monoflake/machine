@@ -16,7 +16,7 @@ let
     ;
   binary = if cfg.override != null then cfg.override else lib.getExe' cfg.package "driver-machine";
   # What the container kind's containers are given addresses from, on a bridge of its own.
-  bridge = import ./network/bridge.nix;
+  bridge = (import ./network/bridge.nix).live;
   subnet = "10.88.0.0/16";
   # The entry's port, from the same option the entry listens on.
   port = lib.toInt (lib.last (lib.splitString ":" cfg.entry));

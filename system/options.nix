@@ -38,8 +38,27 @@ in
       reservedPorts = mkOption {
         type = types.listOf types.port;
         default = [ ];
-        example = [ 46879 ];
-        description = "Ports kept out of the range Linux gives a connection its own port from, besides the entry's and the driver's, which are always kept.";
+        example = [ 9100 ];
+        description = "Ports kept out of the range Linux gives a connection its own port from, besides the entry's and the driver's, which are always kept, and conform's where it runs.";
+      };
+      # The ports are monoflake/platform's conform's own, code/tools/conform/src/instance.res, and
+      # its bridge is a constant in network/bridge.nix.
+      conform = {
+        enable = mkOption {
+          type = types.bool;
+          default = false;
+          description = "Whether monoflake/platform's conform runs a second driver on this machine, which opens its entry's port on its bridge, conform0, alone in NixOS's firewall and keeps both its ports; its bridge is fenced either way.";
+        };
+        entry = mkOption {
+          type = types.port;
+          default = 46879;
+          description = "Port conform's entry listens on, reached by its containers at its bridge's address.";
+        };
+        driver = mkOption {
+          type = types.port;
+          default = 47483;
+          description = "Port conform's driver answers its management on, on loopback.";
+        };
       };
       upgrade = {
         flake = mkOption {
@@ -139,6 +158,10 @@ in
     {
       assertion = config.machine.keys != [ ];
       message = "machine.keys must not be empty, or no SSH key could log in as root.";
+    }
+    {
+      assertion = config.machine.conform.enable -> config.machine.driver.enable;
+      message = "machine.conform needs machine.driver.enable, as conform runs beside the live driver.";
     }
   ];
 }

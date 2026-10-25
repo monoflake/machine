@@ -20,7 +20,8 @@ in
     hostName = "local";
     useDHCP = lib.mkForce false;
     resolvconf.enable = false;
-    firewall.enable = lib.mkForce false;
+    # NixOS's firewall runs as on a real machine, Docker's eth0 trusted in the tailnet's place.
+    firewall.trustedInterfaces = [ "eth0" ];
   };
   services.tailscale.enable = lib.mkForce false;
   services.openssh.hostKeys = [
@@ -34,11 +35,8 @@ in
     # Neither is read in a container, which has no disk of its own to install to and takes no swap.
     disk = "/dev/null";
     memory = 4096;
-    # conform's entry and driver, monoflake/platform's conform tool, which runs beside the machine.
-    reservedPorts = [
-      46879
-      47483
-    ];
+    # monoflake/platform's conform runs a second driver here beside the live one.
+    conform.enable = true;
   };
 
   # btrfs with simple quotas, as a machine's data partition is, sparse until written.

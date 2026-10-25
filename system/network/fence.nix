@@ -8,13 +8,21 @@
 }:
 let
   cfg = config.machine.driver;
-  # The bridge and the entry's port as driver.nix gives them, and the tailnet's interface.
-  bridge = import ./bridge.nix;
+  inherit (config.machine) conform;
+  # The bridges as bridge.nix names them, the entry's port as driver.nix gives it, and the tailnet.
+  named = import ./bridge.nix;
   tailnet = config.services.tailscale.interfaceName;
   entry = lib.toInt (lib.last (lib.splitString ":" cfg.entry));
   inherit (pkgs) buildPackages;
+  # Every driver's bridge, the live one and conform's, fenced alike whether conform runs or not.
+  bridges = [
+    named.live
+    named.conform
+  ];
+  # The rules one bridge is given, written for each, one rule to a line.
+  each = rules: lib.concatMapStringsSep "\n    " rules bridges;
 
-  # Fails unless every rule is scoped to the bridge or its ports and every base chain's policy is
+  # Fails unless every rule is scoped to a bridge or its ports and every base chain's policy is
   # accept, which holds the fence off the machine's other traffic, docs/fence.md.
   scope = pkgs.writeText "fence-scope.awk" ''
     function fail(why) {
@@ -23,7 +31,9 @@ let
     }
 
     BEGIN {
-      scoped = "^(iifname|oifname|meta ibrname|meta obrname) \"" bridge "\" "
+      either = bridges
+      gsub(/ /, "|", either)
+      scoped = "^(iifname|oifname|meta ibrname|meta obrname) \"(" either ")\" "
     }
 
     {
@@ -75,7 +85,7 @@ let
     {
       if (chain in base) {
         if ($0 !~ scoped)
-          fail("a base chain's rule not scoped to " bridge)
+          fail("a base chain's rule not scoped to " bridges)
         for (i = 1; i < NF; i++)
           if ($i == "jump" || $i == "goto")
             target[family " " $(i + 1)] = 1
@@ -131,12 +141,12 @@ let
 
       table inet fence {
         chain input {
-          iifname "${bridge}" jump host
+          ${each (b: ''iifname "${b}" jump host'')}
         }
         # Only a reply is forwarded to a container, never a neighbor routing through the host.
         chain forward {
-          iifname "${bridge}" jump routed
-          oifname "${bridge}" ct state != { established, related } drop
+          ${each (b: ''iifname "${b}" jump routed'')}
+          ${each (b: ''oifname "${b}" ct state != { established, related } drop'')}
         }
         # A container reaches the host only where an element names it, or in reply to the host.
         chain host {
@@ -153,7 +163,7 @@ let
       }
       table bridge fence {
         chain forward {
-          meta ibrname "${bridge}" jump between
+          ${each (b: ''meta ibrname "${b}" jump between'')}
         }
         # No frame passes from one container to another but ARP.
         chain between {
@@ -162,9 +172,9 @@ let
         }
       }
     '';
-    # Scoped to the bridge alone, then checked against a kernel of its own as NixOS checks its own.
+    # Scoped to the bridges alone, then checked against a kernel of its own as NixOS checks its own.
     checkPhase = ''
-      ${buildPackages.gawk}/bin/awk -v bridge=${bridge} -f ${scope} $out
+      ${buildPackages.gawk}/bin/awk -v 'bridges=${toString bridges}' -f ${scope} $out
       LD_PRELOAD=${buildPackages.lklWithFirewall.lib}/lib/liblkl-hijack.so \
         ${buildPackages.nftables}/bin/nft --check --file $out
     '';
@@ -184,8 +194,11 @@ in
       }
     ];
 
-    # The entry's port open on the bridge in NixOS's firewall, the fence narrowing it to elements.
-    networking.firewall.interfaces.${bridge}.allowedTCPPorts = [ entry ];
+    # Each entry's port open on its own bridge in NixOS's firewall, the fence narrowing it.
+    networking.firewall.interfaces = lib.mkMerge [
+      { ${named.live}.allowedTCPPorts = [ entry ]; }
+      (lib.mkIf conform.enable { ${named.conform}.allowedTCPPorts = [ conform.entry ]; })
+    ];
 
     systemd.services = {
       # Ordered as NixOS's own firewall, nftables.service, is.

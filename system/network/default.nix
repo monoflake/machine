@@ -6,6 +6,7 @@ let
   # The machine driver's port, DRIVE on a keypad, monoflake/driver's RFC 8c0rg.
   driver = 37483;
   entry = lib.toInt (lib.last (lib.splitString ":" config.machine.driver.entry));
+  inherit (config.machine) conform;
 in
 {
   imports = [
@@ -27,12 +28,16 @@ in
     firewall.interfaces.${tailnet}.allowedTCPPorts = [ driver ];
   };
 
-  # Ports no connection is given as its own, so the entry, the driver and any the machine names find
-  # theirs free, monoflake/driver's RFC p95sv.
+  # Ports no connection is given as its own, so the entry, the driver, conform's and any the machine
+  # names find theirs free, monoflake/driver's RFC p95sv.
   boot.kernel.sysctl."net.ipv4.ip_local_reserved_ports" = lib.concatMapStringsSep "," toString (
     [
       entry
       driver
+    ]
+    ++ lib.optionals conform.enable [
+      conform.entry
+      conform.driver
     ]
     ++ config.machine.reservedPorts
   );
