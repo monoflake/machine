@@ -6,9 +6,16 @@ test machine, so the driver can be developed with no network beyond `localhost`.
 repository's, since neither carries a secret.
 
 ```sh
-mise run builder up     # or down
+mise run builder up     # reuses it, or makes it anew from another image or keys; or down
 mise run local up       # starts it, or switches it to this checkout's local/; or down
 ```
+
+**The builder is made by one caller at a time and reused by every other**, decided by the author on
+2026-10-25: two installs once copied through it at once and each made it again under the other.
+Making or removing it holds a lock, `machine-builder.lock` in the user's temporary directory, with
+the holder's process id inside; another caller waits up to five minutes, and takes over a lock whose
+holder is gone. A switch or an install reuses a builder made from another image or other keys and
+says so; `builder up` alone makes it anew then.
 
 |               | Builder                     | Local machine                                             |
 | ------------- | --------------------------- | --------------------------------------------------------- |
@@ -36,7 +43,7 @@ A `nixos/nix` container with its store in a volume and the sandbox on. On Apple 
 are a native machine's. A system is evaluated on the developer's computer, built in the builder,
 and copied from it to the machine through the computer, `Builder.deployed`; the machine then sets
 its system profile and switches, and builds nothing. Its sshd authorizes the computer's own SSH
-public keys, `ssh-add -L` and `~/.ssh/id_*.pub`, read at each `up`.
+public keys, `ssh-add -L` and `~/.ssh/id_*.pub`, read when it is made.
 
 Nix reaches each container through an ssh configuration written to a temporary directory for the
 run, naming the container's port and the host key read from it, and including the computer's own

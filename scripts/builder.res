@@ -25,6 +25,8 @@ external with_: (@as(json`{}`) _, Dict.t<string>, Dict.t<string>) => Dict.t<stri
   "Object.assign"
 type process
 @val external process: process = "process"
+@val external pid: int = "process.pid"
+@val external signal: (int, int) => unit = "process.kill"
 @set external setExitCode: (process, int) => unit = "exitCode"
 
 /** This repository, monoflake/machine, wherever the script is compiled from. */
@@ -206,7 +208,20 @@ let copied = directory => {
     : None
 }
 
-let up = () => {
+/** Whether the builder's store answers through `config`. */
+let answering = config =>
+  waited(30, () =>
+    spawnSync(
+      "nix",
+      ["store", "info", "--store", store],
+      {stdio: ["ignore", "ignore", "ignore"], encoding: "utf8", env: nixEnv(config)},
+    ).status->Nullable.toOption == Some(0)
+      ? Some()
+      : None
+  )->Option.isSome
+
+/** The builder made anew, any container of its name removed first, its volume kept. */
+let made = () => {
   let given = keys()
   if given == [] {
     Error("no SSH public key in `ssh-add -L` or ~/.ssh/id_*.pub to log in to it with")
@@ -241,33 +256,91 @@ let up = () => {
   } else {
     switch waited(60, () => configured([builder])) {
     | None => Error(`${container} made no host key`)
-    | Some(config) =>
-      switch waited(30, () =>
-        spawnSync(
-          "nix",
-          ["store", "info", "--store", store],
-          {stdio: ["ignore", "ignore", "ignore"], encoding: "utf8", env: nixEnv(config)},
-        ).status->Nullable.toOption == Some(0)
-          ? Some()
-          : None
-      ) {
-      | None => Error(`${store} did not answer`)
-      | Some() => Ok(config)
-      }
+    | Some(config) => answering(config) ? Ok(config) : Error(`${store} did not answer`)
     }
   }
 }
 
-/** The builder, started unless it runs, and the ssh configuration reaching it and `others`. */
+/** The builder running and answering, its ssh configuration, or none. */
+let reused = () => running(container) ? configured([builder])->Option.filter(answering) : None
+
+/** Whether the running builder was made from this image and with these keys. */
+let current = given =>
+  quiet("docker", ["inspect", "--format", "{{.Config.Image}}", container]) == Some(image) &&
+    quiet(
+      "docker",
+      ["inspect", "--format", "{{range .Config.Env}}{{println .}}{{end}}", container],
+    )->Option.mapOr(false, env => env->String.includes(`KEYS=${given->Array.join("\n")}`))
+
+/** The lock held while one caller makes or removes the builder, a directory `mkdir` makes at once,
+ * its holder's process id inside. */
+let lock = join([tmpdir(), `${container}.lock`])
+let holder = join([lock, "pid"])
+
+/** Whether a process of this id still runs. */
+let alive = id =>
+  try {
+    signal(id, 0)
+    true
+  } catch {
+  | _ => false
+  }
+
+let released = () => {
+  quiet("rm", ["-f", holder])->ignore
+  quiet("rmdir", [lock])->ignore
+}
+
+/** The lock taken, or a lock whose holder is gone cleared for the next try. */
+let taken = () =>
+  if quiet("mkdir", [lock])->Option.isSome {
+    writeFileSync(holder, Int.toString(pid))
+    Some()
+  } else {
+    let id = existsSync(holder) ? readFileSync(holder)->String.trim->Int.fromString : None
+    id->Option.mapOr(false, id => !alive(id)) ? released() : ()
+    None
+  }
+
+/** What `make` gives, run while this caller alone holds the lock, waited for up to five minutes. */
+let held = make =>
+  switch waited(300, taken) {
+  | None => Error(`a running caller held ${lock} past five minutes`)
+  | Some() =>
+    let result = try make() catch {
+    | _ => Error(`making ${container} threw`)
+    }
+    released()
+    result
+  }
+
+/** How a builder came to answer, reused as it ran or made anew. */
+type answered = Reused(string) | Made(string)
+
+/** The builder reused where it runs and answers, and otherwise made by one caller at a time; with
+ * `fresh`, one from another image or keys is made anew too. */
+let up = (~fresh) => {
+  let usable = config => !fresh || current(keys()) ? Some(config) : None
+  switch reused()->Option.flatMap(usable) {
+  | Some(config) => Ok(Reused(config))
+  | None =>
+    held(() =>
+      switch reused()->Option.flatMap(usable) {
+      | Some(config) => Ok(Reused(config))
+      | None => made()->Result.map(config => Made(config))
+      }
+    )
+  }
+}
+
+/** The builder reused or made, and the ssh configuration reaching it and `others`. */
 let started = others =>
-  running(container)
-    ? configured([builder, ...others])->Option.mapOr(
-        Error(`${container} gave no host key`),
-        c => Ok(c),
-      )
-    : up()->Result.flatMap(_ =>
-        configured([builder, ...others])->Option.mapOr(Error("a host key not read"), c => Ok(c))
-      )
+  up(~fresh=false)->Result.flatMap(_ => {
+    if !current(keys()) {
+      Console.error(`${container} runs another image or other keys; \`builder up\` makes it anew`)
+    }
+    configured([builder, ...others])->Option.mapOr(Error("a host key not read"), c => Ok(c))
+  })
 
 let built = (~config, arguments) =>
   switch said(
@@ -337,20 +410,29 @@ if isMain {
   let dry = args->Array.includes("--dry-run")
   switch args->Array.find(a => !(a->String.startsWith("--"))) {
   | Some("up") if dry =>
-    Console.log(`would stop and remove ${container} if it is there, keeping the volume ${volume}`)
-    Console.log(`would run ${image} as ${container}, privileged, its store the volume ${volume}`)
+    Console.log(`would reuse ${container} where it runs and answers from this image and keys,`)
+    Console.log(
+      `  and otherwise, holding ${lock}, stop and remove it, keeping the volume ${volume},`,
+    )
+    Console.log(`  and run ${image} as ${container}, privileged, its store the volume ${volume}`)
     Console.log(`would publish its sshd on localhost:${port}, root reached by this computer's keys`)
   | Some("up") =>
-    switch up() {
-    | Ok(_) => Console.log(`builder: ${container} answers as ${store} on localhost:${port}`)
+    switch up(~fresh=true) {
+    | Ok(Reused(_)) =>
+      Console.log(`builder: ${container} reused, answering as ${store} on localhost:${port}`)
+    | Ok(Made(_)) =>
+      Console.log(`builder: ${container} made, answering as ${store} on localhost:${port}`)
     | Error(why) => fail(`builder: ${why}`)
     }
   | Some("down") if dry =>
-    Console.log(`would stop and remove ${container}, keeping the volume ${volume}`)
+    Console.log(
+      `would hold ${lock}, then stop and remove ${container}, keeping the volume ${volume}`,
+    )
   | Some("down") =>
-    removed(container)
-      ? Console.log(`builder: ${container} removed, its store kept in ${volume}`)
-      : fail(`builder: ${container} not removed`)
+    switch held(() => removed(container) ? Ok() : Error(`${container} not removed`)) {
+    | Ok() => Console.log(`builder: ${container} removed, its store kept in ${volume}`)
+    | Error(why) => fail(`builder: ${why}`)
+    }
   | _ => fail("builder: say up or down, `builder up`")
   }
 }
