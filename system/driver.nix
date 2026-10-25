@@ -22,10 +22,16 @@ let
   port = lib.toInt (lib.last (lib.splitString ":" cfg.entry));
   # The most an artifact may be, a GiB.
   largest = 1073741824;
+  # Where the driver roots each container's runtime binary against the store's collector, written
+  # with no ReadWritePaths, which would give the unit the mount namespace `ip netns` cannot cross.
+  roots = "/nix/var/nix/gcroots/driver-machine";
   arguments = [
     "--runc=${runc}/bin/runc"
     "--crun=${crun}/bin/crun"
     "--youki=${youki}/bin/youki"
+    "--roots=${roots}"
+    # Each root made by nix-store, so a collection already running sees it.
+    "--nix-store=${config.nix.package}/bin/nix-store"
     "--plugins=${pkgs.cni-plugins}/bin"
     "--bridge=${bridge}"
     "--subnet=${subnet}"
@@ -200,7 +206,10 @@ in
         '';
       };
 
-      tmpfiles.rules = lib.mkIf (cfg.local != null) [ "d ${cfg.local} 0755 root root -" ];
+      tmpfiles.rules = [
+        "d ${roots} 0755 root root -"
+      ]
+      ++ lib.optional (cfg.local != null) "d ${cfg.local} 0755 root root -";
     };
     users.groups.${group} = { };
 
