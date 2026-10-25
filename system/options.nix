@@ -79,6 +79,115 @@ in
           description = "Path to a file containing the SSH key the machine reads a private flake on GitHub with.";
         };
       };
+      # A builder handing small machines their systems through a bucket, and a machine taking its
+      # own so, docs/cache.md.
+      cache = {
+        enable = mkOption {
+          type = types.bool;
+          default = false;
+          description = "Whether the machine takes its roles in the cache, a builder's for `builds` and a fetched machine's for `fetch`, once the bucket and its keys exist.";
+        };
+        bucket = mkOption {
+          type = types.str;
+          example = "machine-cache";
+          description = "Bucket on Cloudflare R2 a builder hands its machines their systems through; an absolute path stands a directory in for it on a test machine.";
+        };
+        credentials = mkOption {
+          type = types.nullOr file;
+          default = null;
+          description = "Path to an environment file holding the bucket's endpoint as MACHINE_CACHE_ENDPOINT, its host alone, and the token reaching it as AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY; null for a directory.";
+        };
+        builds = mkOption {
+          type = types.attrsOf (
+            types.submodule (
+              { name, ... }:
+              {
+                options = {
+                  flake = mkOption {
+                    type = types.str;
+                    example = "git+ssh://git@github.com/monoflake/cloud?dir=machines/<name>";
+                    description = "Flake the machine's system is built from, its own configuration, read as `nixosConfigurations.<name>`.";
+                  };
+                  at = mkOption {
+                    type = types.nullOr types.str;
+                    default = null;
+                    example = "14:30";
+                    description = "Time of day, in UTC, the run for the machine starts, an hour before its own upgrade; null for a fallback builder, whose run is started by hand.";
+                  };
+                  host = mkOption {
+                    type = types.str;
+                    default = name;
+                    description = "Host the machine is reached at by ssh, through the tailnet where this machine runs one.";
+                  };
+                };
+              }
+            )
+          );
+          default = { };
+          description = "Machines this one builds the system of and hands through the bucket, each by its name.";
+        };
+        builder = {
+          signingKey = mkOption {
+            type = types.nullOr file;
+            default = null;
+            description = "Path to a file containing the Nix secret key every path uploaded is signed with.";
+          };
+          pointerKey = mkOption {
+            type = types.nullOr file;
+            default = null;
+            description = "Path to a file containing the SSH private key a pointer is signed with, by `ssh-keygen -Y sign -n machine-cache`.";
+          };
+          accessKey = mkOption {
+            type = types.nullOr file;
+            default = null;
+            description = "Path to a file containing the SSH private key the builder reaches a machine's user machine-cache with.";
+          };
+          cap = mkOption {
+            type = types.ints.positive;
+            default = 5000000000;
+            description = "Bytes the bucket may hold; a run that would pass it uploads nothing and fails.";
+          };
+          store = mkOption {
+            type = types.nullOr types.str;
+            default = null;
+            example = "local?root=/var/lib/machine-proof/root";
+            description = "Nix store a run builds in, the machine's own when null; another root keeps a test machine that builds its own system from holding what it builds.";
+          };
+        };
+        fetch = {
+          builders = mkOption {
+            type = types.listOf (
+              types.submodule {
+                options = {
+                  pointer = mkOption {
+                    type = types.str;
+                    description = "SSH public key the builder signs a pointer with.";
+                  };
+                  nix = mkOption {
+                    type = types.str;
+                    example = "builder-1:<base64>";
+                    description = "Nix public key the builder signs the paths it uploads with.";
+                  };
+                  access = mkOption {
+                    type = types.str;
+                    description = "SSH public key the builder reaches the user machine-cache with.";
+                  };
+                };
+              }
+            );
+            default = [ ];
+            description = "Builders the machine takes its system from, each by its public keys; any makes it a fetched machine, whose daily upgrade at `machine.upgrade.at` fetches its system in place of evaluating its flake.";
+          };
+          from = mkOption {
+            type = types.listOf types.str;
+            default = [
+              "100.64.0.0/10"
+              "fd7a:115c:a1e0::/48"
+            ];
+            description = "Addresses a builder's access key is taken from, the tailnet's.";
+          };
+        };
+      };
       tailnet.authKeyFile = mkOption {
         type = types.nullOr file;
         default = null;

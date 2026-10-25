@@ -1,6 +1,7 @@
 # A machine's Nix, flakes on, no channels, registry or installer tools.
 {
   imports = [
+    ./cache
     ./collect.nix
     ./upgrade.nix
   ];
