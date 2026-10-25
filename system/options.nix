@@ -133,8 +133,8 @@ in
         };
         host = mkOption {
           type = types.str;
-          example = "app-1.b1";
-          description = "Host every request through the tunnel is rewritten to, the deployment's address `app-<id>.b<binding>` the entry chooses by.";
+          example = "0a1b2c3d.b1";
+          description = "Host every request through the tunnel is rewritten to, the deployment's address `<id in 8 hex>.b<binding>` the entry chooses by.";
         };
         origin = mkOption {
           type = types.str;

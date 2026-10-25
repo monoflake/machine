@@ -95,7 +95,7 @@
             };
             machine.tunnel = {
               enable = true;
-              host = "app-1.b1";
+              host = "0a1b2c3d.b1";
             };
           };
           local =

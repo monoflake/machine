@@ -65,10 +65,11 @@ it but by ssh. The driver runs what monoflake/driver's `mise run dev local` copi
 own, so `dev local` does not check it, as the tools for a virtual machine on `localhost` do not.
 
 Its entry is published on `localhost:8080`, plain HTTP, and hands a request to the deployment the
-leftmost two labels of its host name, `app-<id>.b<binding>`, the rest passed over, RFC n0o4l:
+leftmost two labels of its host name, `<id>.b<binding>`, its id in 8 lowercase hex digits as
+platform's RFC b8f35 writes it and the deploy printed it, the rest passed over, RFC n0o4l:
 
 ```sh
-curl -H 'Host: app-1.b1.local' http://localhost:8080/
+curl -H 'Host: 0a1b2c3d.b1.local' http://localhost:8080/
 ```
 
 A host naming no deployment is answered 404, and one naming a deployment not running 503. Every
