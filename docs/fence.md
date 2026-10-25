@@ -62,9 +62,10 @@ nothing for it, and its bridge is in the fence's rules all the same, so where co
 anyway, its entry is closed and its containers are held by the fence while the fence is loaded.
 
 What the machine does not hold is the order. The live driver and its entry require the fence, but
-conform's driver is a transient unit conform starts itself, which requires nothing, so were the
-fence absent, as before it loads at boot, conform would still start and its containers would run
-unfenced. Refusing to start without the fence's tables is conform's to do.
+conform's driver is a transient unit conform starts itself, which the module's drop-in makes
+require /data and nothing of the fence, so were the fence absent, as before it loads at boot,
+conform would still start and its containers would run unfenced. Refusing to start without the
+fence's tables is conform's to do.
 
 ## What holds it
 

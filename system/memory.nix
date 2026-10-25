@@ -3,6 +3,7 @@
   config,
   lib,
   pkgs,
+  utils,
   ...
 }:
 let
@@ -16,6 +17,9 @@ let
       memory
     else
       lib.min 16384 (lib.max 8192 (memory / 2));
+  device = "/data/swap/swapfile";
+  # The swap unit's name, as systemd names it from the file's path.
+  unit = utils.escapeSystemdPath device;
 in
 {
   # A container takes none, its memory and kernel being its host's.
@@ -31,15 +35,34 @@ in
     # is set once the system is up rather than on the kernel's line.
     swapDevices = [
       {
-        device = "/data/swap/swapfile";
+        inherit device;
         size = swap;
+        # Out of swap.target, which sysinit.target waits for, so a missing /data holds up no boot.
+        # Kept in fstab, since switch-to-configuration-ng swaps off a device gone from it, main.rs.
+        options = [ "noauto" ];
       }
     ];
     systemd = {
       tmpfiles.rules = [
         "w- /sys/module/zswap/parameters/compressor - - - - ${config.machine.swap.compressor}"
       ];
-      services.mkswap-data-swap-swapfile.preStart = "[ -d /data/swap ] || ${pkgs.unstable.btrfs-progs}/bin/btrfs subvolume create /data/swap";
+      services."mkswap-${unit}" = {
+        unitConfig.RequiresMountsFor = [ "/data" ];
+        preStart = "[ -d /data/swap ] || ${pkgs.unstable.btrfs-progs}/bin/btrfs subvolume create /data/swap";
+      };
+      # fstab's unit wanted by multi-user.target and before the data plane, in no boot target, so a
+      # switch, which turns off only a swap gone from fstab, passes over it.
+      units."${unit}.swap" = {
+        overrideStrategy = "asDropin";
+        text = ''
+          [Unit]
+          DefaultDependencies=no
+          RequiresMountsFor=/data
+          Before=umount.target containerd.service driver-machine.service
+          Conflicts=umount.target
+        '';
+      };
+      targets.multi-user.wants = [ "${unit}.swap" ];
     };
   };
 }

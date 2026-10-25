@@ -114,6 +114,8 @@ in
           stopIfChanged = false;
           unitConfig = {
             ConditionPathExists = lib.mkIf (cfg.override != null) cfg.override;
+            # Never started without the data disk containerd keeps its containers on.
+            RequiresMountsFor = [ "/data" ];
             # Started again however often it ends, as the data plane is never given up on.
             StartLimitIntervalSec = 0;
           };
@@ -173,6 +175,29 @@ in
         description = "The machine's entry's listener, held while the entry restarts";
         wantedBy = [ "sockets.target" ];
         listenStreams = [ cfg.entry ];
+        # Not listening without the data disk, which a connection would retry the entry against,
+        # and not before sockets.target, so the disk holds up nothing else at boot.
+        unitConfig = {
+          DefaultDependencies = false;
+          RequiresMountsFor = [ "/data" ];
+        };
+        requires = [ "sysinit.target" ];
+        after = [ "sysinit.target" ];
+        # Listening before the driver starts the containers that reach it, RFC ehm48.
+        before = [
+          "driver-machine.service"
+          "shutdown.target"
+        ];
+        conflicts = [ "shutdown.target" ];
+      };
+
+      # conform's driver, a transient unit conform starts, given the same need by a drop-in alone.
+      units."conform.service" = lib.mkIf config.machine.conform.enable {
+        overrideStrategy = "asDropin";
+        text = ''
+          [Unit]
+          RequiresMountsFor=/data
+        '';
       };
 
       tmpfiles.rules = lib.mkIf (cfg.local != null) [ "d ${cfg.local} 0755 root root -" ];

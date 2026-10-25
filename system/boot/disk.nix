@@ -46,4 +46,8 @@
       };
     };
   };
+
+  # The data disk missing or broken fails no boot, as each unit on it requires its mount and
+  # `degraded.nix` marks it.
+  fileSystems."/data".options = [ "nofail" ];
 }

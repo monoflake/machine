@@ -5,7 +5,10 @@ let
   serial = if pkgs.stdenv.hostPlatform.isAarch64 then "ttyAMA0" else "ttyS0";
 in
 {
-  imports = [ ./disk.nix ];
+  imports = [
+    ./disk.nix
+    ./degraded.nix
+  ];
 
   boot = {
     # BIOS and EFI on a PC; EFI alone on Arm, which has no BIOS GRUB, so its partition idles.
