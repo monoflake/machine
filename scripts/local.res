@@ -23,6 +23,14 @@ let driver = "37483"
 /** Each port published on this computer's loopback alone and its own inside, the entry twice, its
  * own port the one a control here reaches. */
 let published = [(port, "22"), (entry, entered), (entered, entered), (driver, driver)]
+/** A real machine's public nameservers, its `networking.nameservers` in system/network/default.nix,
+ * as the fence drops Docker's own resolver, and Docker's name for this computer kept by Docker. */
+let nameservers = ["1.1.1.1", "8.8.8.8"]
+let hosts = ["host.docker.internal:host-gateway"]
+let named = [
+  ...nameservers->Array.flatMap(n => ["--dns", n]),
+  ...hosts->Array.flatMap(h => ["--add-host", h]),
+]
 /** The store, and what outlives the container, the disk, the driver's state and sshd's key. */
 let nix = "machine-local-nix"
 let state = "machine-local-state"
@@ -118,6 +126,7 @@ let booted = path =>
           "--publish",
           `127.0.0.1:${outside}:${inside}`,
         ]),
+        ...named,
         "--tmpfs",
         "/run:exec,mode=755,size=256m",
         "--tmpfs",
@@ -145,15 +154,24 @@ let booted = path =>
     }
   }
 
-/** Whether it runs and publishes every port, so one started before a port was published is
- * started again rather than switched. */
+/** Whether it runs, publishes every port and resolves as `named` has it, so one started before
+ * either was given is started again rather than switched. */
 let current = () =>
   Builder.running(container) &&
   published->Array.every(((outside, inside)) =>
     Builder.quiet("docker", ["port", container, `${inside}/tcp`])->Option.mapOr(false, ports =>
       ports->String.includes(`127.0.0.1:${outside}`)
     )
-  )
+  ) &&
+  Builder.quiet(
+    "docker",
+    [
+      "inspect",
+      "--format",
+      `{{join .HostConfig.Dns " "}} {{join .HostConfig.ExtraHosts " "}}`,
+      container,
+    ],
+  ) == Some(`${nameservers->Array.join(" ")} ${hosts->Array.join(" ")}`)
 
 let up = () =>
   system()
@@ -187,11 +205,13 @@ if isMain {
   | Some("up") if dry =>
     Console.log(`would start ${Builder.container} unless it runs, and build local/ in it`)
     Console.log(`would switch ${container} to it over ssh on localhost:${port} if it runs with`)
-    Console.log(`  its entry published`)
+    Console.log(`  its entry published and the nameservers ${nameservers->Array.join(" ")}`)
     Console.log(`would otherwise remove ${container}, copy it into the volume ${nix} and start`)
     Console.log(`  ${container} on it, privileged, its state the volume ${state}, its sshd on`)
     Console.log(`  localhost:${port}, its entry on localhost:${entry} and localhost:${entered}`)
-    Console.log(`  and its driver on localhost:${driver}`)
+    Console.log(
+      `  and its driver on localhost:${driver}, resolving by ${nameservers->Array.join(" ")}`,
+    )
   | Some("up") =>
     switch up() {
     | Ok(_) =>

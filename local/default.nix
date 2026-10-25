@@ -14,8 +14,8 @@ in
   };
   disko.enableConfig = false;
 
-  # Docker gives the address and binds /etc/resolv.conf, and publishes only ssh, the entry and the
-  # driver, on localhost.
+  # Docker gives the address, the public nameservers and its name for this computer, and publishes
+  # only ssh, the entry and the driver, on localhost, scripts/local.res.
   networking = {
     hostName = "local";
     useDHCP = lib.mkForce false;
@@ -34,6 +34,11 @@ in
     # Neither is read in a container, which has no disk of its own to install to and takes no swap.
     disk = "/dev/null";
     memory = 4096;
+    # conform's entry and driver, monoflake/platform's conform tool, which runs beside the machine.
+    reservedPorts = [
+      46879
+      47483
+    ];
   };
 
   # btrfs with simple quotas, as a machine's data partition is, sparse until written.

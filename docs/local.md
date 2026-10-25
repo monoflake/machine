@@ -45,9 +45,12 @@ run, naming the container's port and the host key read from it, and including th
 ## The local machine
 
 `local/` is the module that makes this repository's machine a container: `boot.isContainer`, no
-boot loader, no tailnet or firewall, Docker's address and resolver, and `/data` btrfs with simple
-quotas on a sparse loop file in the state volume. It runs privileged with a cgroup namespace of its
-own, so containerd and the driver's containers run inside it.
+boot loader, no tailnet or firewall, Docker's address, and `/data` btrfs with simple quotas on a
+sparse loop file in the state volume. Docker gives it a real machine's public nameservers, by
+`--dns`, as the fence drops Docker's own resolver to a container, and its name for this computer,
+`host.docker.internal`, by `--add-host`; `scripts/local.res` passes both. `/etc/resolv.conf` and
+`/etc/hosts` are Docker's files, and no unit rewrites either. It runs privileged with a cgroup
+namespace of its own, so containerd and the driver's containers run inside it.
 
 At first boot it makes its binding token, `/var/lib/driver-machine/binding`, which never leaves
 it but by ssh. The driver runs what monoflake/driver's `mise run dev local` copies in, and takes

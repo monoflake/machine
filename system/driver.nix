@@ -16,8 +16,10 @@ let
     ;
   binary = if cfg.override != null then cfg.override else lib.getExe' cfg.package "driver-machine";
   # What the container kind's containers are given addresses from, on a bridge of its own.
-  bridge = "driver0";
+  bridge = import ./network/bridge.nix;
   subnet = "10.88.0.0/16";
+  # The entry's port, from the same option the entry listens on.
+  port = lib.toInt (lib.last (lib.splitString ":" cfg.entry));
   # The most an artifact may be, a GiB.
   largest = 1073741824;
   arguments = [
@@ -27,6 +29,7 @@ let
     "--plugins=${pkgs.cni-plugins}/bin"
     "--bridge=${bridge}"
     "--subnet=${subnet}"
+    "--entry=${toString port}"
     "--btrfs=${btrfs-progs}/bin/btrfs"
     "--largest=${toString largest}"
   ]
@@ -120,6 +123,7 @@ in
               "entry"
               "--listen=${cfg.entry}"
               "--containerd=${socket}"
+              "--subnet=${subnet}"
             ];
             Restart = "always";
             RestartSec = 1;

@@ -35,6 +35,12 @@ in
         default = "zstd";
         description = "Compressor zswap uses for swapped pages; lz4 for a weak processor.";
       };
+      reservedPorts = mkOption {
+        type = types.listOf types.port;
+        default = [ ];
+        example = [ 46879 ];
+        description = "Ports kept out of the range Linux gives a connection its own port from, besides the entry's and the driver's, which are always kept.";
+      };
       upgrade = {
         flake = mkOption {
           type = types.nullOr types.str;
