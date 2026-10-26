@@ -39,7 +39,7 @@ in
         type = types.listOf types.port;
         default = [ ];
         example = [ 9100 ];
-        description = "Ports kept out of the range Linux gives a connection its own port from, besides the entry's and the driver's, which are always kept, and conform's where it runs.";
+        description = "Ports kept out of the range Linux gives a connection its own port from, besides the entry's and the driver's, which are always kept, and conform's where it runs; a peer relay's port, machine.tailnet.relayPort, joins them where set.";
       };
       # The ports are monoflake/platform's conform's own, code/tools/conform/src/instance.res, and
       # its bridge is a constant in network/bridge.nix.
@@ -188,7 +188,8 @@ in
           };
         };
       };
-      # The machine's place on the tailnet and whether it is an exit node, docs/tailnet.md.
+      # The machine's place on the tailnet and whether it is an exit node or a peer relay,
+      # docs/tailnet.md.
       tailnet = {
         authKeyFile = mkOption {
           type = types.nullOr file;
@@ -199,6 +200,13 @@ in
           type = types.bool;
           default = false;
           description = "Whether the machine advertises itself as a Tailscale exit node, forwarding with Tailscale's stateful filtering on, which the tailnet's admin has to approve before any traffic leaves through it; turning it off does not withdraw an advertisement already made, docs/tailnet.md.";
+        };
+        # Never 0, which Tailscale reads as a random port the firewall could not open.
+        relayPort = mkOption {
+          type = types.nullOr (types.ints.between 1 65535);
+          default = null;
+          example = 40000;
+          description = "Fixed UDP port the machine serves as a Tailscale peer relay on, opened in its firewall and kept out of the range Linux gives a connection its own port from, which the tailnet's policy has to grant before any client relays through it; null for none, and removing the option does not stop the relay Tailscale already runs, docs/tailnet.md.";
         };
       };
       driver = {

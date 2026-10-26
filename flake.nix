@@ -61,9 +61,8 @@
         description = "NixOS configuration for a Linux container host";
       };
 
-      # The template as it stands, with the driver on as a test machine runs it and with a tunnel to
-      # it, the bound host's units in both, the template as an exit node, and the local machine,
-      # each built as a machine of each system would be.
+      # The template as it stands, with the driver on and with a tunnel, both with the bound host's
+      # units, as an exit node, as a peer relay, and the local machine, built for each system.
       checks = nixpkgs.lib.genAttrs linux (
         s:
         let
@@ -99,6 +98,7 @@
             };
           };
           exitNode = template { machine.tailnet.exitNode = true; };
+          relay = template { machine.tailnet.relayPort = 40000; };
           local =
             (self.lib.local {
               system = s;

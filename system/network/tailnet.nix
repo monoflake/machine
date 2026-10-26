@@ -1,5 +1,5 @@
 # A machine's place on the tailnet, joined at boot by the machine's auth key, unstable's Tailscale,
-# and an exit node where the machine is one, docs/tailnet.md.
+# and an exit node or a peer relay where the machine is one, docs/tailnet.md.
 {
   config,
   lib,
@@ -7,7 +7,8 @@
   ...
 }:
 let
-  inherit (config.machine.tailnet) exitNode;
+  inherit (config.machine.tailnet) exitNode relayPort;
+  relay = relayPort != null;
 in
 {
   services.tailscale = {
@@ -25,6 +26,11 @@ in
     ++ lib.optionals exitNode [
       "--advertise-exit-node"
       "--stateful-filtering=true"
-    ];
+    ]
+    ++ lib.optionals relay [ "--relay-server-port=${toString relayPort}" ];
   };
+  # The relay's port, which Tailscale leaves closed, accepted on input as `openFirewall` accepts
+  # Tailscale's own, and kept from the ports Linux gives a connection.
+  networking.firewall.allowedUDPPorts = lib.mkIf relay [ relayPort ];
+  machine.reservedPorts = lib.mkIf relay [ relayPort ];
 }
