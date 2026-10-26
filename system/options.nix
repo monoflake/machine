@@ -231,7 +231,7 @@ in
           };
           cap = mkOption {
             type = types.ints.positive;
-            default = 5000000000;
+            default = 8000000000;
             description = "Bytes the bucket may hold; a run that would pass it uploads nothing and fails.";
           };
           store = mkOption {

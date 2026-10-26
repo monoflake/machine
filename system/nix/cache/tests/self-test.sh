@@ -46,7 +46,7 @@ bash -euo pipefail "$t/run.sh" a1 --self
 export TEST_CACHE_HAS=true
 : >"$t/uploaded"
 bash -euo pipefail "$t/run.sh" a1 --self
-[ "$(cat "$t/uploaded")" = nix-cache-info ]
+[ ! -s "$t/uploaded" ]
 echo "self: newer pointer first, equal pointer fallback, nonzero cap and swept upload passed"
 
 jq '.machine="b1"' "$t/fetch.json" >"$t/refused-fetch.json"

@@ -15,6 +15,7 @@ finish() {
 	fi
 	[ "$lock_owned" = false ] || rm -f "$lock.owner" || status=$?
 	[ -z "$work" ] || rm -rf "$work" || status=$?
+	if [ "$sweep_refused" = true ] && [ "$status" = 0 ]; then status=1; fi
 	if [ "$self" = true ]; then
 		printf 'machine-cache outcome=%s consumer=%s self=%s\n' "$outcome" "$machine" "$self_outcome"
 	else
@@ -29,6 +30,7 @@ if [[ ${BASH_SOURCE[0]} == "$0" ]]; then
 	outcome=failed
 	self_outcome=failed
 	fetch_failed=false
+	sweep_refused=false
 	lock_owned=false
 	work=""
 	trap 'finish "$?"' EXIT
@@ -50,16 +52,20 @@ ask() {
 
 # Objects are listed before deltas so concurrent uploads remain protected.
 protect_path() {
-	local path=$1 hash info url ref
+	local path=$1 marker=${2:-} hash info url ref
 	local -a refs
 	hash=${path##*/}; hash=${hash%%-*}
 	grep -qxF "$hash.narinfo" "$work/kept" && return 0
 	echo "$hash.narinfo" >>"$work/kept"
-	info=$(rclone cat "$objects/$hash.narinfo" 2>/dev/null) || return 0
+	if ! info=$(rclone cat "$objects/$hash.narinfo" 2>/dev/null) || [ -z "$info" ]; then
+		[ -n "$marker" ] || return 0
+		echo "machine-cache: sweep refused, self marker $marker needs unreadable narinfo $hash.narinfo; nothing deleted" >&2
+		return 1
+	fi
 	url=$(sed -n 's/^URL: //p' <<<"$info")
 	[ -z "$url" ] || echo "$url" >>"$work/kept"
 	read -r -a refs <<<"$(sed -n 's/^References: //p' <<<"$info")"
-	for ref in "${refs[@]}"; do protect_path "$ref"; done
+	for ref in "${refs[@]}"; do protect_path "$ref" "$marker" || return 1; done
 }
 forget() {
 	local suffix
@@ -68,12 +74,26 @@ forget() {
 	done
 }
 sweep() {
-	local m b pointer at newest newest_path applied o modified now running
+	local m b pointer at newest newest_path applied o modified now running info
 	now=$(date -u +%s)
 	rclone lsjson -R --files-only "$objects" >"$work/listed.json"
 	jq -r '.[].Path' "$work/listed.json" | sort >"$work/listed"
 	: >"$work/kept"
 	echo nix-cache-info >>"$work/kept"
+	while read -r b; do
+		if ! rclone cat "$objects/$b" >"$work/candidate" 2>/dev/null || [ ! -s "$work/candidate" ]; then
+			echo "machine-cache: sweep refused, self marker $b cannot be read; nothing deleted" >&2
+			sweep_refused=true
+			return 0
+		fi
+		if cache_record_valid "$work/candidate" "$now" 2>/dev/null; then
+			if ! protect_path "$(jq -r .path "$work/candidate")" "$b"; then
+				sweep_refused=true
+				return 0
+			fi
+		else echo "machine-cache: self marker $b names no valid path or time, passed over"
+		fi
+	done < <(grep -E '^self/[^/]+$' "$work/listed" || true)
 	for m in $(jq -r '.machines | keys[]' "$given"); do
 		if grep -qxF "pending/$m" "$work/listed"; then
 			rclone cat "$objects/pending/$m" >"$work/candidate" 2>/dev/null || true
@@ -120,13 +140,33 @@ sweep() {
 		rclone cat "$objects/$o" >>"$work/kept" 2>/dev/null || true
 	done < <(rclone lsf -R --files-only "$objects" | grep '\.objects$' || true)
 	sort -u "$work/kept" >"$work/kept.sorted"
+	: >"$work/expired"
 	while IFS=$'\t' read -r o modified; do
-		[[ $o != pending/* ]] || continue
+		[[ $o != pending/* && $o != self/* ]] || continue
 		grep -qxF "$o" "$work/kept.sorted" && continue
 		modified=$(cache_epoch "$modified" 2>/dev/null) || continue
 		((now - modified >= 7200)) || continue
-		rclone deletefile "$objects/$o" 2>/dev/null || true
+		echo "$o" >>"$work/expired"
 	done < <(jq -r '.[] | [.Path, .ModTime] | @tsv' "$work/listed.json")
+	# A remaining narinfo keeps its NAR even when another path shares that NAR, docs/cache.md.
+	while read -r o; do
+		[[ $o != pending/* && $o != self/* && $o == *.narinfo ]] || continue
+		if grep -qxF "$o" "$work/expired" && rclone deletefile "$objects/$o" 2>/dev/null; then
+			continue
+		fi
+		if ! info=$(rclone cat "$objects/$o" 2>/dev/null); then
+			echo "machine-cache: sweep refused, remaining narinfo $o cannot be read; remaining objects kept" >&2
+			sweep_refused=true
+			return 0
+		fi
+		sed -n 's/^URL: //p' <<<"$info" >>"$work/kept"
+	done <"$work/listed"
+	sort -u "$work/kept" >"$work/kept.sorted"
+	while read -r o; do
+		[[ $o != *.narinfo ]] || continue
+		grep -qxF "$o" "$work/kept.sorted" && continue
+		rclone deletefile "$objects/$o" 2>/dev/null || true
+	done <"$work/expired"
 }
 
 publish() {
@@ -397,14 +437,27 @@ if ((used + added > cap)); then
 	exit 1
 fi
 
+{
+	grep -qxF nix-cache-info <(cut -d ' ' -f 2- "$work/sized") || echo nix-cache-info
+	cat "$work/delta"
+} >"$work/upload"
+grep -v '\.narinfo$' "$work/upload" >"$work/upload-data" || { status=$?; [ "$status" = 1 ] || exit "$status"; }
+grep '\.narinfo$' "$work/upload" >"$work/upload-narinfo" || { status=$?; [ "$status" = 1 ] || exit "$status"; }
 if [ "$self" = false ]; then
 	for o in "$prefix" "$prefix.sig"; do
 		rclone deletefile "$objects/$o" 2>/dev/null || true
 	done
 	rclone copyto "$work/delta" "$objects/$prefix.objects"
 fi
-rclone copy --no-traverse --files-from-raw <(echo nix-cache-info && cat "$work/delta") \
-	"$work/staging" "$objects"
-[ "$self" = true ] || publish
+for pass in data narinfo; do
+	if [ -s "$work/upload-$pass" ]; then
+		rclone copy --no-traverse --files-from-raw "$work/upload-$pass" "$work/staging" "$objects"
+	fi
+done
+if [ "$self" = true ]; then
+	cache_record "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$system" "$work/self"
+	rclone copyto "$work/self" "$objects/self/$builder"
+else publish
+fi
 
 outcome=built

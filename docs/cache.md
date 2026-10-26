@@ -22,10 +22,11 @@ meet, and the cap is measured by one run at a time. A run, `run.sh`, for its one
    `current`, is deleted with its signature and its delta; a pointer of this builder at
    `pending/<name>/<builder>` is retired once the machine reports a newer one applied, asked by
    `applied`. Then every object is deleted that no pending delta names, that the newest pointer of
-   none of this builder's machines needs, and that is older than two hours; `nix-cache-info` and
-   `pending/` are kept. The objects are listed before the deltas are read, and a run writes its
-   delta before its objects, so another builder's delivery meanwhile is kept by its delta, and a
-   builder's own upload, which writes none, by its age. A machine with no pointer is passed over,
+   none of this builder's machines needs, that no builder's self marker needs, and that is older
+   than two hours; `nix-cache-info`, `pending/` and `self/` are kept. The objects are listed before
+   the deltas and markers are read, and a run writes its delta before its objects, so another
+   builder's delivery meanwhile is kept by its delta, and a self upload before its marker by its
+   age. A machine with no pointer is passed over,
    since `rclone cat` of a missing R2 object prints nothing and exits 0, seen on 2026-10-26; a
    pointer whose machine cannot be asked is kept, a line saying so.
 2. **Builds the machine's system** from its flake, `nixosConfigurations.<name>`, keeping the last
@@ -41,8 +42,8 @@ meet, and the cap is measured by one run at a time. A run, `run.sh`, for its one
 4. **Signs the closure into a directory**, `nix copy` to a `file://` store with the builder's Nix
    key, zstd compressed, and takes from it the narinfo and the NAR of each path the machine lacks.
 5. **Measures the bucket**: where what it holds and what the delta adds pass
-   `machine.cache.builder.cap`, 5 GB by default, it uploads nothing, writes no pointer, and fails
-   the unit.
+   `machine.cache.builder.cap`, 8 GB by default, it uploads nothing, writes no pointer, and fails
+   the unit. The cap is provisional, chosen by the advisor on 2026-10-26.
 6. **Uploads the delta** under its prefix, `pending/<name>` with one unnamed builder and
    `pending/<name>/<builder>` otherwise: the old pointer deleted first, the delta's list written as
    `<prefix>.objects`, the objects copied, then the signature and the pointer last, so a pointer
@@ -129,14 +130,31 @@ to 3, a missing flake, two slots of one builder closer than a gap or a time diff
   clock. A builder that finds the machine already running its system writes a confirming pointer,
   which switches nothing.
 - **A builder's own system**: above 4096 MB of memory it builds and switches at its own time and
-  uploads what the cache lacks; below, it takes a pointer for itself from the other builders first
+  uploads what the cache lacks. Its newest self upload is kept through its closure, including
+  paths uploaded on earlier days, so an unchanged system uploads no paths again, decided by the
+  author on 2026-10-26. A completed build, switch and upload replaces `self/<builder>` last; a run
+  that fetched its system leaves the old marker alone, provisional, chosen by the advisor on
+  2026-10-26. Below 4096 MB, it takes a pointer for itself from the other builders first
   and builds itself where none is newer than its last applied; a refused pointer or a failed read
   does not stop it, and the run fails afterwards naming each, provisional, chosen by the advisor on
   2026-10-26, so the machine has its system and the failure is still seen.
 - **The sweep**, step 1 above, walks the newest pointers of the sweeping builder's own machines;
-  another machine's objects are kept by its delta, and a builder's own upload, which writes none,
-  by the two hours it is spared. A builder retires its own older pointers once the machine reports
-  a newer one applied, and one at `pending/<name>` once the machine runs its path.
+  another machine's objects are kept by its delta. Every builder's sweep also reads every
+  builder's self marker and follows its path's references with `protect_path`, exactly as for the
+  newest pointer. Only the replacement marker's closure counts for that builder; objects it no
+  longer needs expire after two hours unless another marker, pointer or delta keeps them, and
+  markers themselves never expire by age, provisional, chosen by the advisor on 2026-10-26.
+  If a listed marker or any narinfo in its closure cannot be read, the sweep deletes nothing;
+  the run still builds and uploads, names the refusal on stderr and exits nonzero while keeping
+  its outcome, provisional, chosen by the advisor on 2026-10-26. The deferred `cache-rest` race
+  between two builders' sweeps covers markers too, so a sweep can delete an object a newer marker
+  reuses.
+  A builder retires its own older pointers once the machine reports a newer one applied, and one
+  at `pending/<name>` once the machine runs its path.
+  An expired path's narinfo is deleted before its NAR. Every narinfo that remains, whether kept
+  by a marker, pointer, delta, age or a failed deletion, keeps its NAR even when another path
+  shares it; an old NAR with no remaining narinfo still expires, provisional, chosen by the
+  advisor on 2026-10-26.
 - **`/var/lib/machine` keeps systemd's default mode**: the cache's units, the seed's and the
   addresses' share it, and the user `machine-cache` reads `cache-applied` there, so no unit sets a
   `StateDirectoryMode` for it and secrecy comes per file through `UMask`, which
@@ -163,6 +181,27 @@ other line begins `machine-cache outcome=`; `tests/outcome-test.sh` holds every 
 
 ## The bucket and its credentials
 
+**A self marker lives at `self/<builder>`**, one object per builder replacing its predecessor,
+provisional, chosen by the advisor on 2026-10-26. Its JSON has the pointer's `path` and `at`:
+
+```json
+{ "path": "/nix/store/...-nixos-system-...", "at": "2026-10-26T14:00:00Z" }
+```
+
+The separate `self/` prefix keeps markers outside the consumer pointers at `pending/<name>` and
+`pending/<name>/<builder>`. Fetch, slot and the sweep's pointer loop cannot take one as a pointer,
+which `pending/<builder>/self` would allow. A marker is an unsigned retention record with no
+consumer `machine`, signature or delta list; Nix signatures still govern substituted paths,
+provisional, chosen by the advisor on 2026-10-26. Every object other than narinfo files is uploaded
+in a first pass, then the narinfo files in a second, and the marker last, so a narinfo always has
+its NAR even after an interrupted upload, provisional, chosen by the advisor on 2026-10-26.
+Both pass lists must be read successfully before delta publication or object upload; an empty
+list is allowed, but a read error fails the run and keeps the old marker, provisional, chosen by
+the advisor on 2026-10-26.
+Objects still present and `nix-cache-info` already present are not uploaded again, provisional,
+chosen by the advisor on 2026-10-26. A repeated build refreshes the marker's `at` while leaving
+the closure objects unchanged.
+
 `machine.cache.bucket` names the bucket; `machine.cache.credentials` is an environment file holding
 its endpoint, `MACHINE_CACHE_ENDPOINT`, and the token reaching it, `AWS_ACCESS_KEY_ID` and
 `AWS_SECRET_ACCESS_KEY`, read and written by `rclone` on a builder, read by `curl --aws-sigv4` and
@@ -182,7 +221,13 @@ SSH key signing pointers; and `accessKey`, the SSH key reaching the wrapper.
 slots, claims and pointers, delivery, the lock, the own system, the inventory's derivation and the
 module's units against a directory with `rclone` and `ssh` faked, and the legacy layout against a
 fixture recorded from the one-builder code, `tests/fixtures/legacy-layout.json`; and that the run as
-built holds git on its PATH, which a live `git+ssh` flake needed on 2026-10-26.
+built holds git on its PATH, which a live `git+ssh` flake needed on 2026-10-26. The tests under
+`tests/self-marker/` cover marked references surviving a daily sweep, unmarked and superseded
+uploads expiring, a repeated self build uploading no closure objects, publication order, keeping
+the old marker after a fetch or upload failure, refusal of all deletion on a marker or marked
+narinfo read failure with a visible run failure, retry after an interruption between upload
+passes, both upload list read errors, narinfo deletion failures, shared and orphan NARs, and
+isolation from all three pointer readers.
 
 **On a test machine** an absolute path stands a directory in for the bucket, with no credentials,
 and `machine.cache.builder.store` builds in a store of another root, so a machine building its own

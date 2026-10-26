@@ -74,6 +74,7 @@ let
     ];
     assert !small.system.autoUpgrade.enable;
     assert !large.system.autoUpgrade.enable;
+    assert large.machine.cache.builder.cap == 8000000000;
     assert small.systemd.services.machine-cache-self.serviceConfig.ExecStart != "";
     assert !(small.systemd.timers ? machine-cache-fetch);
     assert small.systemd.services.machine-cache-fetch.serviceConfig.ExecStart != "";
