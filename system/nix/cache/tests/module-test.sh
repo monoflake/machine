@@ -6,7 +6,7 @@ trap 'rm -rf "$t"' EXIT
 rsync -a --exclude=.jj --exclude=.git --exclude=node_modules ../../../../ "$t/"
 nix eval --impure --json --expr "
 let flake = builtins.getFlake \"path:$t\";
-in import $(pwd)/module-test.nix { inherit flake; }
+in import $(pwd)/eval/module-test.nix { inherit flake; }
 " >"$t/result"
 jq -e 'all(.[]; .passed)' "$t/result" >/dev/null
 for system in x86_64-linux aarch64-linux; do

@@ -8,7 +8,7 @@ let
         (lib.nixosSystem {
           modules = [
             flake.nixosModules.machine
-            ../../../template/configuration.nix
+            ../../../../template/configuration.nix
             {
               nixpkgs.hostPlatform = "x86_64-linux";
               networking.hostName = lib.mkForce name;

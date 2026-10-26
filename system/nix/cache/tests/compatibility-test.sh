@@ -44,7 +44,7 @@ mkdir "$t/flake"
 rsync -a --exclude=.jj --exclude=.git --exclude=node_modules "$cache_dir/../../../../" "$t/flake/"
 "$real_nix" eval --impure --json --expr "
 let flake = builtins.getFlake \"path:$t/flake\";
-in import $cache_dir/compatibility-test.nix {
+in import $cache_dir/eval/compatibility-test.nix {
   inherit flake;
   keys = map builtins.readFile [ $t/a1.pub $t/a2.pub ];
 }

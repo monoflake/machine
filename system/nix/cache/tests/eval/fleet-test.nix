@@ -1,7 +1,7 @@
 { lib }:
 let
-  fleet = import ../fleet.nix { inherit lib; };
-  example = import ./fixtures/fleet-example.nix;
+  fleet = import ../../fleet.nix { inherit lib; };
+  example = import ../fixtures/fleet-example.nix;
   result = fleet example;
   patch =
     n: attrs:

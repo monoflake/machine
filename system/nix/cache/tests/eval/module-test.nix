@@ -1,14 +1,14 @@
 { flake }:
 let
   inherit (flake.inputs.nixpkgs) lib;
-  example = import ./fixtures/fleet-example.nix;
+  example = import ../fixtures/fleet-example.nix;
   fleet = flake.lib.fleet example;
   configured =
     system: name: extra:
     (lib.nixosSystem {
       modules = [
         flake.nixosModules.machine
-        ../../../template/configuration.nix
+        ../../../../template/configuration.nix
         {
           nixpkgs.hostPlatform = system;
           networking.hostName = lib.mkOverride 60 name;

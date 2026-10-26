@@ -9,7 +9,7 @@ trap 'rm -rf "$t"' EXIT
 cp "$cache_dir/../../../../"{flake.nix,flake.lock} "$t/"
 nix eval --impure --json --expr "
 let lib = (builtins.getFlake \"path:$t\").inputs.nixpkgs.lib;
-in import $cache_dir/fleet-test.nix { inherit lib; }
+in import $cache_dir/eval/fleet-test.nix { inherit lib; }
 " >"$t/result"
 while read -r entry; do
 	order=$(cache_order "$(jq -r .name <<<"$entry")" "$(jq -r .date <<<"$entry")" "$(jq -c .builders <<<"$entry")")
