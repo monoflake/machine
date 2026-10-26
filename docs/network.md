@@ -70,3 +70,13 @@ change only when a second check a minute later agrees again, `system/network/add
 answer is `/var/lib/machine/addresses.json`, each family `confirmed`, `disputed`, `unknown` or
 `none`, the last confirmed address kept through the rest, so a restart loses nothing. Who reads it
 and changes a name is still RFC co32d's open question, and nothing reads it yet.
+
+## Its clock
+
+**A machine can keep its clock by chrony, `machine.time.enable`, off by default**, provisional,
+chosen by the advisor on 2026-10-26 at the author's request that a cloud's own time source come
+first and a third party serve otherwise, `system/time/`: `machine.time.provider` prefers Oracle's
+own NTP service or Azure's host clock, the region's resolvers add Alibaba Cloud's and Tencent's
+servers in China, and every machine falls back to Cloudflare's over NTS. Google's servers are never
+among them, since they smear a leap second and must not mix with sources that do not. Clocks matter
+to the cache, whose fetch refuses a pointer more than an hour ahead of its own, docs/cache.md.

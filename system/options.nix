@@ -55,6 +55,22 @@ in
           description = "Whether the machine reads its static addresses at every boot from its provider's cloud-init NoCloud seed, the iso9660 disk labeled cidata, and runs systemd-networkd in place of DHCP, for a provider giving no DHCP and no router advertisement, docs/network.md.";
         };
       };
+      time = {
+        enable = mkOption {
+          type = types.bool;
+          default = false;
+          description = "Whether chrony synchronizes the clock with provider and regional sources and Cloudflare over NTS.";
+        };
+        provider = mkOption {
+          type = types.enum [
+            "oracle"
+            "azure"
+            "none"
+          ];
+          default = "none";
+          description = "Provider time source preferred by chrony, or none for regional sources and Cloudflare alone.";
+        };
+      };
       ssh.public = mkOption {
         type = types.enum [
           "until-healthy"

@@ -7,6 +7,7 @@
     ./memory.nix
     ./boot
     ./network
+    ./time
     # Ahead of `./containers`, as the order of the system's packages follows the imports.
     ./containers/runtimes.nix
     ./containers
