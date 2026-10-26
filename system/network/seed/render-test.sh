@@ -218,7 +218,7 @@ FAKE_SEED=$tmp/seed boot none
 holds "a seed read" "$status" 0 "$(said)" "machine-seed-network: seed read and archived " \
 	"$(cat "$network")" "$rendered" "$(listed)" "10-seed.network " "$(mode "$network")" "-rw-r--r--" \
 	"$(cat "$archive")" "$rendered" "$(mode "$archive")" "-rw-------" \
-	"$(mode "${archive%/*}")" "drwx------" "$(calls)" "mount umount " "$(left)" ""
+	"$(mode "${archive%/*}")" "drwxr-xr-x" "$(calls)" "mount umount " "$(left)" ""
 
 FAKE_SEED='' boot archived
 holds "a seed missing" "$status" 1 "$(said)" "machine-seed-network: seed missing, archive used " \

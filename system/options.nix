@@ -110,6 +110,19 @@ in
       # A builder handing small machines their systems through a bucket, and a machine taking its
       # own so, docs/cache.md.
       cache = {
+        inventory = mkOption {
+          type = types.nullOr (
+            types.submodule {
+              options = {
+                name = mkOption { type = types.str; };
+                at = mkOption { type = types.str; };
+                builders = mkOption { type = types.listOf types.str; };
+              };
+            }
+          );
+          default = null;
+          description = "Inventory identity, upgrade time and builder names checked against the configuration.";
+        };
         enable = mkOption {
           type = types.bool;
           default = false;
@@ -140,7 +153,27 @@ in
                     type = types.nullOr types.str;
                     default = null;
                     example = "14:30";
-                    description = "Time of day, in UTC, the run for the machine starts, an hour before its own upgrade; null for a fallback builder, whose run is started by hand.";
+                    description = "First UTC slot time, or a single run time when slots is empty; null for manual runs.";
+                  };
+                  slots = mkOption {
+                    type = types.listOf types.str;
+                    default = [ ];
+                    description = "UTC slot times at which every builder runs for this consumer.";
+                  };
+                  slotDays = mkOption {
+                    type = types.listOf types.int;
+                    default = [ ];
+                    description = "Day offsets of the slots relative to the consumer upgrade date.";
+                  };
+                  builders = mkOption {
+                    type = types.attrsOf (types.ints.between 1 3);
+                    default = { };
+                    description = "Builder names and priorities used for the daily slot order.";
+                  };
+                  gap = mkOption {
+                    type = types.ints.positive;
+                    default = 20;
+                    description = "Minutes between slots and before an active claim expires.";
                   };
                   host = mkOption {
                     type = types.str;
@@ -155,6 +188,16 @@ in
           description = "Machines this one builds the system of and hands through the bucket, each by its name.";
         };
         builder = {
+          self = mkOption {
+            type = types.nullOr (
+              types.enum [
+                "cache"
+                "build"
+              ]
+            );
+            default = null;
+            description = "Own upgrade mode of an inventory builder, cache first or a local build.";
+          };
           signingKey = mkOption {
             type = types.nullOr file;
             default = null;
@@ -187,6 +230,11 @@ in
             type = types.listOf (
               types.submodule {
                 options = {
+                  name = mkOption {
+                    type = types.nullOr types.str;
+                    default = null;
+                    description = "Required inventory name of the builder owning its pointer, except for one legacy unnamed builder.";
+                  };
                   pointer = mkOption {
                     type = types.str;
                     description = "SSH public key the builder signs a pointer with.";

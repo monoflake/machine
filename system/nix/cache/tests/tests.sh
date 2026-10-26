@@ -2,6 +2,6 @@
 # The cache's tests, each run in turn and the first failure stopping them, docs/cache.md.
 set -o errexit -o nounset -o pipefail
 cd "$(dirname "$0")"
-for t in endpoint-test.sh sweep-test.sh build-test.sh; do
+for t in endpoint-test.sh sweep-test.sh protocol-test.sh delivery-test.sh lock-test.sh fleet-test.sh module-test.sh compatibility-test.sh self-test.sh build-test.sh; do
 	bash "$t"
 done

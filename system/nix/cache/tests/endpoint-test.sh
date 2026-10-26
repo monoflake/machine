@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# endpoint.sh's endpoint_host, each form MACHINE_CACHE_ENDPOINT is given in and each it refuses.
+# ../endpoint.sh's endpoint_host, each form MACHINE_CACHE_ENDPOINT is given in and each it refuses.
 set -o errexit -o nounset -o pipefail
 # shellcheck source=system/nix/cache/endpoint.sh
-. "$(dirname "$0")/endpoint.sh"
+. "$(dirname "$0")/../endpoint.sh"
 
-host=023e105f4ecef8ad9ca31a8372d0c353.r2.cloudflarestorage.com
+host=example.com
 bucket=caches
 failed=0
 taken=0

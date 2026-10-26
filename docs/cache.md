@@ -1,35 +1,41 @@
 # The cache
 
 How a machine too small to evaluate its own system takes its daily upgrade, `system/nix/cache/`,
-built for monoflake/cloud's RFC u9fxz: a builder evaluates and builds the machine's system, uploads
-only what the machine lacks to a bucket on Cloudflare R2, and writes a signed pointer to it; the
-machine fetches the pointer, takes the paths, and switches. `machine.cache` in `system/options.nix`
-sets both roles, and `machine.cache.enable` turns them on once the bucket and its keys exist.
+built for monoflake/cloud's RFC u9fxz and its amendment, RFC dpcnp: a builder evaluates and builds
+the machine's system, uploads only what the machine lacks to a bucket on Cloudflare R2, and writes
+a signed pointer to it; the machine fetches the pointer, takes the paths, and switches.
+`machine.cache` in `system/options.nix` sets both roles, and `machine.cache.enable` turns them on
+once the bucket and its keys exist.
 
 ## A builder's run
 
-A machine named in `machine.cache.builds` gets a unit `machine-cache-<name>` on its builder, timed
-at its `at`, an hour before that machine's own upgrade, or started by hand where `at` is null, as
-on a fallback builder. A run missed while the builder was off is skipped, never caught up, and
-its machine takes nothing that day. **A builder's runs never overlap**: each holds
-`/run/lock/machine-cache` by `flock`, so no two evaluations meet in its memory, no two sweeps meet,
-and the cap is measured by one run at a time. A run, `run.sh`, for its one machine:
+A machine named in `machine.cache.builds` gets a unit `machine-cache-<name>` on its builder. With
+one unnamed builder, `builds.<name>.builders` empty, it is timed at its `at` or started by hand
+where `at` is null, as on a fallback builder; with a deployment's inventory it fires at each of the
+machine's slots and runs at the builder's own alone, below. `machine-cache-now@<name>` starts the
+same run at once, skipping the wait for its slot but not the check for a fresh answer. A run missed
+while the builder was off is skipped, never caught up. **A builder's runs never overlap**: each
+holds `/run/lock/machine-cache` by `flock`, so no two evaluations meet in its memory, no two sweeps
+meet, and the cap is measured by one run at a time. A run, `run.sh`, for its one machine:
 
-1. **Sweeps the bucket.** A pointer of a machine built here whose machine already runs its path is
-   deleted with its signature and its delta; then every object no pending delta names is deleted,
-   `nix-cache-info` and the pointers kept. The objects are listed before the deltas are read, and a
-   run writes its delta before its objects, so what a fallback builder uploads meanwhile is kept.
-   A machine with no pointer is passed over, since `rclone cat` of a missing R2 object prints
-   nothing and exits 0, seen on 2026-10-26; a pointer that names no path is passed over with a line
-   saying so; one whose machine cannot be asked what it runs is kept, a line saying so. Only an
-   answer equal to the path deletes it.
+1. **Sweeps the bucket.** A pointer at `pending/<name>` whose machine runs its path, asked by
+   `current`, is deleted with its signature and its delta; a pointer of this builder at
+   `pending/<name>/<builder>` is retired once the machine reports a newer one applied, asked by
+   `applied`. Then every object is deleted that no pending delta names, that the newest pointer of
+   none of this builder's machines needs, and that is older than two hours; `nix-cache-info` and
+   `pending/` are kept. The objects are listed before the deltas are read, and a run writes its
+   delta before its objects, so another builder's delivery meanwhile is kept by its delta, and a
+   builder's own upload, which writes none, by its age. A machine with no pointer is passed over,
+   since `rclone cat` of a missing R2 object prints nothing and exits 0, seen on 2026-10-26; a
+   pointer whose machine cannot be asked is kept, a line saying so.
 2. **Builds the machine's system** from its flake, `nixosConfigurations.<name>`, keeping the last
    one built under `/var/lib/machine/cache-systems/` as a root, with git on the run's PATH, as Nix
    runs git to fetch a `git+ssh` flake; a private one is reached by the key that
    `machine.upgrade.keyFile` names, so a builder sets it as its own upgrade does. A machine already
-   running it ends the run, its pointer and delta deleted, so an older pointer cannot take it back;
-   one that cannot be asked fails the run with nothing uploaded, as whether it needs the system is
-   unknown.
+   running it ends the run: at `pending/<name>` its pointer and delta are deleted, so an older
+   pointer cannot take it back, and at `pending/<name>/<builder>` a confirming pointer naming that
+   path is written with no delta. One that cannot be asked fails the run with nothing uploaded, as
+   whether it needs the system is unknown.
 3. **Asks the machine which paths of the closure it lacks**, through its wrapper below, and fails
    where the answer names a path outside the closure.
 4. **Signs the closure into a directory**, `nix copy` to a `file://` store with the builder's Nix
@@ -37,9 +43,10 @@ and the cap is measured by one run at a time. A run, `run.sh`, for its one machi
 5. **Measures the bucket**: where what it holds and what the delta adds pass
    `machine.cache.builder.cap`, 5 GB by default, it uploads nothing, writes no pointer, and fails
    the unit.
-6. **Uploads the delta**: the old pointer deleted, the delta's list written as
-   `pending/<name>.objects`, the objects copied, then the pointer `pending/<name>` and its signature
-   `pending/<name>.sig` last, so a pointer always has its objects.
+6. **Uploads the delta** under its prefix, `pending/<name>` with one unnamed builder and
+   `pending/<name>/<builder>` otherwise: the old pointer deleted first, the delta's list written as
+   `<prefix>.objects`, the objects copied, then the signature and the pointer last, so a pointer
+   always has its objects.
 
 ## Exactly the paths the machine lacks
 
@@ -64,30 +71,37 @@ asks the bucket for one.
 { "machine": "<name>", "path": "/nix/store/...-nixos-system-...", "at": "2026-10-25T14:30:00Z" }
 ```
 
-Signed by `ssh-keygen -Y sign -n machine-cache` with the builder's pointer key, one per machine, a
-new one replacing the old. The bucket is the one thing between builder and machine, so the pointer
-is trusted by its signature alone, and the paths by their Nix signatures alone: a token that writes
-the bucket cannot make a machine run anything.
+Signed by `ssh-keygen -Y sign -n machine-cache` with the builder's pointer key, a new one
+replacing the old: at `pending/<name>/<builder>` wherever `builds.<name>.builders` names the
+machine's builders, and at `pending/<name>` where it is empty, one unnamed builder, as before. The
+bucket is the one thing between builder and machine, so the pointer is trusted by its signature
+alone, and the paths by their Nix signatures alone: a token that writes the bucket cannot make a
+machine run anything.
 
 ## The fetched machine
 
-A machine with `machine.cache.fetch.builders` evaluates nothing: NixOS's own upgrade is off, and
-`machine-cache-fetch` runs at `machine.upgrade.at` in its place, `fetch.sh`:
+A machine with `machine.cache.fetch.builders` and no builds of its own evaluates nothing: NixOS's
+own upgrade is off, and `machine-cache-fetch` runs at `machine.upgrade.at` in its place; a builder
+below 4096 MB runs the same fetch from its own run at that time instead, below. `fetch.sh`:
 
-- fetches `pending/<its name>` and its signature with its read-only token, and with no pointer does
-  nothing;
-- verifies it by `ssh-keygen -Y verify -n machine-cache` against an `allowed_signers` naming each
-  builder's pointer key, and refuses a pointer written for another machine, or whose `at` is
-  earlier than the last one it applied, kept in `/var/lib/machine/cache-applied`; one already
-  applied is nothing to do;
-- realizes the path from the bucket as its only substituter, trusting its builders' Nix keys alone;
-- sets the system profile and switches, as the self-upgrade does. A new kernel waits for a reboot by
-  hand.
+- fetches, with its read-only token, each named builder's pointer at `pending/<name>/<builder>`
+  and the one at `pending/<name>`, each with its signature; with none it does nothing;
+- verifies each by `ssh-keygen -Y verify -n machine-cache`, a named builder's against that
+  builder's key alone and `pending/<name>` against all of them, refuses one written for another
+  machine or more than an hour ahead of its clock, and takes the one with the newest `at` that is
+  newer than the last it applied, kept in `/var/lib/machine/cache-applied`; an older one is passed
+  over, a refused one or a failed read fails the unit where no newer valid one is taken, and no
+  newer one for two days fails it too;
+- realizes the path from the bucket as its only substituter, trusting its builders' Nix keys alone,
+  where the path is not valid already, so a confirming pointer fetches nothing;
+- sets the system profile and switches, as the self-upgrade does, a confirming pointer switching
+  nothing and recording its `at`. A new kernel waits for a reboot by hand.
 
 **The builder reaches it as the user `machine-cache`**, whose authorized keys are each builder's
 access key under `restrict,from=`, the tailnet's addresses, `machine.cache.fetch.from`, and
-`command=` the wrapper, `answer.sh`, which answers two things alone: `current`, the current
-system's path, and `lacks`, which of the store paths given on stdin are not valid, checked by
+`command=` the wrapper, `answer.sh`, which answers three things alone: `current`, the current
+system's path, `applied`, the last pointer applied from `/var/lib/machine/cache-applied`, and
+`lacks`, which of the store paths given on stdin are not valid, checked by
 `nix-store --check-validity` and nothing written. A builder running a tailnet dials through
 `tailscale nc`, so it reaches a machine by its name with no resolver.
 
@@ -95,6 +109,38 @@ system's path, and `lacks`, which of the store paths given on stdin are not vali
 builder, and a reinstalled machine's new key is refused, failing each run for it. Its old entry is
 removed on the builder, `ssh-keygen -R <host> -f /var/lib/machine/cache-known-hosts`, and the next
 run takes the new key.
+
+## Several builders, RFC dpcnp
+
+**A deployment's inventory derives every builder and every machine it builds**, `lib.fleet` in
+this repository's flake, `system/nix/cache/fleet.nix`: each machine's system, memory, time and
+overrides in, its `builds`, its `fetch.builders`, its role and its slots out, a priority outside 1
+to 3, a missing flake, two slots of one builder closer than a gap or a time differing from
+`machine.upgrade.at` failing evaluation with the machine's name.
+
+- **One slot per builder**: a machine's builders laid out by their priorities and, within one,
+  by sha256 of its name and the UTC date, the last slot ending a gap before its time. A builder
+  runs at its own slot alone, ends where an answer since the machine's first slot or a claim
+  younger than a gap less a minute is there, and otherwise writes its claim and builds; a run that
+  misses its slot by its lock or by starting after its slot's gap fails its unit, as does the last
+  slot when a claim blocks it.
+- **A pointer per builder, the newest taken**: the fetch verifies each by its builder's key, takes
+  the one with the newest `at` past the last applied, and refuses one more than an hour ahead of its
+  clock. A builder that finds the machine already running its system writes a confirming pointer,
+  which switches nothing.
+- **A builder's own system**: above 4096 MB of memory it builds and switches at its own time and
+  uploads what the cache lacks; below, it takes a pointer for itself from the other builders first
+  and builds itself where none is newer than its last applied; a refused pointer or a failed read
+  does not stop it, and the run fails afterwards naming each, provisional, chosen by the advisor on
+  2026-10-26, so the machine has its system and the failure is still seen.
+- **The sweep**, step 1 above, walks the newest pointers of the sweeping builder's own machines;
+  another machine's objects are kept by its delta, and a builder's own upload, which writes none,
+  by the two hours it is spared. A builder retires its own older pointers once the machine reports
+  a newer one applied, and one at `pending/<name>` once the machine runs its path.
+- **`/var/lib/machine` keeps systemd's default mode**: the cache's units, the seed's and the
+  addresses' share it, and the user `machine-cache` reads `cache-applied` there, so no unit sets a
+  `StateDirectoryMode` for it and secrecy comes per file through `UMask`, which
+  `system/network/addresses/eval-test.nix` checks.
 
 ## The bucket and its credentials
 
@@ -113,10 +159,11 @@ shows for an S3-compatible store, https://nix.dev/manual/nix/2.34/store/types/s3
 A builder holds three more keys, each a file: `signingKey`, the Nix secret key; `pointerKey`, the
 SSH key signing pointers; and `accessKey`, the SSH key reaching the wrapper.
 
-**Verify runs the cache's tests**: `endpoint-test.sh` the endpoint's forms, `sweep-test.sh` the
-sweep against a directory with `rclone` and `ssh` faked, and `build-test.sh` that the run as built
-holds git on its PATH, which a test machine's `path:` flake never needed and a live `git+ssh` one
-did, on 2026-10-26.
+**Verify runs the cache's tests**, `tests.sh`: the endpoint's forms, the sweep, the protocol of
+slots, claims and pointers, delivery, the lock, the own system, the inventory's derivation and the
+module's units against a directory with `rclone` and `ssh` faked, and the legacy layout against a
+fixture recorded from the one-builder code, `tests/fixtures/legacy-layout.json`; and that the run as
+built holds git on its PATH, which a live `git+ssh` flake needed on 2026-10-26.
 
 **On a test machine** an absolute path stands a directory in for the bucket, with no credentials,
 and `machine.cache.builder.store` builds in a store of another root, so a machine building its own

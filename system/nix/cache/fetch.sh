@@ -4,7 +4,7 @@ given=$MACHINE_CACHE_CONFIG
 field() { jq -r "$1" "$given"; }
 bucket=$(field .bucket)
 machine=$(field .machine)
-applied=/var/lib/machine/cache-applied
+applied=${MACHINE_CACHE_APPLIED:-/var/lib/machine/cache-applied}
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 
@@ -17,7 +17,7 @@ refuse() {
 if [[ $bucket == /* ]]; then
 	substituter="file://$bucket"
 	get() {
-		[ -e "$bucket/$1" ] || return 2
+		[ -f "$bucket/$1" ] || return 2
 		cp "$bucket/$1" "$2"
 	}
 else
@@ -40,35 +40,80 @@ else
 	}
 fi
 
-status=0
-get "pending/$machine" "$work/pointer" || status=$?
-if [ "$status" = 2 ]; then
-	echo "machine-cache: no pointer for $machine, nothing to do"
-	exit 0
-fi
-[ "$status" = 0 ] || exit 1
-get "pending/$machine.sig" "$work/pointer.sig" || refuse "its signature missing"
-ssh-keygen -Y verify -f "$(field .signers)" -I builder -n machine-cache \
-	-s "$work/pointer.sig" <"$work/pointer" >/dev/null || refuse "signed by none of its builders"
-
-[ "$(jq -r .machine "$work/pointer")" = "$machine" ] || refuse "written for another machine"
-path=$(jq -r .path "$work/pointer")
-at=$(jq -r .at "$work/pointer")
-[[ $path =~ ^/nix/store/[0-9a-z]{32}-[0-9A-Za-z+._?=-]+$ ]] || refuse "its path malformed"
-[[ $at =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$ ]] || refuse "its time malformed"
+now=$(date -u +%s)
 last=$(cat "$applied" 2>/dev/null || true)
-if [ "$at" = "$last" ]; then
-	echo "machine-cache: pending/$machine of $at applied already, nothing to do"
+last_at=$(jq -r '.at // empty' <<<"$last" 2>/dev/null || printf '%s' "$last")
+newest=""
+failed=false
+consider() {
+	local object=$1 signers=$2 status=0 at reason
+	get "$object" "$work/candidate" || status=$?
+	[ "$status" != 2 ] || return 0
+	if [ "$status" != 0 ]; then
+		echo "machine-cache: pointer $object read failed with status $status" >&2
+		failed=true
+		return 0
+	fi
+	status=0
+	get "$object.sig" "$work/candidate.sig" || status=$?
+	if [ "$status" != 0 ]; then
+		echo "machine-cache: signature $object.sig read failed with status $status" >&2
+		failed=true
+		return 0
+	fi
+	if ! ssh-keygen -Y verify -f "$signers" -I builder -n machine-cache \
+		-s "$work/candidate.sig" <"$work/candidate" >/dev/null 2>&1; then
+		echo "machine-cache: pointer $object refused, invalid signature" >&2
+		failed=true
+		return 0
+	fi
+	if ! reason=$(cache_pointer "$work/candidate" "$machine" "$now" 2>&1); then
+		echo "machine-cache: pointer $object refused, $reason" >&2
+		failed=true
+		return 0
+	fi
+	at=$(jq -r .at "$work/candidate")
+	if [[ $at > $last_at && $at > $newest ]]; then
+		newest=$at
+		cp "$work/candidate" "$work/pointer"
+	fi
+}
+while read -r entry; do
+	builder=$(jq -r '.name // empty' <<<"$entry")
+	[ -n "$builder" ] || continue
+	consider "pending/$machine/$builder" "$(jq -r .signers <<<"$entry")"
+done < <(jq -c '.builders[]' "$given")
+legacy_signers=$(field '.signers // empty')
+[ -z "$legacy_signers" ] || consider "pending/$machine" "$legacy_signers"
+
+if [ -z "$newest" ]; then
+	if [ "$failed" = true ]; then
+		if [ "${MACHINE_CACHE_FALLBACK:-false}" = true ]; then exit 3; fi
+		exit 1
+	fi
+	if [ "${MACHINE_CACHE_FALLBACK:-false}" = true ]; then exit 2; fi
+	if [ -n "$last_at" ]; then
+		last_epoch=$(cache_epoch "$last_at") || refuse "last applied time malformed"
+	else
+		# A new installation gets two days to receive its first answer.
+		started=${MACHINE_CACHE_STARTED:-/var/lib/machine/cache-started}
+		[ -f "$started" ] || date -u +%Y-%m-%dT%H:%M:%SZ >"$started"
+		last_epoch=$(cache_epoch "$(cat "$started")")
+	fi
+	((now - last_epoch < 172800)) || refuse "nothing applied for two days"
 	exit 0
 fi
-[ -z "$last" ] || [[ $at > $last ]] || refuse "written at $at, before $last applied"
-
-nix-store --realise "$path" \
-	--option substituters "$substituter" \
-	--option trusted-public-keys "$(field .trusted)" \
-	--option require-sigs true \
-	--option narinfo-cache-negative-ttl 0 >/dev/null
-nix-env -p /nix/var/nix/profiles/system --set "$path"
-"$path/bin/switch-to-configuration" switch
-echo "$at" >"$applied"
-echo "machine-cache: $machine switched to $path, written at $at"
+path=$(jq -r .path "$work/pointer")
+if ! nix-store --check-validity "$path" 2>/dev/null; then
+	nix-store --realise "$path" \
+		--option substituters "$substituter" \
+		--option trusted-public-keys "$(field .trusted)" \
+		--option require-sigs true \
+		--option narinfo-cache-negative-ttl 0 >/dev/null || exit 1
+fi
+if [ "$(readlink /run/current-system)" != "$path" ]; then
+	nix-env -p /nix/var/nix/profiles/system --set "$path" || exit 1
+	"$path/bin/switch-to-configuration" switch || exit 1
+fi
+cache_record "$newest" "$path" "$applied"
+echo "machine-cache: $machine applied $path, written at $newest"

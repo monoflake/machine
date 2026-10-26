@@ -1,8 +1,10 @@
-# What a builder's access key runs on a fetched machine, docs/cache.md. The current system's path,
-# or which of the store paths given on stdin the machine lacks, writing nothing.
+# The cache channel reports the current system, applied pointer and missing paths, docs/cache.md.
 case ${SSH_ORIGINAL_COMMAND:-} in
 current)
 	readlink /run/current-system
+	;;
+applied)
+	cat /var/lib/machine/cache-applied 2>/dev/null || true
 	;;
 lacks)
 	given=$(head -c 16000000)
@@ -13,7 +15,7 @@ lacks)
 	printf '%s\n' "$given" | xargs -r nix-store --check-validity --print-invalid
 	;;
 *)
-	echo "machine-cache: ask current or lacks" >&2
+	echo "machine-cache: ask current, applied or lacks" >&2
 	exit 1
 	;;
 esac

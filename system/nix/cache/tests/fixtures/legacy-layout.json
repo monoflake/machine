@@ -1,0 +1,48 @@
+{
+	"layout": "legacy",
+	"consumers": [
+		{
+			"machine": "c1",
+			"builders": [
+				"a1"
+			],
+			"signedBy": "a1",
+			"objects": [
+				"pending/c1",
+				"pending/c1.sig",
+				"pending/c1.objects"
+			],
+			"pointerReads": [
+				"pending/c1",
+				"pending/c1.sig"
+			],
+			"pointer": {
+				"machine": "c1",
+				"path": "/nix/store/0123456789abcdfghijklmnpqrsvwxyz-system",
+				"at": "2026-10-26T13:00:00Z"
+			}
+		},
+		{
+			"machine": "c2",
+			"builders": [
+				"a1",
+				"a2"
+			],
+			"signedBy": "a1",
+			"objects": [
+				"pending/c2",
+				"pending/c2.sig",
+				"pending/c2.objects"
+			],
+			"pointerReads": [
+				"pending/c2",
+				"pending/c2.sig"
+			],
+			"pointer": {
+				"machine": "c2",
+				"path": "/nix/store/0123456789abcdfghijklmnpqrsvwxyz-system",
+				"at": "2026-10-26T13:00:00Z"
+			}
+		}
+	]
+}

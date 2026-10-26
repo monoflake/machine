@@ -8,16 +8,20 @@
 }:
 let
   cfg = config.machine.cache;
-  # Each builder's pointer key, under the one name a pointer is verified as.
-  signers = pkgs.writeText "machine-cache-signers" (
-    lib.concatMapStrings (
-      b: ''builder namespaces="machine-cache" ${b.pointer}'' + "\n"
-    ) cfg.fetch.builders
-  );
   given = pkgs.writeText "machine-cache.json" (
     builtins.toJSON {
       inherit (cfg) bucket;
-      inherit signers;
+      builders = map (b: {
+        inherit (b) name;
+        signers = pkgs.writeText "machine-cache-${if b.name == null then "legacy" else b.name}-signer" (
+          ''builder namespaces="machine-cache" ${b.pointer}'' + "\n"
+        );
+      }) cfg.fetch.builders;
+      signers = pkgs.writeText "machine-cache-legacy-signers" (
+        lib.concatMapStrings (
+          b: ''builder namespaces="machine-cache" ${b.pointer}'' + "\n"
+        ) cfg.fetch.builders
+      );
       machine = config.networking.hostName;
       trusted = lib.concatMapStringsSep " " (b: b.nix) cfg.fetch.builders;
     }
@@ -31,7 +35,8 @@ let
       pkgs.jq
       pkgs.openssh
     ];
-    text = builtins.readFile ./endpoint.sh + builtins.readFile ./fetch.sh;
+    text =
+      builtins.readFile ./endpoint.sh + builtins.readFile ./protocol.sh + builtins.readFile ./fetch.sh;
   };
   answer = pkgs.writeShellApplication {
     name = "machine-cache-answer";
@@ -62,7 +67,7 @@ in
         StateDirectory = "machine";
       };
     };
-    systemd.timers.machine-cache-fetch = {
+    systemd.timers.machine-cache-fetch = lib.mkIf (cfg.builder.self == null) {
       wantedBy = [ "timers.target" ];
       timerConfig = {
         OnCalendar = "*-*-* ${config.machine.upgrade.at}:00 UTC";

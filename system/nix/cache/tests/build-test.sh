@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# build.nix's machine-cache-run as a builder's system holds it on each Linux system, git on its
+# ../build.nix's machine-cache-run as a builder's system holds it on each Linux system, git on its
 # PATH, as Nix runs git to fetch a git+ssh flake.
 set -o errexit -o nounset -o pipefail
 
 # Nix reads a copy of the flake, as git's index lacks what jj adds, the workspace's docs/lessons.md.
 t=$(mktemp -d)
 trap 'rm -rf "$t"' EXIT
-rsync -a --exclude=.jj --exclude=.git --exclude=node_modules "$(dirname "$0")/../../../" "$t/"
+rsync -a --exclude=.jj --exclude=.git --exclude=node_modules "$(dirname "$0")/../../../../" "$t/"
 
 paths=$(nix eval --impure --json --expr "
 let
@@ -26,7 +26,7 @@ let
             pointerKey = \"/var/lib/secrets/pointer-key\";
             accessKey = \"/var/lib/secrets/access-key\";
           };
-          builds.example.flake = \"git+ssh://git@github.com/example/machines?dir=example\";
+          builds.c1.flake = \"git+ssh://git@example.com/machines?dir=c1\";
         };
       }
     ];
