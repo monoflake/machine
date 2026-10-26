@@ -91,9 +91,18 @@ run takes the new key.
 ## The bucket and its credentials
 
 `machine.cache.bucket` names the bucket; `machine.cache.credentials` is an environment file holding
-its endpoint's host, `MACHINE_CACHE_ENDPOINT`, and the token reaching it, `AWS_ACCESS_KEY_ID` and
+its endpoint, `MACHINE_CACHE_ENDPOINT`, and the token reaching it, `AWS_ACCESS_KEY_ID` and
 `AWS_SECRET_ACCESS_KEY`, read and written by `rclone` on a builder, read by `curl --aws-sigv4` and
-Nix's `s3://` store on a fetched machine. A builder holds three more keys, each a file:
+Nix's `s3://` store on a fetched machine. **The endpoint is its URL as the provider's dashboard
+shows it**, `https://<account id>.r2.cloudflarestorage.com` pasted whole, or its host alone.
+`endpoint.sh` reads it for both scripts: the spaces and newlines around it are dropped, then one
+trailing `/`, then one path that is `/<bucket>` alone, as the bucket's own page shows it, then the
+scheme `https`, in any case. What is left must be a host of letters, digits, dots and hyphens, with
+`:` and a port at most; anything else, another scheme, any other path, a query, a fragment, a user
+or a space inside it, is refused, the variable named and never its value. `rclone` and `curl` are
+given `https://` and the host, and Nix's store the host with `scheme=https`, the form Nix's manual
+shows for an S3-compatible store, https://nix.dev/manual/nix/2.34/store/types/s3-binary-cache-store;
+`endpoint-test.sh` tests it, run by verify. A builder holds three more keys, each a file:
 `signingKey`, the Nix secret key; `pointerKey`, the SSH key signing pointers; and `accessKey`, the
 SSH key reaching the wrapper.
 

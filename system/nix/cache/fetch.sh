@@ -21,12 +21,14 @@ if [[ $bucket == /* ]]; then
 		cp "$bucket/$1" "$2"
 	}
 else
-	substituter="s3://$bucket?endpoint=$MACHINE_CACHE_ENDPOINT&region=auto"
+	# Nix's s3:// store takes the endpoint as its host with the scheme apart, as its manual shows.
+	endpoint=$(endpoint_host "$bucket") || exit 1
+	substituter="s3://$bucket?endpoint=$endpoint&scheme=https&region=auto"
 	get() {
 		local code
 		code=$(curl --silent --show-error --output "$2" --write-out '%{http_code}' \
 			--aws-sigv4 aws:amz:auto:s3 -K <(printf 'user = "%s:%s"\n' "$AWS_ACCESS_KEY_ID" "$AWS_SECRET_ACCESS_KEY") \
-			"https://$MACHINE_CACHE_ENDPOINT/$bucket/$1")
+			"https://$endpoint/$bucket/$1")
 		case $code in
 		200) ;;
 		404) return 2 ;;

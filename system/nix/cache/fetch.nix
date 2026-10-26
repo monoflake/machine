@@ -31,7 +31,7 @@ let
       pkgs.jq
       pkgs.openssh
     ];
-    text = builtins.readFile ./fetch.sh;
+    text = builtins.readFile ./endpoint.sh + builtins.readFile ./fetch.sh;
   };
   answer = pkgs.writeShellApplication {
     name = "machine-cache-answer";

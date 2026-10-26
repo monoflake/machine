@@ -36,7 +36,7 @@ let
       pkgs.util-linux
     ]
     ++ lib.optional config.services.tailscale.enable config.services.tailscale.package;
-    text = builtins.readFile ./run.sh;
+    text = builtins.readFile ./endpoint.sh + builtins.readFile ./run.sh;
   };
 in
 {

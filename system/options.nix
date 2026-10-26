@@ -89,13 +89,13 @@ in
         };
         bucket = mkOption {
           type = types.str;
-          example = "machine-cache";
+          example = "caches";
           description = "Bucket on Cloudflare R2 a builder hands its machines their systems through; an absolute path stands a directory in for it on a test machine.";
         };
         credentials = mkOption {
           type = types.nullOr file;
           default = null;
-          description = "Path to an environment file holding the bucket's endpoint as MACHINE_CACHE_ENDPOINT, its host alone, and the token reaching it as AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY; null for a directory.";
+          description = "Path to an environment file holding the bucket's endpoint as MACHINE_CACHE_ENDPOINT, its URL as the provider's dashboard shows it, `https://` and a host with any port, the bucket as its path or not, or that host alone, and the token reaching it as AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY; null for a directory.";
         };
         builds = mkOption {
           type = types.attrsOf (

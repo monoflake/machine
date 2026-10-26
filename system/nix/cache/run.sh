@@ -32,7 +32,8 @@ if [[ $bucket == /* ]]; then
 	objects=$bucket
 else
 	export RCLONE_S3_PROVIDER=Cloudflare RCLONE_S3_ENV_AUTH=true RCLONE_S3_NO_CHECK_BUCKET=true
-	export RCLONE_S3_ENDPOINT="https://$MACHINE_CACHE_ENDPOINT"
+	endpoint=$(endpoint_host "$bucket") || exit 1
+	export RCLONE_S3_ENDPOINT="https://$endpoint"
 	objects=":s3:$bucket"
 fi
 
