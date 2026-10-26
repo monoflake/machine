@@ -142,6 +142,25 @@ to 3, a missing flake, two slots of one builder closer than a gap or a time diff
   `StateDirectoryMode` for it and secrecy comes per file through `UMask`, which
   `system/network/addresses/eval-test.nix` checks.
 
+## A run's outcome, the interface `upgrade` reads
+
+**Every run prints one line as its last**, provisional, chosen by the advisor on 2026-10-26, so a
+deployment's tooling reads what happened from the unit's journal and never from its prose:
+
+```
+machine-cache outcome=<outcome> consumer=<machine> [self=<built|fetched|failed>]
+```
+
+`outcome` is what the run did for the consumer: `built`, a system built and its pointer published,
+or for a `--self` run, its system built, switched and its lacking paths uploaded; `answered`, a fresh
+answer already there; `claimed`, a builder's claim, which may be the run's own, younger than a gap
+less a minute; `confirmed`, the machine already running it; `missed`, its slot lost to the lock or a
+late start; `skipped`, a timer run at another builder's slot; `failed`, anything else. `self`, on a
+builder's own run alone, is what became of its own system, so a builder that switched and then could
+not record it or upload prints `outcome=failed` with `self=built`. Cleanup preserves that outcome,
+but a cleanup failure makes the exit status nonzero. The words change only with a version, and no
+other line begins `machine-cache outcome=`; `tests/outcome-test.sh` holds every exit path to it.
+
 ## The bucket and its credentials
 
 `machine.cache.bucket` names the bucket; `machine.cache.credentials` is an environment file holding

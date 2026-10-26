@@ -1,5 +1,40 @@
 # A builder's run for one machine, docs/cache.md. The bucket swept, the machine's system built, the
 # paths it lacks uploaded under the cap and the pointer to the system signed last.
+
+# Every exit prints the run's outcome as its last line, a contract another repository reads.
+finish() {
+	trap '' TERM
+	local status=$1
+	set +e
+	if [ "$fetch_failed" = true ]; then
+		cat "$work/fetch-failures" >&2
+		status=1
+	fi
+	if [ "$status" != 0 ] && [[ $outcome != missed && $outcome != claimed ]]; then
+		outcome=failed
+	fi
+	[ "$lock_owned" = false ] || rm -f "$lock.owner" || status=$?
+	[ -z "$work" ] || rm -rf "$work" || status=$?
+	if [ "$self" = true ]; then
+		printf 'machine-cache outcome=%s consumer=%s self=%s\n' "$outcome" "$machine" "$self_outcome"
+	else
+		printf 'machine-cache outcome=%s consumer=%s\n' "$outcome" "$machine"
+	fi
+	exit "$status"
+}
+if [[ ${BASH_SOURCE[0]} == "$0" ]]; then
+	machine=${1:-}
+	self=false
+	[ "${2:-}" != --self ] || self=true
+	outcome=failed
+	self_outcome=failed
+	fetch_failed=false
+	lock_owned=false
+	work=""
+	trap 'finish "$?"' EXIT
+	trap 'exit 143' TERM
+fi
+
 given=$MACHINE_CACHE_CONFIG
 field() { jq -r "$1" "$given"; }
 
@@ -136,7 +171,11 @@ slot_minute() {
 			done < <(jq -r --arg m "$machine" '.machines[$m].slots[]' "$given")
 			trigger=$latest
 		fi
-		[ -n "$index" ] || { echo "machine-cache: slot missed: started late" >&2; return 1; }
+		if [ -z "$index" ]; then
+			outcome=missed
+			echo "machine-cache: slot missed: started late" >&2
+			return 1
+		fi
 		offset=$(jq -r --arg m "$machine" --argjson k "$index" '.machines[$m].slotDays[$k] // 0' "$given")
 		slot_day=$(date -u -d "@$((trigger - offset * 86400))" +%F)
 	else index=-1
@@ -156,7 +195,11 @@ slot_minute() {
 		if [ "$mine" != "$index" ]; then
 			if [ "$triggered" = true ] || [ "$exact" = true ] || ((now < end)); then return 2; fi
 		fi
-		if ((now >= end)); then echo "machine-cache: slot missed: started late" >&2; return 1; fi
+		if ((now >= end)); then
+			outcome=missed
+			echo "machine-cache: slot missed: started late" >&2
+			return 1
+		fi
 		deadline=$((now - now % 60 + 60))
 		((deadline <= end)) || deadline=$end
 	fi
@@ -176,7 +219,7 @@ slot() {
 			&& cache_pointer "$work/answer" "$machine" "$now" 2>/dev/null; then
 			at=$(cache_epoch "$(jq -r .at "$work/answer")")
 			if ((at >= window)) && { [ "$manual" = false ] || \
-				[ "$(jq -r .path "$work/answer")" = "$system" ]; }; then return 2; fi
+				[ "$(jq -r .path "$work/answer")" = "$system" ]; }; then outcome=answered; return 2; fi
 		fi
 	done < <(jq -r 'keys[]' <<<"$builders")
 	while read -r b; do
@@ -186,6 +229,7 @@ slot() {
 		epoch=$(cache_epoch "$claim" 2>/dev/null) || continue
 		# A minute of margin lets the next slot proceed after a slightly late claim.
 		if ((now - epoch < gap * 60 - 60 && epoch <= now)); then
+			outcome=claimed
 			[ "$last" = false ] || { echo "machine-cache: last slot blocked by a claim" >&2; exit 1; }
 			return 2
 		fi
@@ -197,13 +241,10 @@ slot() {
 # Cache shell tests source these functions without running a build.
 [[ ${BASH_SOURCE[0]} == "$0" ]] || return 0
 
-machine=$1
 builder=$(field .builder)
 prefix="pending/$machine/$builder"
 manual=false
-self=false
 [ "${2:-}" != --now ] || manual=true
-[ "${2:-}" != --self ] || self=true
 gap=$(jq -r --arg m "$machine" '.machines[$m].gap // 20' "$given")
 flake=$(jq -r --arg m "$machine" '.machines[$m].flake // empty' "$given")
 [ -n "$flake" ] || {
@@ -214,7 +255,7 @@ system=""
 if [ "$self" = false ]; then
 	status=0
 	slot_minute || status=$?
-	[ "$status" != 2 ] || exit 0
+	[ "$status" != 2 ] || { outcome=skipped; exit 0; }
 	[ "$status" = 0 ] || exit "$status"
 else deadline=0
 fi
@@ -227,13 +268,16 @@ if ((deadline > 0)); then wait=$((deadline - $(date -u +%s))); fi
 holder=$(cat "$lock.owner" 2>/dev/null || echo unknown)
 if ((wait <= 0)) || ! flock -w "$wait" 9; then
 	holder=$(cat "$lock.owner" 2>/dev/null || echo "$holder")
+	outcome=missed
 	echo "machine-cache: slot missed: lock held by $holder" >&2
 	exit 1
 fi
 if ((deadline > 0 && $(date -u +%s) >= deadline)); then
+	outcome=missed
 	echo "machine-cache: slot missed: lock held by $holder" >&2
 	exit 1
 fi
+lock_owned=true
 printf '%s\n' "$machine" >"$lock.owner"
 bucket=$(field .bucket)
 cap=$(field .cap)
@@ -243,18 +287,6 @@ on=()
 from=()
 [ -z "$store" ] || from=(--from "$store")
 work=$(mktemp -d "${TMPDIR:-/var/tmp}/machine-cache.XXXXXX")
-fetch_failed=false
-finish() {
-	local status=$?
-	if [ "$fetch_failed" = true ]; then
-		cat "$work/fetch-failures" >&2
-		status=1
-	fi
-	rm -f "$lock.owner"
-	rm -rf "$work"
-	exit "$status"
-}
-trap finish EXIT
 
 # The bucket as rclone reaches it, or the directory standing in for it.
 export RCLONE_CONFIG=/dev/null
@@ -282,6 +314,8 @@ if [ "$self" = true ] && [ "$(field .self)" = cache ] && [ "$(field .fetch)" != 
 	if MACHINE_CACHE_CONFIG=$(field .fetch.config) MACHINE_CACHE_FALLBACK=true \
 		"$(field .fetch.command)" 2>"$work/fetch-failures"; then
 		cat "$work/fetch-failures" >&2
+		outcome=answered
+		self_outcome=fetched
 		exit 0
 	else status=$?
 	fi
@@ -320,6 +354,7 @@ if [ "$self" = false ]; then
 			rclone deletefile "$objects/$prefix.objects" 2>/dev/null || true
 			publish
 		fi
+		outcome=confirmed
 		exit 0
 	fi
 fi
@@ -327,6 +362,7 @@ nix path-info -r "${on[@]}" "$system" >"$work/closure"
 if [ "$self" = true ]; then
 	nix-env -p /nix/var/nix/profiles/system --set "$system"
 	"$system/bin/switch-to-configuration" switch
+	self_outcome=built
 	cache_record "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$system" "$state/cache-applied"
 	: >"$work/lacking"
 	while read -r p; do
@@ -370,3 +406,5 @@ fi
 rclone copy --no-traverse --files-from-raw <(echo nix-cache-info && cat "$work/delta") \
 	"$work/staging" "$objects"
 [ "$self" = true ] || publish
+
+outcome=built
