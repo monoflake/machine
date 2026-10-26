@@ -188,10 +188,18 @@ in
           };
         };
       };
-      tailnet.authKeyFile = mkOption {
-        type = types.nullOr file;
-        default = null;
-        description = "Path to a file containing a Tailscale auth key, used to join the tailnet at boot.";
+      # The machine's place on the tailnet and whether it is an exit node, docs/tailnet.md.
+      tailnet = {
+        authKeyFile = mkOption {
+          type = types.nullOr file;
+          default = null;
+          description = "Path to a file containing a Tailscale auth key, used to join the tailnet at boot.";
+        };
+        exitNode = mkOption {
+          type = types.bool;
+          default = false;
+          description = "Whether the machine advertises itself as a Tailscale exit node, forwarding with Tailscale's stateful filtering on, which the tailnet's admin has to approve before any traffic leaves through it; turning it off does not withdraw an advertisement already made, docs/tailnet.md.";
+        };
       };
       driver = {
         enable = mkOption {

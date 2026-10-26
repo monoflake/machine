@@ -62,8 +62,8 @@
       };
 
       # The template as it stands, with the driver on as a test machine runs it and with a tunnel to
-      # it, the bound host's units in both, and the local machine, each built as a machine of each
-      # system would be.
+      # it, the bound host's units in both, the template as an exit node, and the local machine,
+      # each built as a machine of each system would be.
       checks = nixpkgs.lib.genAttrs linux (
         s:
         let
@@ -98,6 +98,7 @@
               host = "0a1b2c3d.b1";
             };
           };
+          exitNode = template { machine.tailnet.exitNode = true; };
           local =
             (self.lib.local {
               system = s;
