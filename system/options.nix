@@ -35,10 +35,28 @@ in
         default = "zstd";
         description = "Compressor zswap uses for swapped pages; lz4 for a weak processor.";
       };
-      network.seed = mkOption {
-        type = types.bool;
-        default = false;
-        description = "Whether the machine reads its static addresses at every boot from its provider's cloud-init NoCloud seed, the iso9660 disk labeled cidata, and runs systemd-networkd in place of DHCP, for a provider giving no DHCP and no router advertisement, docs/network.md.";
+      network = {
+        resolvers = mkOption {
+          type = types.enum [
+            "global"
+            "china"
+          ];
+          default = "global";
+          description = "Fixed nameservers written to the plain resolv.conf file, Cloudflare and Google for global or AliDNS for china.";
+        };
+        seed = mkOption {
+          type = types.bool;
+          default = false;
+          description = "Whether the machine reads its static addresses at every boot from its provider's cloud-init NoCloud seed, the iso9660 disk labeled cidata, and runs systemd-networkd in place of DHCP, for a provider giving no DHCP and no router advertisement, docs/network.md.";
+        };
+      };
+      ssh.public = mkOption {
+        type = types.enum [
+          "until-healthy"
+          "open"
+        ];
+        default = "until-healthy";
+        description = "Whether public SSH stays open or closes when Tailscale is healthy, reopening with an alarm after five consecutive unhealthy checks while closed, with alarms while open counting only states other than NeedsLogin once boot uptime exceeds 600 seconds.";
       };
       reservedPorts = mkOption {
         type = types.listOf types.port;
@@ -196,6 +214,12 @@ in
       # The machine's place on the tailnet and whether it is an exit node or a peer relay,
       # docs/tailnet.md.
       tailnet = {
+        routes = mkOption {
+          type = types.listOf (types.addCheck types.str (import ./network/cidr.nix { inherit lib; }));
+          default = [ ];
+          example = [ "198.51.100.7/32" ];
+          description = "IPv4 or IPv6 CIDRs advertised as subnet routes, replacing all manually configured subnet routes even when empty and enabling kernel forwarding when nonempty.";
+        };
         authKeyFile = mkOption {
           type = types.nullOr file;
           default = null;

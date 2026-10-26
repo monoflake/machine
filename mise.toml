@@ -78,4 +78,4 @@ run = "node {{env.WORKSPACE}}/scripts/clean.res.mjs"
 
 [tasks.verify]
 description = "What a commit has to pass: everything formatted, the scripts compiled, the Nix linted, the flake evaluated for every system, the cache's and the seed's tests run; the workflows are the workspace's check"
-run = ["oxfmt --check {{vars.formatted}}", "rescript format --check && rescript build", "mise run nixfmt --check", "mise run nixed", "bash system/nix/cache/tests.sh && bash system/network/seed/tests.sh"]
+run = ["oxfmt --check {{vars.formatted}}", "rescript format --check && rescript build", "mise run nixfmt --check", "mise run nixed", "bash system/nix/cache/tests.sh && bash system/network/seed/tests.sh && bash system/network/tests.sh"]

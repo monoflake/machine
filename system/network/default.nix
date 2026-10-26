@@ -21,10 +21,18 @@ in
   networking = {
     useDHCP = lib.mkIf dhcp true;
     dhcpcd.extraConfig = lib.mkIf dhcp "nohook resolv.conf";
-    nameservers = [
-      "1.1.1.1"
-      "8.8.8.8"
-    ];
+    nameservers =
+      {
+        global = [
+          "1.1.1.1"
+          "8.8.8.8"
+        ];
+        china = [
+          "223.5.5.5"
+          "223.6.6.6"
+        ];
+      }
+      .${config.machine.network.resolvers};
     nftables.enable = true;
     firewall.trustedInterfaces = [ tailnet ];
     firewall.interfaces.${tailnet}.allowedTCPPorts = [ driver ];

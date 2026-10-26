@@ -76,3 +76,23 @@ every boot and switch, as the exit node's are, opens the port in NixOS's firewal
 
 On the relay, `tailscale debug peer-relay-sessions` lists the sessions it carries; from a client,
 `tailscale ping <peer>` shows `via peer-relay(...)` when a relay carries the path.
+
+## Routes
+
+**A machine advertises the subnet routes its configuration lists, `machine.tailnet.routes`, and no
+others**, provisional, chosen by the advisor on 2026-10-26 at the author's request that a server
+advertise its own LAN address as a /32 and never a whole subnet. The list is passed as
+`--advertise-routes` at every boot and switch, an empty one included: Tailscale 1.104.2's
+`tailscale set` keeps an exit node's two default routes beside it and drops a route set by hand, so
+the configuration is the only source. A route carries nothing until the tailnet approves it.
+
+- **A machine never accepts routes**: an assertion refuses `--accept-routes` in its flags but as
+  `--accept-routes=false`, so a server's own subnet stays its own however others advertise it.
+
+## Tags
+
+**A server joins the tailnet as `tag:server`, and a peer relay as `tag:relay` beside it; a person's
+devices stay owned by their user**, decided by the author on 2026-10-26. A machine takes its tags
+from the single-use auth key it logs in with, or through the tailnet's API, and leaves
+`autogroup:self` with them. The tailnet's policy approves a tagged server's exit node by
+`autoApprovers` and grants the relay by its tag, so neither waits on a hand.
