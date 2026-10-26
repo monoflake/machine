@@ -2,18 +2,18 @@
 # scripts/deps/releases.res; edited by hand, it is written over at the next update.
 source = "monoflake/runtime"
 
-# https://github.com/monoflake/runtime/releases/tag/2026.10.25
+# https://github.com/monoflake/runtime/releases/tag/2026.10.26
 [workerd]
-version = "1.20261024.1"
-release = "2026.10.25"
+version = "1.20261025.1"
+release = "2026.10.26"
 
 [workerd.x86_64-linux]
-url = "https://github.com/monoflake/runtime/releases/download/2026.10.25/workerd-1.20261024.1-linux-x86_64.tar"
-sha256 = "acdb8da1e7cda6fa24fb39121aa3f2d367fe1cb76057194a239fbf7a43d0edb4"
+url = "https://github.com/monoflake/runtime/releases/download/2026.10.26/workerd-1.20261025.1-linux-x86_64.tar"
+sha256 = "c5975d2dc6b69fc93fe7fac6260bb5693499d77922bfcbf45454cf29f57b2982"
 
 [workerd.aarch64-linux]
-url = "https://github.com/monoflake/runtime/releases/download/2026.10.25/workerd-1.20261024.1-linux-aarch64.tar"
-sha256 = "69cdd2e9ba7d495b1c8cc098e7a34df0bf32a683619367096c2a4e6bd044a4d4"
+url = "https://github.com/monoflake/runtime/releases/download/2026.10.26/workerd-1.20261025.1-linux-aarch64.tar"
+sha256 = "4a76525b92fddc09bd97483bd28c0d088db52f94c525443b00bb4da8d2cc4463"
 
 # https://github.com/monoflake/runtime/releases/tag/2026.10.22
 [wasmtime]
