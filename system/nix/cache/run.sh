@@ -1,9 +1,60 @@
 # A builder's run for one machine, docs/cache.md. The bucket swept, the machine's system built, the
 # paths it lacks uploaded under the cap and the pointer to the system signed last.
-machine=$1
 given=$MACHINE_CACHE_CONFIG
 field() { jq -r "$1" "$given"; }
 
+# The machine's wrapper asked one of its two questions, through the tailnet where one runs.
+ask() {
+	local host proxy=()
+	host=$(jq -r --arg m "$1" '.machines[$m].host' "$given")
+	[ "$(field .tailnet)" != true ] || proxy=(-o "ProxyCommand=tailscale nc %h %p")
+	ssh -i "$(field .accessKey)" -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=30 \
+		-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=/var/lib/machine/cache-known-hosts \
+		"${proxy[@]}" "machine-cache@$host" "$2"
+}
+
+# A machine's pointer and delta deleted, where it has any.
+forget() {
+	for o in "pending/$1" "pending/$1.sig" "pending/$1.objects"; do
+		rclone deletefile "$objects/$o" 2>/dev/null || true
+	done
+}
+
+# A pointer whose machine runs its path is done with, and so is every object no pending delta names.
+sweep() {
+	local m pointer path running
+	for m in $(jq -r '.machines | keys[]' "$given"); do
+		# R2 reads a missing object as nothing and succeeds, so an empty read is no pointer.
+		pointer=$(rclone cat "$objects/pending/$m" 2>/dev/null) || continue
+		[ -n "$pointer" ] || continue
+		if ! path=$(jq -er '.path | strings | select(. != "")' <<<"$pointer" 2>/dev/null); then
+			echo "machine-cache: $m's pointer names no path, passed over"
+		elif ! running=$(ask "$m" current </dev/null); then
+			echo "machine-cache: could not ask $m what it runs, its pointer kept"
+		elif [ "$running" = "$path" ]; then
+			forget "$m"
+			echo "machine-cache: $m runs $path, its pointer and delta deleted"
+		fi
+	done
+	# Listed before the deltas are read, as a run writes its delta before its objects, so what a
+	# fallback builder uploads meanwhile is kept; a builder's own runs never overlap.
+	rclone lsf -R --files-only "$objects" | sort >"$work/listed"
+	{
+		echo nix-cache-info
+		sed -n '/^pending\//p' "$work/listed"
+		sed -n '/^pending\/.*\.objects$/p' "$work/listed" | while read -r o; do
+			rclone cat "$objects/$o"
+		done
+	} | sort -u >"$work/kept"
+	comm -23 "$work/listed" "$work/kept" >"$work/unkept"
+	[ ! -s "$work/unkept" ] || rclone delete --files-from-raw "$work/unkept" "$objects"
+	echo "machine-cache: $(wc -l <"$work/unkept") objects no pending pointer needs deleted"
+}
+
+# Sourced by sweep-test.sh for the functions above alone, and run otherwise.
+[[ ${BASH_SOURCE[0]} == "$0" ]] || return 0
+
+machine=$1
 flake=$(jq -r --arg m "$machine" '.machines[$m].flake // empty' "$given")
 [ -n "$flake" ] || {
 	echo "machine-cache: $machine is not built here" >&2
@@ -37,49 +88,6 @@ else
 	objects=":s3:$bucket"
 fi
 
-# The machine's wrapper asked one of its two questions, through the tailnet where one runs.
-ask() {
-	local host proxy=()
-	host=$(jq -r --arg m "$1" '.machines[$m].host' "$given")
-	[ "$(field .tailnet)" != true ] || proxy=(-o "ProxyCommand=tailscale nc %h %p")
-	ssh -i "$(field .accessKey)" -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=30 \
-		-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=/var/lib/machine/cache-known-hosts \
-		"${proxy[@]}" "machine-cache@$host" "$2"
-}
-
-# A machine's pointer and delta deleted, where it has any.
-forget() {
-	for o in "pending/$1" "pending/$1.sig" "pending/$1.objects"; do
-		rclone deletefile "$objects/$o" 2>/dev/null || true
-	done
-}
-
-# A pointer whose machine runs its path is done with, and so is every object no pending delta names.
-sweep() {
-	local m pointer path
-	for m in $(jq -r '.machines | keys[]' "$given"); do
-		pointer=$(rclone cat "$objects/pending/$m" 2>/dev/null) || continue
-		path=$(jq -r .path <<<"$pointer")
-		if [ "$(ask "$m" current </dev/null || true)" = "$path" ]; then
-			forget "$m"
-			echo "machine-cache: $m runs $path, its pointer and delta deleted"
-		fi
-	done
-	# Listed before the deltas are read, as a run writes its delta before its objects, so what a
-	# fallback builder uploads meanwhile is kept; a builder's own runs never overlap.
-	rclone lsf -R --files-only "$objects" | sort >"$work/listed"
-	{
-		echo nix-cache-info
-		sed -n '/^pending\//p' "$work/listed"
-		sed -n '/^pending\/.*\.objects$/p' "$work/listed" | while read -r o; do
-			rclone cat "$objects/$o"
-		done
-	} | sort -u >"$work/kept"
-	comm -23 "$work/listed" "$work/kept" >"$work/unkept"
-	[ ! -s "$work/unkept" ] || rclone delete --files-from-raw "$work/unkept" "$objects"
-	echo "machine-cache: $(wc -l <"$work/unkept") objects no pending pointer needs deleted"
-}
-
 sweep
 
 mkdir -p /var/lib/machine/cache-systems
@@ -87,7 +95,11 @@ system=$(nix build --refresh --print-out-paths "${on[@]}" \
 	--out-link "/var/lib/machine/cache-systems/$machine" \
 	"$flake#nixosConfigurations.\"$machine\".config.system.build.toplevel")
 # A machine running the system already keeps no pointer, as an older one would take it back.
-if [ "$(ask "$machine" current </dev/null)" = "$system" ]; then
+running=$(ask "$machine" current </dev/null) || {
+	echo "machine-cache: could not ask $machine what it runs, so whether it needs $system is unknown; nothing uploaded" >&2
+	exit 1
+}
+if [ "$running" = "$system" ]; then
 	forget "$machine"
 	echo "machine-cache: $machine runs $system already; its pointer and delta deleted, nothing uploaded"
 	exit 0

@@ -19,9 +19,17 @@ and the cap is measured by one run at a time. A run, `run.sh`, for its one machi
    deleted with its signature and its delta; then every object no pending delta names is deleted,
    `nix-cache-info` and the pointers kept. The objects are listed before the deltas are read, and a
    run writes its delta before its objects, so what a fallback builder uploads meanwhile is kept.
+   A machine with no pointer is passed over, since `rclone cat` of a missing R2 object prints
+   nothing and exits 0, seen on 2026-10-26; a pointer that names no path is passed over with a line
+   saying so; one whose machine cannot be asked what it runs is kept, a line saying so. Only an
+   answer equal to the path deletes it.
 2. **Builds the machine's system** from its flake, `nixosConfigurations.<name>`, keeping the last
-   one built under `/var/lib/machine/cache-systems/` as a root. A machine already running it ends
-   the run, its pointer and delta deleted, so an older pointer cannot take it back.
+   one built under `/var/lib/machine/cache-systems/` as a root, with git on the run's PATH, as Nix
+   runs git to fetch a `git+ssh` flake; a private one is reached by the key that
+   `machine.upgrade.keyFile` names, so a builder sets it as its own upgrade does. A machine already
+   running it ends the run, its pointer and delta deleted, so an older pointer cannot take it back;
+   one that cannot be asked fails the run with nothing uploaded, as whether it needs the system is
+   unknown.
 3. **Asks the machine which paths of the closure it lacks**, through its wrapper below, and fails
    where the answer names a path outside the closure.
 4. **Signs the closure into a directory**, `nix copy` to a `file://` store with the builder's Nix
@@ -101,10 +109,14 @@ scheme `https`, in any case. What is left must be a host of letters, digits, dot
 `:` and a port at most; anything else, another scheme, any other path, a query, a fragment, a user
 or a space inside it, is refused, the variable named and never its value. `rclone` and `curl` are
 given `https://` and the host, and Nix's store the host with `scheme=https`, the form Nix's manual
-shows for an S3-compatible store, https://nix.dev/manual/nix/2.34/store/types/s3-binary-cache-store;
-`endpoint-test.sh` tests it, run by verify. A builder holds three more keys, each a file:
-`signingKey`, the Nix secret key; `pointerKey`, the SSH key signing pointers; and `accessKey`, the
-SSH key reaching the wrapper.
+shows for an S3-compatible store, https://nix.dev/manual/nix/2.34/store/types/s3-binary-cache-store.
+A builder holds three more keys, each a file: `signingKey`, the Nix secret key; `pointerKey`, the
+SSH key signing pointers; and `accessKey`, the SSH key reaching the wrapper.
+
+**Verify runs the cache's tests**: `endpoint-test.sh` the endpoint's forms, `sweep-test.sh` the
+sweep against a directory with `rclone` and `ssh` faked, and `build-test.sh` that the run as built
+holds git on its PATH, which a test machine's `path:` flake never needed and a live `git+ssh` one
+did, on 2026-10-26.
 
 **On a test machine** an absolute path stands a directory in for the bucket, with no credentials,
 and `machine.cache.builder.store` builds in a store of another root, so a machine building its own

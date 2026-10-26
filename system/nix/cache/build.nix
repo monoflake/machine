@@ -24,10 +24,12 @@ let
   );
   run = pkgs.writeShellApplication {
     name = "machine-cache-run";
+    # Git as NixOS's own upgrade holds it, which Nix runs to fetch a git+ssh flake, build-test.sh.
     runtimeInputs = [
       config.nix.package
       pkgs.coreutils
       pkgs.gawk
+      pkgs.gitMinimal
       pkgs.gnugrep
       pkgs.gnused
       pkgs.jq
