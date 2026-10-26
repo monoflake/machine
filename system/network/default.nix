@@ -1,5 +1,5 @@
-# A machine's network, DHCP with fixed nameservers, nftables, the tailnet's interface trusted, the
-# fence around the containers, the tunnel, and the ports its listeners keep.
+# A machine's network, DHCP or its provider's seed with fixed nameservers, nftables, the tailnet's
+# interface trusted, the fence around the containers, the tunnel, and the ports its listeners keep.
 { config, lib, ... }:
 let
   tailnet = config.services.tailscale.interfaceName;
@@ -7,18 +7,20 @@ let
   driver = 37483;
   entry = lib.toInt (lib.last (lib.splitString ":" config.machine.driver.entry));
   inherit (config.machine) conform;
+  dhcp = !config.machine.network.seed;
 in
 {
   imports = [
     ./fence.nix
+    ./seed
     ./ssh.nix
     ./tailnet.nix
     ./tunnel.nix
   ];
 
   networking = {
-    useDHCP = true;
-    dhcpcd.extraConfig = "nohook resolv.conf";
+    useDHCP = lib.mkIf dhcp true;
+    dhcpcd.extraConfig = lib.mkIf dhcp "nohook resolv.conf";
     nameservers = [
       "1.1.1.1"
       "8.8.8.8"

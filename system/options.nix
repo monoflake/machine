@@ -35,6 +35,11 @@ in
         default = "zstd";
         description = "Compressor zswap uses for swapped pages; lz4 for a weak processor.";
       };
+      network.seed = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Whether the machine reads its static addresses at every boot from its provider's cloud-init NoCloud seed, the iso9660 disk labeled cidata, and runs systemd-networkd in place of DHCP, for a provider giving no DHCP and no router advertisement, docs/network.md.";
+      };
       reservedPorts = mkOption {
         type = types.listOf types.port;
         default = [ ];
