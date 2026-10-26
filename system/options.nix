@@ -35,6 +35,11 @@ in
         default = "zstd";
         description = "Compressor zswap uses for swapped pages; lz4 for a weak processor.";
       };
+      addresses.enable = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Whether the machine learns its public IPv4 and IPv6 addresses at boot and every hour from Tailscale's netcheck and Cloudflare's trace, agreeing, into /var/lib/machine/addresses.json, RFC co32d.";
+      };
       network = {
         resolvers = mkOption {
           type = types.enum [

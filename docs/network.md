@@ -60,3 +60,13 @@ closer again at once. `open` leaves 22 open always, for a machine under repair.
   ten minutes after boot, so a tailnet that does not come back after a reboot raises the alarm at
   about fifteen minutes. A reload that flushed the table counts nothing either; the next healthy
   check puts it back.
+
+## Its public addresses
+
+**A machine can learn its own public addresses, `machine.addresses.enable`, off by default**, the
+half of RFC co32d that is decided: at boot and every hour it asks Tailscale's netcheck and
+Cloudflare's trace for each family apart, takes an address only where both agree, and confirms a
+change only when a second check a minute later agrees again, `system/network/addresses/`. Its
+answer is `/var/lib/machine/addresses.json`, each family `confirmed`, `disputed`, `unknown` or
+`none`, the last confirmed address kept through the rest, so a restart loses nothing. Who reads it
+and changes a name is still RFC co32d's open question, and nothing reads it yet.

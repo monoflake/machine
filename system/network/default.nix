@@ -11,6 +11,7 @@ let
 in
 {
   imports = [
+    ./addresses
     ./fence.nix
     ./seed
     ./ssh.nix
