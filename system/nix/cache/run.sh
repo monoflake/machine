@@ -1,5 +1,5 @@
-# A builder's run for one machine, docs/cache.md. The bucket swept, the machine's system built, the
-# paths it lacks uploaded under the cap and the pointer to the system signed last.
+# A builder's run for one machine, docs/cache.md. The machine's system built, the paths of its
+# closure upstream lacks uploaded while the bucket is under the cap and the pointer signed last.
 
 # Every exit prints the run's outcome as its last line, a contract another repository reads.
 finish() {
@@ -20,7 +20,6 @@ finish() {
 			--option keep-outputs false || status=$?
 	fi
 	[ "$lock_owned" = false ] || rm -f "$lock.owner" || status=$?
-	if [ "$sweep_refused" = true ] && [ "$status" = 0 ]; then status=1; fi
 	if [ "$self" = true ]; then
 		printf 'machine-cache outcome=%s consumer=%s self=%s\n' "$outcome" "$machine" "$self_outcome"
 	else
@@ -35,7 +34,6 @@ if [[ ${BASH_SOURCE[0]} == "$0" ]]; then
 	outcome=failed
 	self_outcome=failed
 	fetch_failed=false
-	sweep_refused=false
 	lock_owned=false
 	gc_store=""
 	work=""
@@ -56,123 +54,53 @@ ask() {
 		"${proxy[@]}" "machine-cache@$host" "$2"
 }
 
-# Objects are listed before deltas so concurrent uploads remain protected.
-protect_path() {
-	local path=$1 marker=${2:-} hash info url ref
-	local -a refs
-	hash=${path##*/}; hash=${hash%%-*}
-	grep -qxF "$hash.narinfo" "$work/kept" && return 0
-	echo "$hash.narinfo" >>"$work/kept"
-	if ! info=$(rclone cat "$objects/$hash.narinfo" 2>/dev/null) || [ -z "$info" ]; then
-		[ -n "$marker" ] || return 0
-		echo "machine-cache: sweep refused, self marker $marker needs unreadable narinfo $hash.narinfo; nothing deleted" >&2
+# The old pointer and its signature withdrawn, so neither outlives the other.
+retract() {
+	local o
+	for o in "$1" "$1.sig"; do
+		rclone deletefile "$objects/$o" 2>/dev/null || true
+	done
+}
+
+# The closure's paths upstream lacks, the run's own set, docs/cache.md. An upstream not reached or
+# not answering for exactly the closure fails the run before anything is published.
+own_set() {
+	if ! nix path-info --store "$upstream" --option narinfo-cache-meta-ttl 0 --json --json-format 1 \
+		--stdin <"$work/closure" >"$work/upstream.json" 2>"$work/upstream-errors"; then
+		cat "$work/upstream-errors" >&2
+		echo "machine-cache: upstream $upstream could not be asked for the closure; nothing published" >&2
 		return 1
 	fi
-	url=$(sed -n 's/^URL: //p' <<<"$info")
-	[ -z "$url" ] || echo "$url" >>"$work/kept"
-	read -r -a refs <<<"$(sed -n 's/^References: //p' <<<"$info")"
-	for ref in "${refs[@]}"; do protect_path "$ref" "$marker" || return 1; done
-}
-forget() {
-	local suffix
-	for suffix in "" .sig .objects; do
-		rclone deletefile "$objects/$1$suffix" 2>/dev/null || true
-	done
-}
-sweep() {
-	local m b pointer at newest newest_path applied o modified now running info
-	now=$(date -u +%s)
-	rclone lsjson -R --files-only "$objects" >"$work/listed.json"
-	jq -r '.[].Path' "$work/listed.json" | sort >"$work/listed"
-	: >"$work/kept"
-	echo nix-cache-info >>"$work/kept"
-	while read -r b; do
-		if ! rclone cat "$objects/$b" >"$work/candidate" 2>/dev/null || [ ! -s "$work/candidate" ]; then
-			echo "machine-cache: sweep refused, self marker $b cannot be read; nothing deleted" >&2
-			sweep_refused=true
-			return 0
-		fi
-		if cache_record_valid "$work/candidate" "$now" 2>/dev/null; then
-			if ! protect_path "$(jq -r .path "$work/candidate")" "$b"; then
-				sweep_refused=true
-				return 0
-			fi
-		else echo "machine-cache: self marker $b names no valid path or time, passed over"
-		fi
-	done < <(grep -E '^self/[^/]+$' "$work/listed" || true)
-	for m in $(jq -r '.machines | keys[]' "$given"); do
-		if grep -qxF "pending/$m" "$work/listed"; then
-			rclone cat "$objects/pending/$m" >"$work/candidate" 2>/dev/null || true
-			if cache_pointer "$work/candidate" "$m" "$now" 2>/dev/null; then
-				pointer=$(jq -r .path "$work/candidate")
-				running=""
-				if ! running=$(ask "$m" current </dev/null); then
-					echo "machine-cache: could not ask $m what it runs, its legacy pointer kept"
-				elif [ "$running" = "$pointer" ]; then
-					forget "pending/$m"
-				fi
-				if [ "${running:-}" != "$pointer" ]; then protect_path "$pointer"; fi
-			fi
-		fi
-		newest=""; newest_path=""
-		: >"$work/pointers"
-		while read -r b; do
-			pointer=$(rclone cat "$objects/$b" 2>/dev/null) || continue
-			[ -n "$pointer" ] || continue
-			printf '%s' "$pointer" >"$work/candidate"
-			if ! cache_pointer "$work/candidate" "$m" "$now" 2>/dev/null; then
-				echo "machine-cache: $m's pointer names no valid path or time, passed over"
-				continue
-			fi
-			at=$(jq -r .at <<<"$pointer")
-			printf '%s %s\n' "$at" "$b" >>"$work/pointers"
-			if [[ $at > $newest ]]; then newest=$at; newest_path=$(jq -r .path <<<"$pointer"); fi
-		done < <(grep -E "^pending/$m/[^.]+$" "$work/listed" || true)
-		[ -n "$newest" ] || continue
-		protect_path "$newest_path"
-		if ! applied=$(ask "$m" applied </dev/null | jq -er '.at | strings' 2>/dev/null); then
-			echo "machine-cache: could not ask $m what it applied, its pointers kept"
-			continue
-		fi
-		while read -r at b; do
-			if [[ $b == "pending/$m/$builder" && $at < $newest && $at < $applied ]]; then
-				for o in "$b" "$b.sig" "$b.objects"; do
-					rclone deletefile "$objects/$o" 2>/dev/null || true
-				done
-			fi
-		done <"$work/pointers"
-	done
-	while read -r o; do
-		rclone cat "$objects/$o" >>"$work/kept" 2>/dev/null || true
-	done < <(rclone lsf -R --files-only "$objects" | grep '\.objects$' || true)
-	sort -u "$work/kept" >"$work/kept.sorted"
-	: >"$work/expired"
-	while IFS=$'\t' read -r o modified; do
-		[[ $o != pending/* && $o != self/* ]] || continue
-		grep -qxF "$o" "$work/kept.sorted" && continue
-		modified=$(cache_epoch "$modified" 2>/dev/null) || continue
-		((now - modified >= 7200)) || continue
-		echo "$o" >>"$work/expired"
-	done < <(jq -r '.[] | [.Path, .ModTime] | @tsv' "$work/listed.json")
-	# A remaining narinfo keeps its NAR even when another path shares that NAR, docs/cache.md.
-	while read -r o; do
-		[[ $o != pending/* && $o != self/* && $o == *.narinfo ]] || continue
-		if grep -qxF "$o" "$work/expired" && rclone deletefile "$objects/$o" 2>/dev/null; then
-			continue
-		fi
-		if ! info=$(rclone cat "$objects/$o" 2>/dev/null); then
-			echo "machine-cache: sweep refused, remaining narinfo $o cannot be read; remaining objects kept" >&2
-			sweep_refused=true
-			return 0
-		fi
-		sed -n 's/^URL: //p' <<<"$info" >>"$work/kept"
-	done <"$work/listed"
-	sort -u "$work/kept" >"$work/kept.sorted"
-	while read -r o; do
-		[[ $o != *.narinfo ]] || continue
-		grep -qxF "$o" "$work/kept.sorted" && continue
-		rclone deletefile "$objects/$o" 2>/dev/null || true
-	done <"$work/expired"
+	if ! jq -e --rawfile closure "$work/closure" \
+		'type == "object" and (keys == ($closure | split("\n") | map(select(length > 0)) | unique))' \
+		"$work/upstream.json" >/dev/null 2>&1; then
+		echo "machine-cache: upstream $upstream answered for other paths than the closure; nothing published" >&2
+		return 1
+	fi
+	jq -r 'to_entries[] | select(.value == null) | .key' "$work/upstream.json" >"$work/asked" || return 1
+	: >"$work/lacking"
+	[ -s "$work/asked" ] || return 0
+	# Nix reads a 403 as a missing path, so each path it calls missing is asked again and only a 404
+	# counts as lacking, docs/cache.md. The store's parameters are no part of the narinfo's URL.
+	local base=${upstream%%[?#]*}
+	if ! cut -c 12-43 "$work/asked" | xargs -P 16 -I '{}' \
+		curl -s -L --max-redirs 5 --max-time 20 --retry 2 --retry-connrefused -o /dev/null \
+		-w '%{http_code} {}\n' "${base%/}/{}.narinfo" >"$work/codes"; then
+		echo "machine-cache: upstream $upstream could not be asked again for a path; nothing published" >&2
+		return 1
+	fi
+	if [ "$(wc -l <"$work/codes")" != "$(wc -l <"$work/asked")" ]; then
+		echo "machine-cache: upstream $upstream left a path unanswered; nothing published" >&2
+		return 1
+	fi
+	if awk '$1 != 200 && $1 != 404 { print; found = 1 } END { exit !found }' "$work/codes" \
+		>"$work/refused"; then
+		echo "machine-cache: upstream $upstream answered $(head -n 1 "$work/refused").narinfo; nothing published" >&2
+		return 1
+	fi
+	while read -r code hash; do
+		[ "$code" != 404 ] || grep "^/nix/store/$hash-" "$work/asked" >>"$work/lacking"
+	done <"$work/codes"
 }
 
 publish() {
@@ -327,6 +255,7 @@ lock_owned=true
 printf '%s\n' "$machine" >"$lock.owner"
 bucket=$(field .bucket)
 cap=$(field .cap)
+upstream=$(field .upstream)
 store=$(field '.store // empty')
 gc_store=""
 on=()
@@ -347,13 +276,11 @@ export RCLONE_CONFIG=/dev/null
 if [[ $bucket == /* ]]; then
 	mkdir -p "$bucket"
 	objects=$bucket
-	cache_store="file://$bucket"
 else
 	export RCLONE_S3_PROVIDER=Cloudflare RCLONE_S3_ENV_AUTH=true RCLONE_S3_NO_CHECK_BUCKET=true
 	endpoint=$(endpoint_host "$bucket") || exit 1
 	export RCLONE_S3_ENDPOINT="https://$endpoint"
 	objects=":s3:$bucket"
-	cache_store="s3://$bucket?endpoint=$endpoint&scheme=https&region=auto"
 fi
 if [[ $bucket == /* && $self == false ]] && [ -f "$bucket/pending/$machine" ] \
 	&& [ "$(jq -c --arg m "$machine" '.machines[$m].builders // {}' "$given")" != '{}' ]; then
@@ -362,6 +289,11 @@ if [[ $bucket == /* && $self == false ]] && [ -f "$bucket/pending/$machine" ] \
 fi
 if [ "$self" = false ] && [ "$(jq -c --arg m "$machine" '.machines[$m].builders // {}' "$given")" = '{}' ]; then
 	prefix="pending/$machine"
+fi
+# A run for another machine refreshes nix-cache-info first, so expiry never takes it, docs/cache.md.
+if [ "$self" = false ]; then
+	printf 'StoreDir: /nix/store\n' >"$work/nix-cache-info"
+	rclone copyto --no-check-dest "$work/nix-cache-info" "$objects/nix-cache-info"
 fi
 
 if [ "$self" = true ] && [ "$(field .self)" = cache ] && [ "$(field .fetch)" != null ]; then
@@ -395,24 +327,17 @@ if [ "$self" = false ]; then
 	[ "$status" != 2 ] || exit 0
 	[ "$status" = 0 ] || exit "$status"
 fi
-sweep
 mkdir -p "$state/cache-systems"
 system=$(nix build --refresh --print-out-paths "${on[@]}" "${evaluate[@]}" \
 	--out-link "$state/cache-systems/$machine" "$target")
 if [ "$self" = false ]; then
 	running=$(ask "$machine" current </dev/null) || exit 1
 	if [ "$running" = "$system" ]; then
-		if [ "$prefix" = "pending/$machine" ]; then
-			forget "$prefix"
-		else
-			rclone deletefile "$objects/$prefix.objects" 2>/dev/null || true
-			publish
-		fi
+		if [ "$prefix" = "pending/$machine" ]; then retract "$prefix"; else publish; fi
 		outcome=confirmed
 		exit 0
 	fi
 fi
-nix path-info -r "${on[@]}" "$system" >"$work/closure"
 if [ "$self" = true ]; then
 	# The chroot store alone substitutes the closure unsigned, held by temporary roots until the
 	# profile roots it, docs/cache.md.
@@ -422,60 +347,40 @@ if [ "$self" = true ]; then
 	"$system/bin/switch-to-configuration" switch
 	self_outcome=built
 	cache_record "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$system" "$state/cache-applied"
-	: >"$work/lacking"
-	while read -r p; do
-		nix path-info --store "$cache_store" "$p" >/dev/null 2>&1 || echo "$p" >>"$work/lacking"
-	done <"$work/closure"
-else
-	ask "$machine" lacks <"$work/closure" >"$work/lacking"
-	if grep -qvxFf "$work/closure" "$work/lacking"; then
-		echo "machine-cache: $machine named paths outside its closure" >&2
-		exit 1
-	fi
+	# Nothing takes a builder's own system from the bucket, so its run publishes nothing.
+	outcome=built
+	exit 0
+fi
+nix path-info -r "${on[@]}" "$system" >"$work/closure"
+own_set || exit 1
+# The bucket's total measured once, the run's own set not added to it, docs/cache.md.
+held=$(rclone size --fast-list --json "$objects" | jq -er '.bytes')
+if ((held > cap)); then
+	echo "machine-cache: the bucket holds $held bytes, past the cap of $cap; nothing uploaded" >&2
+	exit 1
 fi
 
 # The whole closure signed into a directory first, as Nix uploads no path whose references the
-# store it writes lacks, then the objects of the paths the machine lacks taken from it alone.
+# store it writes lacks, then the objects of the run's own set taken from it alone.
 nix copy "${from[@]}" --to "file://$work/staging?compression=zstd&secret-key=$(field .signingKey)" "$system"
 while read -r p; do
 	h=${p#/nix/store/}
 	h=${h%%-*}
 	echo "$h.narinfo"
 	sed -n 's/^URL: //p' "$work/staging/$h.narinfo"
-done <"$work/lacking" | sort -u >"$work/delta"
+done <"$work/lacking" | sort -u >"$work/upload"
 
-rclone lsf -R --files-only --format sp --separator ' ' "$objects" >"$work/sized"
-used=$(awk '{ s += $1 } END { print s + 0 }' "$work/sized")
-added=0
-while read -r o; do
-	grep -qxF "$o" <(cut -d ' ' -f 2- "$work/sized") || added=$((added + $(stat -c %s "$work/staging/$o")))
-done <"$work/delta"
-if ((used + added > cap)); then
-	echo "machine-cache: the bucket holds $used bytes and $machine's delta $added more, past the cap of $cap; nothing uploaded" >&2
-	exit 1
-fi
 
-{
-	grep -qxF nix-cache-info <(cut -d ' ' -f 2- "$work/sized") || echo nix-cache-info
-	cat "$work/delta"
-} >"$work/upload"
 grep -v '\.narinfo$' "$work/upload" >"$work/upload-data" || { status=$?; [ "$status" = 1 ] || exit "$status"; }
 grep '\.narinfo$' "$work/upload" >"$work/upload-narinfo" || { status=$?; [ "$status" = 1 ] || exit "$status"; }
-if [ "$self" = false ]; then
-	for o in "$prefix" "$prefix.sig"; do
-		rclone deletefile "$objects/$o" 2>/dev/null || true
-	done
-	rclone copyto "$work/delta" "$objects/$prefix.objects"
-fi
+retract "$prefix"
+# Every object uploaded again, unlisted and uncompared, so its age is this run's, docs/cache.md.
 for pass in data narinfo; do
 	if [ -s "$work/upload-$pass" ]; then
-		rclone copy --no-traverse --files-from-raw "$work/upload-$pass" "$work/staging" "$objects"
+		rclone copy --no-check-dest --transfers 32 --files-from-raw "$work/upload-$pass" \
+			"$work/staging" "$objects"
 	fi
 done
-if [ "$self" = true ]; then
-	cache_record "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$system" "$work/self"
-	rclone copyto "$work/self" "$objects/self/$builder"
-else publish
-fi
+publish
 
 outcome=built

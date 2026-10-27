@@ -46,7 +46,7 @@ printf '%s\n\n1\n%s\n' "$path" "$dependency" \
 "$CACHE_TEST_NIX" key convert-secret-to-public <"$t/nix-key" >"$t/nix-key.pub"
 "$CACHE_TEST_NIX" store sign --store "$TEST_SOURCE" --key-file "$t/nix-key" -r "$path"
 "$CACHE_TEST_NIX" copy --from "$TEST_SOURCE" --to "file://$t/bucket" "$path"
-jq --arg key "$(cat "$t/nix-key.pub")" '.trusted = $key' "$t/fetch.json" >"$t/config"
+jq --arg key "$(cat "$t/nix-key.pub")" '.trusted = $key | del(.substituters)' "$t/fetch.json" >"$t/config"
 mv "$t/config" "$t/fetch.json"
 pointer a1 2026-10-26T13:00:00Z
 echo /nix/store/2123456789abcdfghijklmnpqrsvwxyz-previous >"$t/current"

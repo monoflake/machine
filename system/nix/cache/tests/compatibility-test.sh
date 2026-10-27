@@ -91,11 +91,14 @@ jq '.machines.c1.builders={} | .machines.c1.slots=[]' "$t/build.json" >"$t/legac
 mv "$t/legacy-build.json" "$t/build.json"
 echo "$ref" >"$t/hosts/c1/current"
 run_test --now
+# The recorded delta list went with the sweep, docs/cache.md.
 while read -r object; do [ -f "$t/bucket/$object" ]; done \
-	< <(jq -r '.consumers[] | select(.machine == "c1") | .objects[]' "$cache_dir/fixtures/legacy-layout.json")
+	< <(jq -r '.consumers[] | select(.machine == "c1") | .objects[] | select(endswith(".objects") | not)' \
+		"$cache_dir/fixtures/legacy-layout.json")
+[ ! -f "$t/bucket/pending/c1.objects" ]
 echo "$path" >"$t/hosts/c1/current"
 run_test --now
-[ ! -f "$t/bucket/pending/c1" ] && [ ! -f "$t/bucket/pending/c1.sig" ]
-[ ! -f "$t/bucket/pending/c1.objects" ]
+[ ! -f "$t/bucket/pending/c1" ]
+[ ! -f "$t/bucket/pending/c1.sig" ]
 echo "compatibility: enabled one and two builder consumers match the recorded legacy layout"
 compare_base

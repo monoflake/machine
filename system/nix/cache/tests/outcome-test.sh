@@ -107,23 +107,21 @@ LOCK
 		export MACHINE_CACHE_CONFIG=$t/config MACHINE_CACHE_ENDPOINT=http://example.com
 		check_run failed 1 --now ;;
 	current) rm "$t/hosts/c1/current"; check_run failed 1 --now ;;
-	lacks) echo "$ref" >"$t/hosts/c1/current"; rm "$t/hosts/c1/lacks"; check_run failed 1 --now ;;
-	outside)
+	upstream)
 		echo "$ref" >"$t/hosts/c1/current"
-		echo /nix/store/2123456789abcdfghijklmnpqrsvwxyz-outside >"$t/hosts/c1/lacks"
-		check_run failed 1 --now ;;
+		export TEST_UPSTREAM=down; check_run failed 1 --now ;;
 	cap)
 		echo "$ref" >"$t/hosts/c1/current"
+		echo stray >"$t/bucket/stray"
 		jq '.cap=0' "$t/build.json" >"$t/config"
 		export MACHINE_CACHE_CONFIG=$t/config; check_run failed 1 --now ;;
-	eval|build|closure|copy|sweep|claim|upload|signature|pointer)
+	eval|build|closure|copy|claim|upload|signature|pointer)
 		echo "$ref" >"$t/hosts/c1/current"
 		case $case_name in
 		eval) fail_command nix 'eval*' ;;
 		build) fail_command nix 'build*' ;;
 		closure) fail_command nix 'path-info*' ;;
 		copy) fail_command nix 'copy*' ;;
-		sweep) fail_command rclone 'lsjson*' ;;
 		claim) fail_command rclone 'copyto*.claim' ;;
 		upload) fail_command rclone 'copy\ *' ;;
 		signature) fail_command rclone 'copyto*.sig' ;;
@@ -206,10 +204,6 @@ FETCH
 			own=' self=built'; check_run failed 1 --self
 			grep -qx switched "$t/stdout"
 			[ ! -f "$t/state/cache-applied" ] ;;
-		self-cap)
-			jq '.cap=0' "$t/config" >"$t/capped"
-			own=' self=built'
-			export MACHINE_CACHE_CONFIG=$t/capped; check_run failed 1 --self ;;
 		esac ;;
 	esac
 	echo "outcome passed $case_name"
@@ -217,9 +211,8 @@ FETCH
 for case_name in built confirmed legacy-built legacy-confirmed answered manual-answered claimed \
 	last-claimed skipped late trigger-late lock lock-expired state-directory lock-open \
 	work-directory missing-config unknown invalid-config unlisted-builder \
-	layout endpoint current lacks outside cap eval build closure copy sweep claim upload signature \
+	layout endpoint current upstream cap eval build closure copy claim upload signature \
 	pointer cleanup-term cleanup-lock-error cleanup-work-error terminated no-machine self-fetched \
-	self-built self-fetch-refused self-fetch-error self-build-error self-switch-error self-record-error \
-	self-cap; do
+	self-built self-fetch-refused self-fetch-error self-build-error self-switch-error self-record-error; do
 	run_case "$case_name"
 done

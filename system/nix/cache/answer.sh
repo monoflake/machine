@@ -1,11 +1,9 @@
-# The cache channel reports the current system, applied pointer and missing paths, docs/cache.md.
+# The cache channel reports the current system and missing paths, docs/cache.md.
 case ${SSH_ORIGINAL_COMMAND:-} in
 current)
 	readlink /run/current-system
 	;;
-applied)
-	cat /var/lib/machine/cache-applied 2>/dev/null || true
-	;;
+# No run of the new design asks it, kept for a builder not yet moved, RFC ttcli.
 lacks)
 	given=$(head -c 16000000)
 	if printf '%s\n' "$given" | grep -qvxE '/nix/store/[0-9a-z]{32}-[0-9A-Za-z+._?=-]+'; then
@@ -15,7 +13,7 @@ lacks)
 	printf '%s\n' "$given" | xargs -r nix-store --check-validity --print-invalid
 	;;
 *)
-	echo "machine-cache: ask current, applied or lacks" >&2
+	echo "machine-cache: ask current or lacks" >&2
 	exit 1
 	;;
 esac

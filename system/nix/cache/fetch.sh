@@ -1,5 +1,5 @@
 # A fetched machine's daily upgrade, docs/cache.md. Its pointer fetched and verified, the paths it
-# lacks taken from the bucket on its builders' keys alone, and the system switched to.
+# lacks taken from the bucket and upstream on their keys alone, and the system switched to.
 given=$MACHINE_CACHE_CONFIG
 field() { jq -r "$1" "$given"; }
 bucket=$(field .bucket)
@@ -104,10 +104,13 @@ if [ -z "$newest" ]; then
 	exit 0
 fi
 path=$(jq -r .path "$work/pointer")
+substituters=$substituter
+upstream=$(field '.substituters // empty')
+[ -z "$upstream" ] || substituters+=" $upstream"
 # Realized even when already valid, the system is rooted in the work directory until the profile
 # holds it, docs/store.md.
 nix-store --realise "$path" --add-root "$work/system" \
-	--option substituters "$substituter" \
+	--option substituters "$substituters" \
 	--option trusted-public-keys "$(field .trusted)" \
 	--option require-sigs true \
 	--option narinfo-cache-negative-ttl 0 >/dev/null || exit 1

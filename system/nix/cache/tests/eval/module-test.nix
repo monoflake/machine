@@ -147,7 +147,25 @@ let
     assert lib.any (a: !a.assertion && lib.hasInfix "needs /data" a.message) noData.assertions;
     assert !small.system.autoUpgrade.enable;
     assert !large.system.autoUpgrade.enable;
-    assert large.machine.cache.builder.cap == 8000000000;
+    assert large.machine.cache.builder.cap == 5000000000;
+    assert large.machine.cache.builder.upstream == "https://cache.nixos.org";
+    assert lib.all (c: c.nix.settings.narinfo-cache-positive-ttl == 3600) [
+      small
+      large
+      consumer
+    ];
+    assert lib.all (c: c.nix.settings.narinfo-cache-negative-ttl == 60) [
+      small
+      large
+      consumer
+    ];
+    assert lib.hasInfix "rclone copy --no-check-dest" run.text;
+    assert lib.hasInfix "rclone size --fast-list" run.text;
+    assert
+      !lib.any (verb: lib.hasInfix "rclone ${verb}" run.text) [
+        "lsjson"
+        "lsf"
+      ];
     assert small.systemd.services.machine-cache-self.serviceConfig.ExecStart != "";
     assert !(small.systemd.timers ? machine-cache-fetch);
     assert small.systemd.services.machine-cache-fetch.serviceConfig.ExecStart != "";

@@ -7,7 +7,7 @@
 }:
 let
   cfg = config.machine.cache;
-  # What a run reads, the bucket, its keys and every machine built here, the sweep asking each.
+  # What a run reads, the bucket, upstream, its keys and every machine built here.
   given = pkgs.writeText "machine-cache.json" (
     builtins.toJSON {
       inherit (cfg) bucket;
@@ -25,6 +25,7 @@ let
         cap
         data
         store
+        upstream
         signingKey
         pointerKey
         accessKey
@@ -50,6 +51,8 @@ let
     runtimeInputs = [
       config.nix.package
       pkgs.coreutils
+      pkgs.curl
+      pkgs.findutils
       pkgs.gawk
       pkgs.gitMinimal
       pkgs.gnugrep
@@ -80,6 +83,12 @@ let
 
 in
 {
+  options.machine.cache.builder.upstream = lib.mkOption {
+    type = lib.types.str;
+    default = "https://cache.nixos.org";
+    description = "Binary cache a run asks for the closure of what it built, uploading only the paths it lacks; every mirror the fleet takes paths from copies it.";
+  };
+
   config = lib.mkIf (cfg.enable && (cfg.builds != { } || cfg.builder.self != null)) {
     environment.systemPackages = [ run ];
     system.autoUpgrade.enable = lib.mkIf (cfg.builder.self != null) (lib.mkForce false);

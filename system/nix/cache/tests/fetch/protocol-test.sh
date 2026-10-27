@@ -8,8 +8,9 @@ trap 'rm -rf "$t"' EXIT
 . "$cache_dir/../protocol.sh"
 pointer a1 2026-10-26T12:00:00Z
 pointer a2 2026-10-26T13:00:00Z
-# Each fetch realizes its system with a root and the bucket's trust, docs/store.md.
-trust="--option substituters file://$t/bucket --option trusted-public-keys example\.com:key"
+# Each fetch realizes its system with a root, the bucket, upstream and their trust, docs/store.md.
+trust="--option substituters file://$t/bucket https://example\.com/upstream"
+trust+=" --option trusted-public-keys example\.com:key example\.com-upstream:key"
 trust+=" --option require-sigs true --option narinfo-cache-negative-ttl 0"
 realized() { grep -Ec -- "^--realise $path --add-root /.+/system $trust$" "$t/nix-calls" || true; }
 fetch_test

@@ -54,3 +54,8 @@ machine's modules and its generated configuration.
   in place of every path the bucket lacks; a first day's self upload shrinks from the whole
   closure's missing part to that remainder, and so does what the self marker keeps against the
   cap. The sizes are measured when it lands.
+
+**Noted on 2026-10-27**: RFC ttcli supersedes this ledger's self marker and its self upload. A
+run's own set is what upstream lacks, uploaded whole each day; a self run publishes nothing; the
+bucket's lifecycle rule alone deletes, with no marker kept; the two upload passes stay, every NAR
+before its narinfo.

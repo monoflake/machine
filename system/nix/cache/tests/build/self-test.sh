@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Self builds honor an explicit store and set the profile from the data store before activation.
+# Self builds honor an explicit store, set the profile from the data store before activation and
+# upload nothing.
 set -euo pipefail
 cache_dir=$(cd "$(dirname "$0")/.." && pwd)
 . "$cache_dir/test-support.sh"
@@ -53,6 +54,8 @@ if [ "$mode" = configured ]; then
 			echo "self-store: consumer $command dropped the explicit store" >&2; exit 1;
 		}
 	done
+	grep -q "^path-info -r --store $store " "$t/store-calls"
+	grep -q "^copy --from $store --to file://" "$t/store-calls"
 	: >"$t/store-calls"
 fi
 MACHINE_CACHE_CONFIG=$t/self.json bash -euo pipefail "$t/run.sh" a1 --self >"$t/log" 2>&1 || {
@@ -68,7 +71,6 @@ if [ "$mode" = configured ]; then
 else
 	[ "$(cat "$t/self-events")" = "profile
 switch
-upload
 gc" ] || {
 		cat "$t/self-events" >&2
 		echo 'self-copy: profile from the chroot store missing before switch' >&2; exit 1;
@@ -80,10 +82,11 @@ gc" ] || {
 	}
 	grep -q "^build .*--store $store --eval-store $store " "$t/store-calls"
 fi
-grep -q "^path-info -r --store $store " "$t/store-calls"
-grep -q "^copy --from $store --to file://" "$t/store-calls"
+if grep -qE '^(path-info|copy) ' "$t/store-calls"; then
+	echo 'self-store: a self run queried or uploaded its closure' >&2; exit 1
+fi
 if [ "$mode" = configured ]; then
-	echo 'self-store: data=false preserves the explicit store for consumer and self builds and uploads'
+	echo 'self-store: data=false preserves the explicit store for consumer builds, uploads and self builds'
 else
-	echo 'self-copy: chroot build and evaluation, profile substituted from the chroot store before switch, chroot upload then GC'
+	echo 'self-copy: chroot build and evaluation, profile substituted from the chroot store before switch, then GC'
 fi

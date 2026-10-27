@@ -23,7 +23,11 @@ let
         ) cfg.fetch.builders
       );
       machine = config.networking.hostName;
-      trusted = lib.concatMapStringsSep " " (b: b.nix) cfg.fetch.builders;
+      # Upstream as the machine takes it otherwise, for every path the bucket does not carry.
+      substituters = lib.concatStringsSep " " config.nix.settings.substituters;
+      trusted = lib.concatStringsSep " " (
+        map (b: b.nix) cfg.fetch.builders ++ config.nix.settings.trusted-public-keys
+      );
     }
   );
   fetch = pkgs.writeShellApplication {

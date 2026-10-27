@@ -119,8 +119,9 @@ the link it left in `gcroots/auto` as
 with `SIGKILL` runs no trap, so `<work>/system` stays under the temporary directory and roots that
 system until the directory is cleaned.
 
-The realization keeps its trust exactly as it was: the bucket as its only substituter, the
-builders' keys, `require-sigs` and no cached negative lookup. The profile command after it takes
+The realization keeps its trust as [cache.md](cache.md) describes: the bucket and the machine's own
+substituters, the builders' keys and the machine's own trusted keys, `require-sigs` and no cached
+negative lookup, RFC ttcli. The profile command after it takes
 nothing from the bucket. A builder's own system and the systems it builds for others are rooted as
 [cache.md](cache.md) describes, the self build by its profile command and every build by its run's
 out-link.

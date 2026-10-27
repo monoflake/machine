@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Own upgrades use newer answers first and retain cap enforcement after the object sweep.
+# Own upgrades use newer answers first and publish nothing of a system they build.
 set -euo pipefail
 cache_dir=$(cd "$(dirname "$0")" && pwd)
 . "$cache_dir/test-support.sh"
@@ -30,24 +30,15 @@ bash -euo pipefail "$t/run.sh" a1 --self
 [ -f "$t/switched" ]
 [ "$(jq -r .path "$MACHINE_CACHE_APPLIED")" = "$t/system" ]
 [ ! -f "$t/bucket/pending/a1/a1" ]
-jq '.self="build" | .cap=80' "$t/self.json" >"$t/large.json"
+jq '.self="build"' "$t/self.json" >"$t/large.json"
 export MACHINE_CACHE_CONFIG=$t/large.json
-rm -f "$t/bucket/"*.narinfo "$t/bucket/nar/"* "$t/bucket/nix-cache-info"
-if bash -euo pipefail "$t/run.sh" a1 --self >"$t/cap" 2>&1; then echo "own nonzero delta passed cap" >&2; exit 1; fi
-grep -Eq 'delta [1-9][0-9]* more' "$t/cap"
-printf '%02000d' 0 >"$t/bucket/stray.narinfo"
-touch -d 2026-10-26T10:00:00Z "$t/bucket/stray.narinfo"
-jq '.cap=1000' "$t/large.json" >"$t/ready.json"
-export MACHINE_CACHE_CONFIG=$t/ready.json
-bash -euo pipefail "$t/run.sh" a1 --self
-[ ! -f "$t/bucket/stray.narinfo" ]
-[ -f "$t/bucket/0123456789abcdfghijklmnpqrsvwxyz.narinfo" ]
-[ ! -f "$t/bucket/pending/a1/a1" ]
-export TEST_CACHE_HAS=true
-: >"$t/uploaded"
-bash -euo pipefail "$t/run.sh" a1 --self
-[ ! -s "$t/uploaded" ]
-echo "self: newer pointer first, equal pointer fallback, nonzero cap and swept upload passed"
+: >"$t/events"
+: >"$t/build-calls"
+bash -euo pipefail "$t/run.sh" a1 --self >"$t/large-log"
+[ "$(tail -n 1 "$t/large-log")" = 'machine-cache outcome=built consumer=a1 self=built' ]
+if grep -qE '^(copy|copyto|deletefile|size) ' "$t/events"; then fail "a self run touched the bucket"; fi
+if grep -qE '^(path-info|copy) ' "$t/build-calls"; then fail "a self run staged its closure"; fi
+echo "self: newer pointer first, equal pointer fallback, and a self build publishing nothing passed"
 
 jq '.machine="b1"' "$t/fetch.json" >"$t/refused-fetch.json"
 jq --arg t "$t" '.builder="b1" | .fetch.config=($t+"/refused-fetch.json") | .machines.b1=.machines.a1 | del(.machines.a1)' \
@@ -98,7 +89,7 @@ bash -euo pipefail "$t/run.sh" b1 --self >"$t/realise-log" 2>&1 || status=$?
 [ "$status" = 1 ]
 grep -q -- "--realise $path" "$t/nix-calls"
 grep -q '^realise failed$' "$t/realise-log"
-! grep -q '^build ' "$t/build-calls"
+if grep -q '^build ' "$t/build-calls"; then fail "a failed realise started a self build"; fi
 [ ! -s "$t/switched" ]
 [ ! -f "$MACHINE_CACHE_APPLIED" ]
 echo "self: a newer valid pointer whose realise fails never starts a self build"

@@ -1,9 +1,10 @@
 # The cache
 
 How a machine too small to evaluate its own system takes its daily upgrade, `system/nix/cache/`,
-built for monoflake/cloud's RFC u9fxz and its amendment, RFC dpcnp: a builder evaluates and builds
-the machine's system, uploads only what the machine lacks to a bucket on Cloudflare R2, and writes
-a signed pointer to it; the machine fetches the pointer, takes the paths, and switches.
+built for monoflake/cloud's RFC u9fxz and its amendment, RFC dpcnp, and reshaped by RFC ttcli: a
+builder evaluates and builds the machine's system, uploads the paths of its closure upstream lacks
+to a bucket on Cloudflare R2, and writes a signed pointer to it; the machine fetches the pointer,
+takes the paths from the bucket and upstream, and switches.
 `machine.cache` in `system/options.nix` sets both roles, and `machine.cache.enable` turns them on
 once the bucket and its keys exist.
 
@@ -15,39 +16,34 @@ where `at` is null, as on a fallback builder; with a deployment's inventory it f
 machine's slots and runs at the builder's own alone, below. `machine-cache-now@<name>` starts the
 same run at once, skipping the wait for its slot but not the check for a fresh answer. A run missed
 while the builder was off is skipped, never caught up. **A builder's runs never overlap**: each
-holds `/run/lock/machine-cache` by `flock`, so no two evaluations meet in its memory, no two sweeps
-meet, and the cap is measured by one run at a time. A run, `run.sh`, for its one machine:
+holds `/run/lock/machine-cache` by `flock`, so no two evaluations meet in its memory. A run,
+`run.sh`, for its one machine, first uploads `nix-cache-info` again once it holds the lock,
+whether it then builds, finds an answer, meets a claim or confirms, so the lifecycle rule never
+takes it while runs go on, provisional, chosen by the advisor on 2026-10-27; a run skipped or
+missed at its slot uploads nothing. Then it:
 
-1. **Sweeps the bucket.** A pointer at `pending/<name>` whose machine runs its path, asked by
-   `current`, is deleted with its signature and its delta; a pointer of this builder at
-   `pending/<name>/<builder>` is retired once the machine reports a newer one applied, asked by
-   `applied`. Then every object is deleted that no pending delta names, that the newest pointer of
-   none of this builder's machines needs, that no builder's self marker needs, and that is older
-   than two hours; `nix-cache-info`, `pending/` and `self/` are kept. The objects are listed before
-   the deltas and markers are read, and a run writes its delta before its objects, so another
-   builder's delivery meanwhile is kept by its delta, and a self upload before its marker by its
-   age. A machine with no pointer is passed over,
-   since `rclone cat` of a missing R2 object prints nothing and exits 0, seen on 2026-10-26; a
-   pointer whose machine cannot be asked is kept, a line saying so.
-2. **Builds the machine's system** from its flake, `nixosConfigurations.<name>`, keeping the last
+1. **Builds the machine's system** from its flake, `nixosConfigurations.<name>`, keeping the last
    one built under `/var/lib/machine/cache-systems/` as a root, with git on the run's PATH, as Nix
    runs git to fetch a `git+ssh` flake; a private one is reached by the key that
    `machine.upgrade.keyFile` names, so a builder sets it as its own upgrade does. A machine already
-   running it ends the run: at `pending/<name>` its pointer and delta are deleted, so an older
-   pointer cannot take it back, and at `pending/<name>/<builder>` a confirming pointer naming that
-   path is written with no delta. One that cannot be asked fails the run with nothing uploaded, as
-   whether it needs the system is unknown.
-3. **Asks the machine which paths of the closure it lacks**, through its wrapper below, and fails
-   where the answer names a path outside the closure.
+   running it ends the run: at `pending/<name>` its pointer is deleted, so an older pointer cannot
+   take it back, and at `pending/<name>/<builder>` a confirming pointer naming that path is
+   written. One that cannot be asked fails the run with nothing uploaded, as whether it needs the
+   system is unknown.
+2. **Asks upstream for the closure**, `machine.cache.builder.upstream`, `https://cache.nixos.org`
+   by default, below. The paths it lacks are the run's own set; an upstream not reached, or not
+   answering for exactly the closure, fails the run with nothing published.
+3. **Measures the bucket once**, `rclone size --fast-list`, its one bucket-wide call, 3.3 s on one
+   builder on 2026-10-27: over `machine.cache.builder.cap`, 5 GB by default, it uploads nothing,
+   writes no pointer, and fails the unit with a line naming the total, decided by the author on
+   2026-10-27. The run's own set is not added to the total, so one run, or a few at once, may pass
+   the cap by what they upload, and the total lags what was just uploaded, both accepted.
 4. **Signs the closure into a directory**, `nix copy` to a `file://` store with the builder's Nix
-   key, zstd compressed, and takes from it the narinfo and the NAR of each path the machine lacks.
-5. **Measures the bucket**: where what it holds and what the delta adds pass
-   `machine.cache.builder.cap`, 8 GB by default, it uploads nothing, writes no pointer, and fails
-   the unit. The cap is provisional, chosen by the advisor on 2026-10-26.
-6. **Uploads the delta** under its prefix, `pending/<name>` with one unnamed builder and
-   `pending/<name>/<builder>` otherwise: the old pointer deleted first, the delta's list written as
-   `<prefix>.objects`, the objects copied, then the signature and the pointer last, so a pointer
-   always has its objects.
+   key, zstd compressed, and takes from it the narinfo and the NAR of each path of its own set.
+5. **Uploads its own set** under its prefix, `pending/<name>` with one unnamed builder and
+   `pending/<name>/<builder>` otherwise: the old pointer and its signature deleted first, then the
+   NARs, then the narinfos, then the signature and the pointer last, so a
+   pointer always has its objects and a narinfo its NAR, even after an interrupted upload.
 
 ## Build work on the data disk
 
@@ -168,11 +164,11 @@ or profile command exits before the switch runs and leaves the profile unchanged
 collects the chroot store and keeps its rooted systems. The upload still signs the binary cache
 with the configured key.
 
-The self upload to R2 reads from the chroot store, where the build completed the entire closure.
-The run's system root and lock protect it through upload and cleanup, just as for another machine;
-bringing the closure into the main store does not change the upload source. With
-`machine.cache.builder.data = false`, every run, including self, uses an explicitly configured `machine.cache.builder.store` for its
-build, closure query and upload, without the data option's substituter or reclamation.
+A self run uploads nothing, RFC ttcli. Another machine's upload reads from the chroot store, where
+the build completed the entire closure, and the run's system root and lock protect it through
+upload and cleanup. With `machine.cache.builder.data = false`, every run, including self, uses an
+explicitly configured `machine.cache.builder.store` for its build, and another machine's run for
+its closure query and upload too, without the data option's substituter or reclamation.
 
 **The self build's sandbox and writable `/tmp` are on `/data`.** In 2.34.9,
 [ChrootDerivationBuilder::prepareSandbox](https://github.com/NixOS/nix/blob/2.34.9/src/libstore/unix/build/chroot-derivation-builder.cc)
@@ -239,14 +235,49 @@ setup creates no roots; an initial successful run roots the previous system. It 
 evaluation and build flags and the lock during building and collection, and that a failed
 collection fails the run while keeping its outcome. `tests/build/self-test.sh` checks an explicit
 store with data mode off, the chroot build and evaluation flags, the profile command substituting
-from the trusted chroot store before switching, and upload from the chroot store before collection.
+from the trusted chroot store before switching, and no closure query or upload before collection.
 The module tests check both Linux architectures and rehearse preparation twice with a command
 substitute for btrfs. A live builder must still establish the quota's effect on a full build,
 the daemon's build directory in actual use and the bytes reclaimed after a real run. No machine
 is switched by these tests. This option replaces the deployment's interim environment, mount and
 tmpfiles additions; their removal belongs to the deployment's own change.
 
-## Exactly the paths the machine lacks
+## Exactly the paths upstream lacks, RFC ttcli
+
+**A run's own set is what upstream lacks of the closure**, decided by the author on 2026-10-27:
+the paths built from a deployment's own sources, its driver, the machine's modules and its
+generated configuration, which is how this carries out RFC mgzfp's "the bucket only our own".
+Local signatures decide nothing, as most paths built in the `/data` chroot store lose every
+signature on the way, RFC ttcli. The whole closure is asked in one
+`nix path-info --store <upstream> --option narinfo-cache-meta-ttl 0 --json --json-format 1 --stdin`,
+and a path upstream lacks is `null` in its answer. In the Nix the flake locks, 2.34.9, that command
+asks every path at once on `queryMissing`'s thread pool
+([misc.cc:107](https://github.com/NixOS/nix/blob/2.34.9/src/libstore/misc.cc#L107)), not
+`Store::queryValidPaths`, whose pool `nix copy` uses
+([store-api.cc:763-808](https://github.com/NixOS/nix/blob/2.34.9/src/libstore/store-api.cc#L763-L808)),
+and then reads each path's info in series, which `queryPathInfo` answers from the local
+`NarInfoDiskCache` first and writes back
+([store-api.cc:608-678](https://github.com/NixOS/nix/blob/2.34.9/src/libstore/store-api.cc#L608-L678)).
+On one builder on 2026-10-27, 720 paths took 1 s.
+
+**A run that cannot ask upstream fails closed**, provisional, recommended by the integrator on
+2026-10-27: no NAR, no narinfo, no pointer, the old pointer kept, and the outcome `failed` with a
+line naming upstream. `nix path-info` turns only a missing path into `null`
+([path-info.cc:88-89](https://github.com/NixOS/nix/blob/2.34.9/src/nix/path-info.cc#L88-L89)) and
+fails on any other error, and the run also refuses an answer whose paths are not the closure's.
+Nix's HTTP store reads a 403 as a 404
+([http-binary-cache-store.cc:130](https://github.com/NixOS/nix/blob/2.34.9/src/libstore/http-binary-cache-store.cc#L130)),
+so `narinfo-cache-meta-ttl` at 0 has it fetch `nix-cache-info` on every run, which fails on
+anything but a binary cache that answers
+([http-binary-cache-store.cc:62-80](https://github.com/NixOS/nix/blob/2.34.9/src/libstore/http-binary-cache-store.cc#L62-L80),
+[262-273](https://github.com/NixOS/nix/blob/2.34.9/src/libstore/http-binary-cache-store.cc#L262-L273)),
+and **every path Nix calls missing is asked again**, provisional, chosen by the advisor on
+2026-10-27, as a 403 on one narinfo would read as `null` too: one `curl` per such path, sixteen at
+once, for `<upstream>/<hash>.narinfo`, the store reference's parameters dropped first as Nix drops
+them, redirects followed as Nix follows them, five at most, each try held to 20 s and tried three
+times, a refused connection among them. Only a final 404 counts as lacking and a 200 leaves the
+path out of the own set; any other code, or a `curl` that fails, fails the run closed with a line
+naming upstream and the code.
 
 **Nix uploads no path whose references the store it writes to lacks.** `nix copy --no-recursive`
 to a binary cache, and copying each path alone, both stop at Nix's check that every reference is
@@ -258,10 +289,12 @@ error: cannot add '/nix/store/...-nix-2.35.3' to the binary cache because the re
 ```
 
 So the whole closure is copied to a directory on the builder, where every reference is present, and
-`rclone` copies from it the two objects of each path the machine lacks, `<hash>.narinfo` and the
-NAR its `URL:` names, and nothing else. The machine takes them as a substituter: Nix substitutes a
-path's references before the path, and a reference the machine holds is valid already, so it never
-asks the bucket for one.
+`rclone` copies from it the two objects of each path of the run's own set, `<hash>.narinfo` and the
+NAR its `URL:` names, and nothing else. **Every run uploads its whole own set again**, decided by
+the author on 2026-10-27, by `rclone copy --no-check-dest`, which neither lists nor compares the
+destination, so each object's upload time is the latest run's for the expiry below. `nix copy
+--to s3://` is never used, as it skips the paths the bucket holds, `queryValidPaths` on the
+destination ([store-api.cc:1026](https://github.com/NixOS/nix/blob/2.34.9/src/libstore/store-api.cc#L1026)).
 
 ## The pointer
 
@@ -290,18 +323,21 @@ below 4096 MB runs the same fetch from its own run at that time instead, below. 
   newer than the last it applied, kept in `/var/lib/machine/cache-applied`; an older one is passed
   over, a refused one or a failed read fails the unit where no newer valid one is taken, and no
   newer one for two days fails it too;
-- realizes the path from the bucket as its only substituter, trusting its builders' Nix keys alone,
-  where the path is not valid already, so a confirming pointer fetches nothing;
+- realizes the path from the bucket and the machine's own substituters, upstream, trusting its
+  builders' Nix keys and the machine's own trusted keys alone, where the path is not valid already,
+  so a confirming pointer fetches nothing; a path no source holds fails the fetch and the machine
+  waits for the next run, as a consumer never builds;
 - sets the system profile and switches, as the self-upgrade does, a confirming pointer switching
   nothing and recording its `at`. A new kernel waits for a reboot by hand.
 
 **The builder reaches it as the user `machine-cache`**, whose authorized keys are each builder's
 access key under `restrict,from=`, the tailnet's addresses, `machine.cache.fetch.from`, and
-`command=` the wrapper, `answer.sh`, which answers three things alone: `current`, the current
-system's path, `applied`, the last pointer applied from `/var/lib/machine/cache-applied`, and
-`lacks`, which of the store paths given on stdin are not valid, checked by
-`nix-store --check-validity` and nothing written. A builder running a tailnet dials through
-`tailscale nc`, so it reaches a machine by its name with no resolver.
+`command=` the wrapper, `answer.sh`, which answers two things alone: `current`, the current
+system's path, and `lacks`, which of the store paths given on stdin are not valid, checked by
+`nix-store --check-validity` and nothing written. No run asks `lacks` since RFC ttcli; it stays for
+a builder not yet moved against a consumer switched first, provisional, chosen by the advisor on
+2026-10-27, and goes once every builder runs the new design. A builder running a
+tailnet dials through `tailscale nc`, so it reaches a machine by its name with no resolver.
 
 **A machine's host key is taken on first contact** into `/var/lib/machine/cache-known-hosts` on its
 builder, and a reinstalled machine's new key is refused, failing each run for it. Its old entry is
@@ -327,35 +363,16 @@ to 3, a missing flake, two slots of one builder closer than a gap or a time diff
   clock. A builder that finds the machine already running its system writes a confirming pointer,
   which switches nothing.
 - **A builder's own system**: above 4096 MB of memory it builds and switches at its own time and
-  uploads what the cache lacks. Its newest self upload is kept through its closure, including
-  paths uploaded on earlier days, so an unchanged system uploads no paths again, decided by the
-  author on 2026-10-26. A completed build, switch and upload replaces `self/<builder>` last; a run
-  that fetched its system leaves the old marker alone, provisional, chosen by the advisor on
-  2026-10-26. Below 4096 MB, it takes a pointer for itself from the other builders first
-  and builds itself where none is newer than its last applied; a refused pointer or a failed read
-  does not stop it, and the run fails afterwards naming each, provisional, chosen by the advisor on
-  2026-10-26, so the machine has its system and the failure is still seen.
-- **The sweep**, step 1 above, walks the newest pointers of the sweeping builder's own machines;
-  another machine's objects are kept by its delta. Every builder's sweep also reads every
-  builder's self marker and follows its path's references with `protect_path`, exactly as for the
-  newest pointer. Only the replacement marker's closure counts for that builder; objects it no
-  longer needs expire after two hours unless another marker, pointer or delta keeps them, and
-  markers themselves never expire by age, provisional, chosen by the advisor on 2026-10-26.
-  If a listed marker or any narinfo in its closure cannot be read, the sweep deletes nothing;
-  the run still builds and uploads, names the refusal on stderr and exits nonzero while keeping
-  its outcome, provisional, chosen by the advisor on 2026-10-26. The deferred `cache-rest` race
-  between two builders' sweeps covers markers too, so a sweep can delete an object a newer marker
-  reuses.
-  A builder retires its own older pointers once the machine reports a newer one applied, and one
-  at `pending/<name>` once the machine runs its path.
-  An expired path's narinfo is deleted before its NAR. Every narinfo that remains, whether kept
-  by a marker, pointer, delta, age or a failed deletion, keeps its NAR even when another path
-  shares it; an old NAR with no remaining narinfo still expires, provisional, chosen by the
-  advisor on 2026-10-26.
+  publishes nothing, provisional, chosen by the advisor on 2026-10-27, since no fetch and no slot
+  reads a builder's own upload; a builder takes its system from another only through the pointer
+  that builder's run for it writes. Below 4096 MB, it takes a pointer for itself from the other
+  builders first and builds itself where none is newer than its last applied, publishing nothing
+  either; a refused pointer or a failed read does not stop it, and the run fails afterwards
+  naming each, provisional, chosen by the advisor on 2026-10-26, so the machine has its system and
+  the failure is still seen.
 - **`/var/lib/machine` keeps systemd's default mode**: the cache's units, the seed's and the
-  addresses' share it, and the user `machine-cache` reads `cache-applied` there, so no unit sets a
-  `StateDirectoryMode` for it and secrecy comes per file through `UMask`, which
-  `system/network/addresses/eval-test.nix` checks.
+  addresses' share it, so no unit sets a `StateDirectoryMode` for it and secrecy comes per file
+  through `UMask`, which `system/network/addresses/eval-test.nix` checks.
 
 ## A run's outcome, the interface `upgrade` reads
 
@@ -367,37 +384,31 @@ machine-cache outcome=<outcome> consumer=<machine> [self=<built|fetched|failed>]
 ```
 
 `outcome` is what the run did for the consumer: `built`, a system built and its pointer published,
-or for a `--self` run, its system built, switched and its lacking paths uploaded; `answered`, a fresh
+or for a `--self` run, its system built and switched; `answered`, a fresh
 answer already there; `claimed`, a builder's claim, which may be the run's own, younger than a gap
 less a minute; `confirmed`, the machine already running it; `missed`, its slot lost to the lock or a
 late start; `skipped`, a timer run at another builder's slot; `failed`, anything else. `self`, on a
 builder's own run alone, is what became of its own system, so a builder that switched and then could
-not record it or upload prints `outcome=failed` with `self=built`. Cleanup preserves that outcome,
+not record it prints `outcome=failed` with `self=built`. Cleanup preserves that outcome,
 but a cleanup failure makes the exit status nonzero. The words change only with a version, and no
 other line begins `machine-cache outcome=`; `tests/outcome-test.sh` holds every exit path to it.
 
 ## The bucket and its credentials
 
-**A self marker lives at `self/<builder>`**, one object per builder replacing its predecessor,
-provisional, chosen by the advisor on 2026-10-26. Its JSON has the pointer's `path` and `at`:
-
-```json
-{ "path": "/nix/store/...-nixos-system-...", "at": "2026-10-26T14:00:00Z" }
-```
-
-The separate `self/` prefix keeps markers outside the consumer pointers at `pending/<name>` and
-`pending/<name>/<builder>`. Fetch, slot and the sweep's pointer loop cannot take one as a pointer,
-which `pending/<builder>/self` would allow. A marker is an unsigned retention record with no
-consumer `machine`, signature or delta list; Nix signatures still govern substituted paths,
-provisional, chosen by the advisor on 2026-10-26. Every object other than narinfo files is uploaded
-in a first pass, then the narinfo files in a second, and the marker last, so a narinfo always has
-its NAR even after an interrupted upload, provisional, chosen by the advisor on 2026-10-26.
-Both pass lists must be read successfully before delta publication or object upload; an empty
-list is allowed, but a read error fails the run and keeps the old marker, provisional, chosen by
-the advisor on 2026-10-26.
-Objects still present and `nix-cache-info` already present are not uploaded again, provisional,
-chosen by the advisor on 2026-10-26. A repeated build refreshes the marker's `at` while leaving
-the closure objects unchanged.
+**The bucket holds the pointers and their signatures, the claims, `nix-cache-info` and each run's
+own set, and the only thing that deletes from it is its lifecycle rule**, RFC ttcli, decided by the
+author on 2026-10-27: every object deleted one day after its upload, applied by the integrator at
+rollout. R2 deletes typically within 24 hours of expiry, so an object lives one to two days. No run
+lists the bucket, its size for the cap aside, or deletes an object but its own old pointer, and
+`nix-cache-info` is uploaded first by every run for another machine that takes its lock, a
+confirming one included, so it never expires while those runs go on. A machine off for more than a
+day finds its pointer expired and takes its system from the next daily run, an accepted consequence.
+Every machine asks a substituter again soon, `narinfo-cache-positive-ttl = 3600` and
+`narinfo-cache-negative-ttl = 60` in `system/nix/default.nix`, provisional, chosen by the advisor on
+2026-10-27, so an expired path, or one uploaded after an earlier miss, is not trusted from a stale
+local answer for long. The fetch's own realization sets `narinfo-cache-negative-ttl` to 0 for
+itself, so the one command that takes the system trusts no cached miss at all, and the 60 holds for
+every other command on the machine.
 
 `machine.cache.bucket` names the bucket; `machine.cache.credentials` is an environment file holding
 its endpoint, `MACHINE_CACHE_ENDPOINT`, and the token reaching it, `AWS_ACCESS_KEY_ID` and
@@ -414,17 +425,19 @@ shows for an S3-compatible store, https://nix.dev/manual/nix/2.34/store/types/s3
 A builder holds three more keys, each a file: `signingKey`, the Nix secret key; `pointerKey`, the
 SSH key signing pointers; and `accessKey`, the SSH key reaching the wrapper.
 
-**Verify runs the cache's tests**, `tests.sh`: the endpoint's forms, the sweep, the protocol of
-slots, claims and pointers, delivery, the lock, the own system, the inventory's derivation and the
-module's units against a directory with `rclone` and `ssh` faked, and the legacy layout against a
-fixture recorded from the one-builder code, `tests/fixtures/legacy-layout.json`; and that the run as
-built holds git on its PATH, which a live `git+ssh` flake needed on 2026-10-26. The tests under
-`tests/self-marker/` cover marked references surviving a daily sweep, unmarked and superseded
-uploads expiring, a repeated self build uploading no closure objects, publication order, keeping
-the old marker after a fetch or upload failure, refusal of all deletion on a marker or marked
-narinfo read failure with a visible run failure, retry after an interruption between upload
-passes, both upload list read errors, narinfo deletion failures, shared and orphan NARs, and
-isolation from all three pointer readers.
+**Verify runs the cache's tests**, `tests.sh`: the endpoint's forms, the protocol of slots, claims
+and pointers, delivery with a bucket under the cap uploading and one past it uploading nothing, the
+lock, the own system publishing nothing, the inventory's derivation and the module's units against
+a directory with `rclone` and `ssh` faked, the directory's size summed over its files as `rclone
+size` sums a local remote, and the legacy layout against a fixture recorded
+from the one-builder code, `tests/fixtures/legacy-layout.json`; and that the run as built holds git
+on its PATH, which a live `git+ssh` flake needed on 2026-10-26. The tests under `tests/upload/`
+cover the own set against a fake upstream, by Nix from the locked input against a `file://` cache
+and through whole runs; every key uploaded again where the bucket holds it, with no listing; the
+order of `nix-cache-info` first, a confirming run included, then NARs, narinfos and the pointer
+last; an upstream not reached, answering for other paths or answering 403 for one narinfo
+publishing nothing; retry after an interruption between upload passes; and both upload list read
+errors.
 
 **On a test machine** an absolute path stands a directory in for the bucket, with no credentials,
 and `machine.cache.builder.store` builds in a store of another root, so a machine building its own
