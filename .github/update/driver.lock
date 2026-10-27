@@ -1,0 +1,13 @@
+# A hand-written fixture driver-test.sh puts in a copy's manifest.lock, never a published release.
+[driver-machine]
+version = "0.1.0"
+release = "2026.10.27"
+source = "monoflake/driver"
+
+[driver-machine.x86_64-linux]
+url = "https://github.com/monoflake/driver/releases/download/2026.10.27/driver-machine-0.1.0-linux-x86_64.tar.gz"
+sha256 = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+
+[driver-machine.aarch64-linux]
+url = "https://github.com/monoflake/driver/releases/download/2026.10.27/driver-machine-0.1.0-linux-aarch64.tar.gz"
+sha256 = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"

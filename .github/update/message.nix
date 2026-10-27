@@ -12,6 +12,7 @@ let
   width = 96;
   lines = 5;
   first = [
+    "driver-machine"
     "workerd"
     "wasmtime"
     "linux"

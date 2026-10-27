@@ -3,7 +3,9 @@
 { lib, pkgs, ... }:
 let
   inherit (pkgs.stdenv.hostPlatform) system;
-  pinned = lib.filterAttrs (_: lib.isAttrs) (builtins.fromTOML (builtins.readFile ./manifest.lock));
+  pinned = lib.filterAttrs (name: pin: lib.isAttrs pin && name != "driver-machine") (
+    builtins.fromTOML (builtins.readFile ./manifest.lock)
+  );
   archive =
     name: pin:
     pkgs.fetchurl {

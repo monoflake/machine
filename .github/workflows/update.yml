@@ -1,5 +1,5 @@
-# Moves the flake's inputs and the runtimes' images manifest.lock locks, and commits both where the
-# flake still evaluates, then wakes check.
+# Moves the flake's inputs and what manifest.lock locks, the runtimes' images and the driver, and
+# commits them where the flake and the driver's package still evaluate, then wakes check.
 name: update
 
 on:
@@ -38,15 +38,22 @@ jobs:
       # The flake as locked before is kept, so the message can say what moved.
       - name: update
         id: update
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           rsync -a --exclude=.git ./ "$RUNNER_TEMP/old/"
           nix flake update
-          node "$GITHUB_WORKSPACE/scripts/deps/releases.res.mjs" system/containers/manifest.toml
+          # Exit 2 is a source held back while the rest was written, kept and failed at the end.
+          status=0
+          node "$GITHUB_WORKSPACE/scripts/deps/releases.res.mjs" system/containers/manifest.toml || status=$?
+          [ "$status" -eq 0 ] || [ "$status" -eq 2 ] || exit "$status"
           git diff --quiet flake.lock system/containers/manifest.lock && echo "moved=false" >> "$GITHUB_OUTPUT" || echo "moved=true" >> "$GITHUB_OUTPUT"
 
       - name: evaluate
         if: steps.update.outputs.moved == 'true'
-        run: nix flake check --all-systems --no-build
+        run: |
+          nix flake check --all-systems --no-build
+          bash .github/update/driver-test.sh
 
       # Both systems' derivations before and after say what changed beneath the held packages.
       - name: commit
@@ -76,3 +83,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh workflow run check.yml --repo "$GITHUB_REPOSITORY" --ref main
+
+      # A release source held back fails the run once the rest is committed, naming it.
+      - name: held
+        if: ${{ !cancelled() && steps.update.outputs.held != '' }}
+        env:
+          HELD: ${{ steps.update.outputs.held }}
+        run: |
+          echo "::error::the releases of $HELD could not be read, so their pins were kept as they were"
+          exit 1

@@ -23,7 +23,7 @@ let
     name = package.pname or (parsed package).name;
     value = package.version or (parsed package).version;
   };
-  # The runtimes' images manifest.lock locks are held as a package is, by name and version.
+  # What manifest.lock locks, the runtimes' images and the driver, is held as a package is.
   images = lib.mapAttrs (_: pin: pin.version) (
     lib.filterAttrs (_: lib.isAttrs) (
       builtins.fromTOML (builtins.readFile (machine.outPath + "/system/containers/manifest.lock"))

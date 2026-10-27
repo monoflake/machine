@@ -8,6 +8,38 @@
 }:
 let
   cfg = config.machine.driver;
+  # The release manifest.lock locks, this machine's architecture's archive fetched by its SHA-256,
+  # and null until the lock holds one.
+  pin = (builtins.fromTOML (builtins.readFile ./containers/manifest.lock)).driver-machine or null;
+  released =
+    if pin == null then
+      null
+    else
+      pkgs.stdenvNoCC.mkDerivation {
+        pname = "driver-machine";
+        inherit (pin) version;
+        src = pkgs.fetchurl {
+          name = "driver-machine-${pin.version}-linux-${pkgs.stdenv.hostPlatform.parsed.cpu.name}.tar.gz";
+          inherit (pin.${pkgs.stdenv.hostPlatform.system}) url sha256;
+        };
+        sourceRoot = ".";
+        # The binary is static against musl, so nothing in it is patched or stripped.
+        dontFixup = true;
+        installPhase = ''
+          runHook preInstall
+          install -Dm755 driver-machine "$out/bin/driver-machine"
+          install -Dm644 -t "$out/share/licenses/driver-machine" LICENSE-MIT LICENSE-APACHE
+          runHook postInstall
+        '';
+        meta = {
+          mainProgram = "driver-machine";
+          platforms = lib.platforms.linux;
+          license = with lib.licenses; [
+            mit
+            asl20
+          ];
+        };
+      };
   inherit (pkgs.unstable)
     runc
     crun
@@ -48,6 +80,9 @@ let
 in
 {
   config = lib.mkIf cfg.enable {
+    # A test machine's override stands in for the release, so the default gives way to it.
+    machine.driver.package = lib.mkDefault (if cfg.override != null then null else released);
+
     assertions = [
       {
         assertion = (cfg.package != null) != (cfg.override != null);

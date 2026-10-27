@@ -1,3 +1,8 @@
 # The runtimes' images this machine's containers stand on, each locked in manifest.lock by update.
 source = "monoflake/runtime"
 images = ["workerd", "wasmtime"]
+
+# The driver this machine runs, monoflake/driver's release locked beside the images, RFC 8c0rg.
+[driver]
+source = "monoflake/driver"
+binaries = ["driver-machine"]

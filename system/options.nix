@@ -321,7 +321,8 @@ in
         package = mkOption {
           type = types.nullOr types.package;
           default = null;
-          description = "A release of driver-machine the services run; null until releases are opened.";
+          defaultText = lib.literalMD "the release `system/containers/manifest.lock` locks, or `null`";
+          description = "driver-machine package the services run; by default, where the driver is enabled and no override is set, the release system/containers/manifest.lock locks, this machine's architecture's archive fetched from GitHub Releases by its SHA-256, and null while the lock holds none.";
         };
         override = mkOption {
           type = types.nullOr file;
