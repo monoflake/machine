@@ -13,8 +13,13 @@ finish() {
 	if [ "$status" != 0 ] && [[ $outcome != missed && $outcome != claimed ]]; then
 		outcome=failed
 	fi
-	[ "$lock_owned" = false ] || rm -f "$lock.owner" || status=$?
 	[ -z "$work" ] || rm -rf "$work" || status=$?
+	if [ "$lock_owned" = true ] && [ -n "$gc_store" ]; then
+		rm -rf -- "${TMPDIR:?}"/* "$TMPDIR"/.[!.]* "$TMPDIR"/..?* || status=$?
+		nix store gc --store "$gc_store" --option keep-derivations false \
+			--option keep-outputs false || status=$?
+	fi
+	[ "$lock_owned" = false ] || rm -f "$lock.owner" || status=$?
 	if [ "$sweep_refused" = true ] && [ "$status" = 0 ]; then status=1; fi
 	if [ "$self" = true ]; then
 		printf 'machine-cache outcome=%s consumer=%s self=%s\n' "$outcome" "$machine" "$self_outcome"
@@ -32,6 +37,7 @@ if [[ ${BASH_SOURCE[0]} == "$0" ]]; then
 	fetch_failed=false
 	sweep_refused=false
 	lock_owned=false
+	gc_store=""
 	work=""
 	trap 'finish "$?"' EXIT
 	trap 'exit 143' TERM
@@ -322,10 +328,18 @@ printf '%s\n' "$machine" >"$lock.owner"
 bucket=$(field .bucket)
 cap=$(field .cap)
 store=$(field '.store // empty')
+gc_store=""
 on=()
-[ -z "$store" ] || on=(--store "$store")
+evaluate=()
 from=()
-[ -z "$store" ] || from=(--from "$store")
+if [ "$(field '.data // false')" = true ]; then
+	gc_store=$store
+	evaluate=(--eval-store "$store")
+fi
+if [ -n "$store" ]; then
+	on=(--store "$store")
+	from=(--from "$store")
+fi
 work=$(mktemp -d "${TMPDIR:-/var/tmp}/machine-cache.XXXXXX")
 
 # The bucket as rclone reaches it, or the directory standing in for it.
@@ -374,7 +388,7 @@ fi
 target="$flake#nixosConfigurations.\"$machine\".config.system.build.toplevel"
 if [ "$self" = false ]; then
 	if [ "$manual" = true ]; then
-		system=$(nix eval --refresh --raw "${on[@]}" "$target.outPath")
+		system=$(nix eval --refresh --raw "${on[@]}" "${evaluate[@]}" "$target.outPath")
 	fi
 	status=0
 	slot || status=$?
@@ -383,7 +397,7 @@ if [ "$self" = false ]; then
 fi
 sweep
 mkdir -p "$state/cache-systems"
-system=$(nix build --refresh --print-out-paths "${on[@]}" \
+system=$(nix build --refresh --print-out-paths "${on[@]}" "${evaluate[@]}" \
 	--out-link "$state/cache-systems/$machine" "$target")
 if [ "$self" = false ]; then
 	running=$(ask "$machine" current </dev/null) || exit 1
@@ -400,7 +414,11 @@ if [ "$self" = false ]; then
 fi
 nix path-info -r "${on[@]}" "$system" >"$work/closure"
 if [ "$self" = true ]; then
-	nix-env -p /nix/var/nix/profiles/system --set "$system"
+	# The chroot store alone substitutes the closure unsigned, held by temporary roots until the
+	# profile roots it, docs/cache.md.
+	activate=()
+	[ -z "$gc_store" ] || activate=(--option substituters "$store&trusted=true")
+	nix-env "${activate[@]}" -p /nix/var/nix/profiles/system --set "$system"
 	"$system/bin/switch-to-configuration" switch
 	self_outcome=built
 	cache_record "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$system" "$state/cache-applied"

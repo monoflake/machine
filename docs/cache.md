@@ -49,6 +49,203 @@ meet, and the cap is measured by one run at a time. A run, `run.sh`, for its one
    `<prefix>.objects`, the objects copied, then the signature and the pointer last, so a pointer
    always has its objects.
 
+## Build work on the data disk
+
+**A builder can set `machine.cache.builder.data = true`**, off by default. The author decided on
+2026-10-26 that build work belongs on `/data`: a small machine has only a few hundred MB free on
+its root filesystem, and one evaluation fetched 918 MB of flake inputs into the main store that
+day. Moving `TMPDIR` alone does not move those inputs. The option requires an enabled builder
+and a btrfs `/data` mount; a missing mount fails evaluation with the reason. A builder with
+its own upgrade flake must select `machine.cache.builder.self` so its own builds also use the run's
+storage and cleanup; leaving NixOS's separate automatic build unit enabled fails evaluation.
+
+The author decided on 2026-10-26 that a builder's own system would build in the main store with
+its staging on `/data`.
+Amended by the author on 2026-10-27: **a builder evaluates and builds its own system in the chroot
+store at `/data/build/root`, as for other machines, then copies only its toplevel's closure into
+the main store before switching, and reclaims the chroot store while keeping its rooted systems.**
+The sandbox's writable `/tmp` must also stay off the small root filesystem. This runs on the host;
+a nested Nix sandbox in a container needs privilege such as `CAP_SYS_ADMIN`, and an upgrade must
+work even when containerd or the driver is broken.
+
+`machine-cache-build-store` requires `/data` and runs before the scheduled, immediate and self
+build units and the Nix daemon. It creates `/data/build` as a subvolume when absent, reapplies
+`btrfs qgroup limit 10000000000 /data/build`, and creates its directories without replacing any
+existing data. An ordinary directory at `/data/build` fails preparation rather than silently
+bypassing the subvolume. `system/boot/disk.nix` already makes `/data` with simple quotas at
+installation. Preparation never enables quotas, changes their mode or rescans them. The limit is
+10 GB in decimal bytes, shared by the store, caches and scratch work. The locked
+[btrfs-progs 6.19.1 package](https://github.com/NixOS/nixpkgs/blob/1f607aa79b6356ed45d3cd3c8079c196e79efa2c/pkgs/by-name/bt/btrfs-progs/package.nix)
+provides the [qgroup limit command](https://github.com/kdave/btrfs-progs/blob/v6.19.1/Documentation/btrfs-qgroup.rst)
+and documents [simple quota accounting](https://github.com/kdave/btrfs-progs/blob/v6.19.1/Documentation/btrfs-quota.rst).
+
+### Existing directory migration
+
+Before enabling `machine.cache.builder.data` over an ordinary `/data/build` directory, including
+one containing `/data/build/tmp` from an interim tmpfiles rule, an operator must:
+
+1. Stop the cache timers and all scheduled, immediate and self build units. Wait for their runs
+   and cleanup to finish, and keep them stopped through the migration.
+2. With `/data` mounted, move the entire interim `/data/build` directory aside on that filesystem
+   to an unused path, such as `/data/build-interim`. Keep its contents for inspection; do not
+   delete them or move them onto the root filesystem.
+3. Run the preparation from the incoming configuration, letting it create the now absent
+   `/data/build` subvolume, its directories and the quota. Confirm preparation succeeds.
+4. Switch to the configuration enabling the option, removing the deployment's interim tmpfiles
+   rule in that rollout, and resume the cache timers.
+
+This is an operator rollout step. Preparation refuses an existing path that is not a subvolume,
+points to these steps, and never deletes or replaces it. Keep the moved directory until its
+contents are no longer needed; it is outside the new subvolume's quota and cleanup.
+
+| Setting                                                       | What stays on `/data`                                                                                                                                                               |
+| ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `machine.cache.builder.store = "local?root=/data/build/root"` | Every machine's outputs, including the builder's own, fetched sources, derivations, store database and store logs. The option supplies this default and rejects another store.      |
+| `--eval-store local?root=/data/build/root`                    | Flake inputs and derivations from both the immediate run's evaluation and the build's evaluation, including self evaluation.                                                        |
+| `nix.settings.build-dir = "/data/build/builds"`               | Derivations' build directories, exposed as `/build` inside Linux sandboxes, including daemon builds. It does not move the sandbox root or `/tmp`. The host directory has mode 0755. |
+| `XDG_CACHE_HOME=/data/build/cache`                            | Flake evaluation and fetcher databases, git repositories and tarball caches for every build unit and the daemon.                                                                    |
+| `TMPDIR=/data/build/tmp`                                      | A run's temporary files and its signed binary cache staging. The directory has mode 0700.                                                                                           |
+| Daemon `TMPDIR=/data/build/daemon-tmp`                        | Daemon scratch files, separate from the directory a completed cache run empties.                                                                                                    |
+| `NIX_LOG_DIR=/data/build/log`                                 | Main-store derivation logs for daemon builds. All cache runs, including self builds, keep their store logs under `/data/build/root/nix/var/log/nix`.                                |
+| `RequiresMountsFor=/data` and the preparation dependency      | A missing data disk stops every build unit and the daemon before they can write beneath an unmounted `/data` on the root filesystem.                                                |
+
+The flake's
+[locked nixpkgs revision selects Nix 2.34.9](https://github.com/NixOS/nixpkgs/blob/1f607aa79b6356ed45d3cd3c8079c196e79efa2c/pkgs/tools/package-management/nix/default.nix).
+Its [local store manual](https://nix.dev/manual/nix/2.34/store/types/local-store) describes the
+physical store under the chroot root and the per-store `build-dir`. The
+[global setting](https://nix.dev/manual/nix/2.34/command-ref/conf-file#conf-build-dir) overrides
+that setting for every local store. At the exact locked version,
+[local-store.hh](https://github.com/NixOS/nix/blob/2.34.9/src/libstore/include/nix/store/local-store.hh)
+says the daemon's setting applies to daemon builds, and
+[local-settings.hh](https://github.com/NixOS/nix/blob/2.34.9/src/libstore/include/nix/store/local-settings.hh)
+defines the global override. Client environment alone cannot move daemon build directories.
+
+**Evaluation follows the selected store in Nix 2.34.9**, even without an explicit evaluation
+flag: [EvalCommand::getEvalStore](https://github.com/NixOS/nix/blob/2.34.9/src/libcmd/command.cc)
+defaults to `getStore()`. With the data option enabled, every run states `--eval-store` explicitly
+and uses the same chroot store for evaluation and building.
+Its [flag definition](https://github.com/NixOS/nix/blob/2.34.9/src/libcmd/common-eval-args.cc)
+covers derivations and their inputs;
+[InstallableFlake](https://github.com/NixOS/nix/blob/2.34.9/src/libcmd/installable-flake.cc)
+locks the flake through that evaluation state. This keeps fetched evaluation sources in the
+chroot store as well as moving the fetcher caches. The cache location comes from
+[users.cc](https://github.com/NixOS/nix/blob/2.34.9/src/libutil/users.cc), used by the
+[fetcher database](https://github.com/NixOS/nix/blob/2.34.9/src/libfetchers/cache.cc),
+[git cache](https://github.com/NixOS/nix/blob/2.34.9/src/libfetchers/git.cc) and
+[tarball cache](https://github.com/NixOS/nix/blob/2.34.9/src/libfetchers/git-utils.cc).
+
+**A self build uses the chroot store for both evaluation and building.** Before switching, the run
+sets the system profile with
+`nix-env --option substituters 'local?root=/data/build/root&trusted=true' -p /nix/var/nix/profiles/system --set <toplevel>`,
+which brings the toplevel's closure into the main store and roots it in one process. In 2.34.9,
+[opSet](https://github.com/NixOS/nix/blob/2.34.9/src/nix/nix-env/nix-env.cc#L758-L801) realises the store path with `buildPaths` and then
+calls [createGeneration](https://github.com/NixOS/nix/blob/2.34.9/src/libstore/profiles.cc#L64-L99), whose
+[addPermRoot](https://github.com/NixOS/nix/blob/2.34.9/src/libstore/indirect-root-store.cc#L18-L43) registers the generation link as a
+permanent root in the main store. Each
+[substitution goal](https://github.com/NixOS/nix/blob/2.34.9/src/libstore/build/substitution-goal.cc#L29-L38) first registers a temporary
+root for its path, skips a path the main store already holds and
+[substitutes every reference first](https://github.com/NixOS/nix/blob/2.34.9/src/libstore/build/substitution-goal.cc#L126-L132), so only
+the missing paths of that closure move. A temporary root lives while its process holds its
+[temporary roots file](https://github.com/NixOS/nix/blob/2.34.9/src/libstore/gc.cc#L48-L155) locked, and
+[findTempRoots](https://github.com/NixOS/nix/blob/2.34.9/src/libstore/gc.cc#L157-L195) drops a file only once its process is gone. A
+collection already running learns of each new temporary root through its socket. A separate `nix copy`
+would lose its temporary roots on exit, leaving the copied system unrooted until the profile
+command started, so a collection in that gap could delete it. As root the command opens the main
+store directly, by the [`auto` store](https://github.com/NixOS/nix/blob/2.34.9/src/libstore/store-registration.cc#L33-L35) for a writable
+state directory, so these roots are the main store's own.
+
+**The signature exemption covers the chroot store as a source alone.** The option replaces the
+substituter list for that one command, so the main store's configured caches are neither queried
+nor trusted there. `trusted=true` is the chroot store reference's own
+[`trusted` setting](https://github.com/NixOS/nix/blob/2.34.9/src/libstore/include/nix/store/store-api.hh#L207-L216): the substitution goal
+waives the [signature requirement](https://github.com/NixOS/nix/blob/2.34.9/src/libstore/local-store.cc#L975-L978) only for a substituter
+that sets it ([lines 116 to 122](https://github.com/NixOS/nix/blob/2.34.9/src/libstore/build/substitution-goal.cc#L116-L122)) and copies
+from that substituter alone without checking signatures
+([line 228](https://github.com/NixOS/nix/blob/2.34.9/src/libstore/build/substitution-goal.cc#L228)). Outputs built locally in the chroot
+store carry no signature, which is why it needs the exemption. The main store keeps `require-sigs`
+and its `trusted-public-keys` for every other source, and the module sets neither. A failed build
+or profile command exits before the switch runs and leaves the profile unchanged; cleanup still
+collects the chroot store and keeps its rooted systems. The upload still signs the binary cache
+with the configured key.
+
+The self upload to R2 reads from the chroot store, where the build completed the entire closure.
+The run's system root and lock protect it through upload and cleanup, just as for another machine;
+bringing the closure into the main store does not change the upload source. With
+`machine.cache.builder.data = false`, every run, including self, uses an explicitly configured `machine.cache.builder.store` for its
+build, closure query and upload, without the data option's substituter or reclamation.
+
+**The self build's sandbox and writable `/tmp` are on `/data`.** In 2.34.9,
+[ChrootDerivationBuilder::prepareSandbox](https://github.com/NixOS/nix/blob/2.34.9/src/libstore/unix/build/chroot-derivation-builder.cc)
+creates `<physical-store>/<derivation>.chroot/root` and its writable `tmp` directory. For a self
+build that is `/data/build/root/nix/store/<derivation>.chroot/root/tmp`. A derivation writing
+hundreds of MB to `/tmp` writes to the data disk, and sandbox outputs start there too.
+[The Unix builder](https://github.com/NixOS/nix/blob/2.34.9/src/libstore/unix/build/derivation-builder.cc)
+uses `build-dir` for a separate temporary build directory, and the
+[Linux builder](https://github.com/NixOS/nix/blob/2.34.9/src/libstore/unix/build/linux-derivation-builder.cc)
+bind mounts that directory into the sandbox as `/build`. Neither `build-dir` nor the run's `TMPDIR`
+relocates the sandbox root or its `/tmp`; selecting the chroot build store puts both under
+`/data/build/root` for every machine, including self.
+
+The local store's
+[`log` setting](https://github.com/NixOS/nix/blob/2.34.9/src/libstore/include/nix/store/local-fs-store.hh)
+defaults, without a chroot root, through
+[getDefaultLogDir](https://github.com/NixOS/nix/blob/2.34.9/src/libstore/local-fs-store.cc) to
+[`NIX_LOG_DIR`](https://github.com/NixOS/nix/blob/2.34.9/src/libstore/globals.cc).
+[LogFile](https://github.com/NixOS/nix/blob/2.34.9/src/libstore/build/derivation-building-goal.cc)
+writes derivation logs beneath that directory's `drvs`, normally `/nix/var/log/nix/drvs`.
+The option sets `NIX_LOG_DIR` for every build unit and the daemon to keep these logs on `/data`.
+
+The main store grows only by paths of the self system's closure that it does not already hold.
+A live builder must measure the root's used space before and after a self build and confirm the
+growth is about those new paths alone, with no sandbox directory on the root during the build.
+
+**Kept systems remain rooted across collection.**
+[`nix build`](https://github.com/NixOS/nix/blob/2.34.9/src/nix/build.cc) registers its out-links
+before returning, as the [build manual](https://nix.dev/manual/nix/2.34/command-ref/new-cli/nix3-build) describes.
+[createOutLinks](https://github.com/NixOS/nix/blob/2.34.9/src/libcmd/command.cc) calls
+[addPermRoot](https://github.com/NixOS/nix/blob/2.34.9/src/libstore/indirect-root-store.cc) for the
+run's `/var/lib/machine/cache-systems/<name>` link. It creates the link to the logical store path,
+then [addIndirectRoot](https://github.com/NixOS/nix/blob/2.34.9/src/libstore/gc.cc) records it at
+`/data/build/root/nix/var/nix/gcroots/auto/<hash>`. The same file's `findRootsNoTemp` scans that
+store's `gcroots`, follows the indirect link and checks the path against that store's validity
+database. The external link can therefore protect a path absent from the main store. The store's
+[state directory definition](https://github.com/NixOS/nix/blob/2.34.9/src/libstore/include/nix/store/local-fs-store.hh)
+prefixes the chroot root to `nix/var/nix`, while the
+[local filesystem accessor](https://github.com/NixOS/nix/blob/2.34.9/src/libstore/local-fs-store.cc)
+reads the physical store under that root.
+
+The run takes `/run/lock/machine-cache` before evaluation and holds it through cleanup. The old
+system's permanent root stays throughout the build; Nix holds temporary roots during the build
+and registers the replacement out-link before returning. Every later periodic collector must take
+this same lock before collecting, so collection cannot meet the gap between evaluation and build
+or the handoff between Nix processes. Permanent system links are kept after the run ends.
+
+On success, failure or `SIGTERM`, cleanup empties `/data/build/tmp`, including hidden files and
+staging, and runs `nix store gc` against the chroot store with `keep-derivations` and `keep-outputs`
+false. The collector keeps the rooted system closures and removes unrooted intermediates and
+fetched evaluation sources. It never wipes the store, removes system roots or collects the main
+store. A cleanup failure makes the unit fail while preserving its reported outcome. A process
+killed with `SIGKILL` cannot run an exit trap; the later collector must also take the run lock.
+
+`tests/build/run-test.sh` uses Nix from the locked input and a disposable real chroot store to
+prove a new system is rooted by the run's actual out-link after success, and the previous system
+survives build failure, `SIGTERM` and a failed self build while unrooted paths are collected. A
+failed self profile command retains the newly rooted system in the chroot store and never switches,
+while cleanup still reclaims unrooted paths and temporary files. Its `self-gc` mode runs the real
+profile command against a disposable main store with signatures required, collects that store
+right before and right after it, and checks that the self system and its reference stay valid and
+rooted by the profile; with the earlier copy the collection deleted both. Its
+setup creates no roots; an initial successful run roots the previous system. It checks the
+evaluation and build flags and the lock during building and collection, and that a failed
+collection fails the run while keeping its outcome. `tests/build/self-test.sh` checks an explicit
+store with data mode off, the chroot build and evaluation flags, the profile command substituting
+from the trusted chroot store before switching, and upload from the chroot store before collection.
+The module tests check both Linux architectures and rehearse preparation twice with a command
+substitute for btrfs. A live builder must still establish the quota's effect on a full build,
+the daemon's build directory in actual use and the bytes reclaimed after a real run. No machine
+is switched by these tests. This option replaces the deployment's interim environment, mount and
+tmpfiles additions; their removal belongs to the deployment's own change.
+
 ## Exactly the paths the machine lacks
 
 **Nix uploads no path whose references the store it writes to lacks.** `nix copy --no-recursive`

@@ -9,6 +9,7 @@ in
   imports = [
     ./build.nix
     ./fetch.nix
+    ./store.nix
   ];
 
   config = {

@@ -204,6 +204,11 @@ in
           description = "Machines this one builds the system of and hands through the bucket, each by its name.";
         };
         builder = {
+          data = mkOption {
+            type = types.bool;
+            default = false;
+            description = "Whether a cache builder keeps evaluation, all builds including its own system, temporary files, fetcher caches and staging under /data/build, a btrfs subvolume limited to 10 GB; only its own system closure is copied to the main store before switching.";
+          };
           self = mkOption {
             type = types.nullOr (
               types.enum [

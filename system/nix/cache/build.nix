@@ -23,6 +23,7 @@ let
           };
       inherit (cfg.builder)
         cap
+        data
         store
         signingKey
         pointerKey
@@ -45,7 +46,7 @@ let
   run = pkgs.writeShellApplication {
     name = "machine-cache-run";
     # Git as NixOS's own upgrade holds it, which Nix runs to fetch a git+ssh flake.
-    # See tests/build-test.sh.
+    # See tests/build/build-test.sh.
     runtimeInputs = [
       config.nix.package
       pkgs.coreutils
