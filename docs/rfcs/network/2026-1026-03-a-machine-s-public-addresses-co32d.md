@@ -59,3 +59,7 @@ Choices made provisionally while the thread runs, read by the author at its end.
 - **Read over the tailnet, if it fits**, provisional, chosen by the advisor on 2026-10-26: through
   the read-only wrapper of the user `machine-cache` where that widens nothing it allows, and left
   out otherwise until the question above is answered.
+- **The proxy's own throwaway zone is the one exception to no DNS credential on a machine**,
+  decided by the author on 2026-10-26: every node running egress holds a token scoped to that one
+  zone, which serves nothing else, and changes its own name in it. Where those addresses come from
+  is an open question of egress's design. Every other zone keeps the rule.
