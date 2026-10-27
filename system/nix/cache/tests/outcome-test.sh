@@ -17,10 +17,16 @@ check_outcome() {
 		echo "$case_name returned $status instead of $expected_status" >&2
 		exit 1
 	}
-	[ "$(grep -c '^machine-cache outcome=' "$t/stdout")" = 1 ]
-	[ "$(tail -n 1 "$t/stdout")" = "machine-cache outcome=$want consumer=$machine$own" ]
-	[ ! -f "$t/lock.owner" ]
-	! compgen -G "$t/machine-cache.*" >/dev/null
+	if [ "$(grep -c '^machine-cache outcome=' "$t/stdout")" != 1 ]; then
+		fail "$case_name outcome line count is not one"
+	fi
+	if [ "$(tail -n 1 "$t/stdout")" != "machine-cache outcome=$want consumer=$machine$own" ]; then
+		fail "$case_name final outcome line does not match"
+	fi
+	if [ -f "$t/lock.owner" ]; then fail "$case_name lock owner was not removed"; fi
+	if compgen -G "$t/machine-cache.*" >/dev/null; then
+		fail "$case_name work directory was not removed"
+	fi
 }
 fail_command() {
 	local command=$1 pattern=${2:-'*'}

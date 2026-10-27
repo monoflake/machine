@@ -70,6 +70,9 @@ let
     description = "The system of ${name}, built and handed through the cache";
     wants = [ "network-online.target" ];
     after = [ "network-online.target" ];
+    # Never stopped or restarted by a switch while a run is in flight.
+    restartIfChanged = false;
+    unitConfig.X-StopOnRemoval = false;
     environment.MACHINE_CACHE_CONFIG = given;
     serviceConfig = {
       Type = "oneshot";

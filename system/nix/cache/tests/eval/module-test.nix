@@ -40,6 +40,14 @@ let
       small = machine system "a1";
       large = machine system "a3";
       consumer = machine system "c1";
+      cacheServices =
+        map (c: lib.filterAttrs (name: _: lib.hasPrefix "machine-cache-" name) c.systemd.services)
+          [
+            small
+            large
+            consumer
+          ];
+      cacheNames = lib.concatMap builtins.attrNames cacheServices;
       run = lib.findFirst (p: p.name or "" == "machine-cache-run") null small.environment.systemPackages;
       badAt = configured system "c1" { machine.upgrade.at = lib.mkForce "09:00"; };
       badHost = configured system "a1" { networking.hostName = lib.mkForce "a9"; };
@@ -169,6 +177,23 @@ let
     assert small.systemd.services.machine-cache-self.serviceConfig.ExecStart != "";
     assert !(small.systemd.timers ? machine-cache-fetch);
     assert small.systemd.services.machine-cache-fetch.serviceConfig.ExecStart != "";
+    assert lib.any (
+      name:
+      !lib.hasPrefix "machine-cache-now@" name
+      && name != "machine-cache-self"
+      && name != "machine-cache-fetch"
+      && builtins.hasAttr name small.systemd.timers
+    ) cacheNames;
+    assert lib.any (lib.hasPrefix "machine-cache-now@") cacheNames;
+    assert builtins.elem "machine-cache-self" cacheNames;
+    assert builtins.elem "machine-cache-fetch" cacheNames;
+    assert lib.all (
+      services:
+      services != { }
+      && lib.all (s: s.restartIfChanged == false && s.unitConfig.X-StopOnRemoval == false) (
+        builtins.attrValues services
+      )
+    ) cacheServices;
     assert calendars == map (at: "*-*-* ${at}:00 UTC") fleet.c1.slots;
     assert consumer.machine.upgrade.at == example.machines.c1.at;
     assert (builtins.head consumer.machine.cache.fetch.builders).name == small.networking.hostName;

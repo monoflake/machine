@@ -84,11 +84,14 @@ given=$t/build.json
 clock_at 2026-10-26T14:00:00Z
 rm -f "$objects/pending/c1/"*
 run_test --now
-[ -f "$objects/pending/c1/a1" ] && [ -f "$objects/pending/c1/a1.sig" ]
-[ ! -f "$objects/pending/c1/a1.objects" ]
+if [ ! -f "$objects/pending/c1/a1" ]; then fail "confirmation pointer missing"; fi
+if [ ! -f "$objects/pending/c1/a1.sig" ]; then fail "confirmation signature missing"; fi
+if [ -f "$objects/pending/c1/a1.objects" ]; then fail "confirmation object list present"; fi
 clock_at 2026-10-27T14:01:00Z
 run_test --now
-[ "$(jq -r .at "$objects/pending/c1/a1")" = 2026-10-27T14:01:00Z ]
+if [ "$(jq -r .at "$objects/pending/c1/a1")" != 2026-10-27T14:01:00Z ]; then
+	fail "confirmation timestamp not refreshed"
+fi
 ssh-keygen -Y verify -f "$t/a1.signers" -I builder -n machine-cache \
 	-s "$objects/pending/c1/a1.sig" <"$objects/pending/c1/a1" >/dev/null
 rm -f "$objects/pending/c1/"*
