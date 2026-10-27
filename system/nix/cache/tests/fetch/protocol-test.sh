@@ -1,21 +1,23 @@
 #!/usr/bin/env bash
 # Pointers and claims are tested with advancing clocks and real local signatures.
 set -euo pipefail
-cache_dir=$(cd "$(dirname "$0")" && pwd)
+cache_dir=$(cd "$(dirname "$0")/.." && pwd)
 . "$cache_dir/test-support.sh"
 setup_test
 trap 'rm -rf "$t"' EXIT
 . "$cache_dir/../protocol.sh"
 pointer a1 2026-10-26T12:00:00Z
 pointer a2 2026-10-26T13:00:00Z
+# Each fetch realizes its system with a root and the bucket's trust, docs/store.md.
+trust="--option substituters file://$t/bucket --option trusted-public-keys example\.com:key"
+trust+=" --option require-sigs true --option narinfo-cache-negative-ttl 0"
+realized() { grep -Ec -- "^--realise $path --add-root /.+/system $trust$" "$t/nix-calls" || true; }
 fetch_test
 [ "$(jq -r .at "$MACHINE_CACHE_APPLIED")" = 2026-10-26T13:00:00Z ]
-! grep -q -- --realise "$t/nix-calls"
-export TEST_VALID=false
+[ "$(realized)" = 1 ]
 pointer a1 2026-10-26T14:00:00Z
 fetch_test
-grep -q -- "--realise $path" "$t/nix-calls"
-unset TEST_VALID
+[ "$(realized)" = 2 ]
 pointer a1 2026-10-26T15:00:01Z
 pointer a2 2026-10-26T14:01:00Z
 fetch_test 2>"$t/refused"

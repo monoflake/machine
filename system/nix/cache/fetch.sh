@@ -104,13 +104,13 @@ if [ -z "$newest" ]; then
 	exit 0
 fi
 path=$(jq -r .path "$work/pointer")
-if ! nix-store --check-validity "$path" 2>/dev/null; then
-	nix-store --realise "$path" \
-		--option substituters "$substituter" \
-		--option trusted-public-keys "$(field .trusted)" \
-		--option require-sigs true \
-		--option narinfo-cache-negative-ttl 0 >/dev/null || exit 1
-fi
+# Realized even when already valid, the system is rooted in the work directory until the profile
+# holds it, docs/store.md.
+nix-store --realise "$path" --add-root "$work/system" \
+	--option substituters "$substituter" \
+	--option trusted-public-keys "$(field .trusted)" \
+	--option require-sigs true \
+	--option narinfo-cache-negative-ttl 0 >/dev/null || exit 1
 if [ "$(readlink /run/current-system)" != "$path" ]; then
 	nix-env -p /nix/var/nix/profiles/system --set "$path" || exit 1
 	"$path/bin/switch-to-configuration" switch || exit 1
