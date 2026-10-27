@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# ../../build.nix's machine-cache-run as a builder's system holds it on each Linux system, git on its
-# PATH, as Nix runs git to fetch a git+ssh flake.
+# ../../build.nix's machine-cache-run as a builder's system holds it on each Linux system, git
+# on its PATH, as Nix runs git to fetch a git+ssh flake.
 set -o errexit -o nounset -o pipefail
 
 # Nix reads a copy of the flake, as git's index lacks what jj adds, the workspace's docs/lessons.md.
