@@ -5,6 +5,12 @@ Every machine runs unstable's Tailscale and keeps the tailnet's resolver out of 
 one is set, or is logged in by hand. Its interface is not trusted by the host firewall,
 [network.md](network.md#public-ssh).
 
+**The tailnet is the fleet's management and fallback mesh, and carries no traffic steering**,
+decided by the author on 2026-10-27, so it holds no App Connector: a connector routes by the
+addresses it learns rather than by name, for every client that accepts routes, so it cannot hold
+precise rules. The deployment's two connectors were removed that day, and steering belongs to
+egress, monoflake/egress.
+
 ## The host firewall
 
 **Peerapi needs no host firewall opening with the locked Tailscale 1.104.2.** No fixed port or
