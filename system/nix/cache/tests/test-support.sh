@@ -1,11 +1,10 @@
 # Cache tests use local keys and a directory bucket with shell command substitutes.
 cache_test_tools() {
 	if [ -z "${MACHINE_CACHE_TOOLS:-}" ]; then
-		local inputs
-		inputs=$(mktemp -d)
-		trap 'rm -rf "$inputs"' EXIT
-		cp "$(dirname "${BASH_SOURCE[0]}")/../../../../"{flake.nix,flake.lock} "$inputs/"
-		nix shell --inputs-from "path:$inputs" nixpkgs#coreutils nixpkgs#jq nixpkgs#util-linux \
+		cache_test_inputs=$(mktemp -d)
+		trap 'rm -rf "$cache_test_inputs"' EXIT
+		cp "$(dirname "${BASH_SOURCE[0]}")/../../../../"{flake.nix,flake.lock} "$cache_test_inputs/"
+		nix shell --inputs-from "path:$cache_test_inputs" nixpkgs#coreutils nixpkgs#jq nixpkgs#util-linux \
 			-c env MACHINE_CACHE_TOOLS=1 ${TMPDIR:+TMPDIR="$TMPDIR"} bash "$0" "$@"
 		exit
 	fi

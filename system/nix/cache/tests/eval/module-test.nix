@@ -41,11 +41,30 @@ let
       large = machine system "a3";
       consumer = machine system "c1";
       cacheServices =
-        map (c: lib.filterAttrs (name: _: lib.hasPrefix "machine-cache-" name) c.systemd.services)
+        map
+          (
+            c:
+            lib.filterAttrs (
+              name: _:
+              lib.hasPrefix "machine-cache-" name
+              # An idempotent preparation that holds no run, in system/nix/cache/store.nix.
+              && name != "machine-cache-build-store"
+            ) c.systemd.services
+          )
           [
             small
             large
             consumer
+            badAt
+            badHost
+            badNames
+            repeated
+            missing
+            data
+            dataLarge
+            badStore
+            outsideRun
+            noData
           ];
       cacheNames = lib.concatMap builtins.attrNames cacheServices;
       run = lib.findFirst (p: p.name or "" == "machine-cache-run") null small.environment.systemPackages;

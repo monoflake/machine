@@ -159,7 +159,7 @@ SHIM
 		if [ "$case_name" = cleanup-term ]; then check_run built 0 --now
 		else check_run built 7 --now
 		fi
-		[ -s "$t/cleanup-tested" ] ;;
+		if [ ! -s "$t/cleanup-tested" ]; then fail "$case_name cleanup was not tested"; fi ;;
 	terminated)
 		echo "$ref" >"$t/hosts/c1/current"
 		mv "$t/bin/nix" "$t/bin/nix-original"
@@ -208,8 +208,8 @@ FETCH
 		self-record-error)
 			mkdir "$t/state/cache-applied.new"
 			own=' self=built'; check_run failed 1 --self
-			grep -qx switched "$t/stdout"
-			[ ! -f "$t/state/cache-applied" ] ;;
+			if ! grep -qx switched "$t/stdout"; then fail "$case_name switch did not run"; fi
+			if [ -f "$t/state/cache-applied" ]; then fail "$case_name applied state was recorded"; fi ;;
 		esac ;;
 	esac
 	echo "outcome passed $case_name"
