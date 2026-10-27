@@ -21,6 +21,10 @@
         strace
         tcpdump
         dnsutils
+        iperf3
+        # It uploads a trace map to its own service by default, so it runs with `-M` here, and with
+        # `-d disable-geoip` where even its geo API should not see the hops.
+        nexttrace
         ripgrep
         fd
       ];
