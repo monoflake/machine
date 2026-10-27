@@ -145,3 +145,9 @@ devices stay owned by their user**, decided by the author on 2026-10-26. A machi
 from the single-use auth key it logs in with, or through the tailnet's API, and leaves
 `autogroup:self` with them. The tailnet's policy approves a tagged server's exit node by
 `autoApprovers` and grants the relay by its tag, so neither waits on a hand.
+
+**A region tag names where traffic leaves**, decided by the author on 2026-10-27 for any region
+tag the tailnet takes: lowercase English, a large country written as country and region joined by
+one hyphen, as `tag:us-west`, and a small place written whole with no hyphen, as `tag:hongkong`,
+`tag:taiwan` or `tag:singapore`. Tags live only in the tailnet's policy and on its devices, so no
+check in this repository can read them, and the rule is kept by judgment.
