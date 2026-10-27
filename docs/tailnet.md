@@ -146,7 +146,8 @@ exit node's two default routes beside it and drops a route set by hand,
 [`calcAdvertiseRoutesForSet`](https://github.com/tailscale/tailscale/blob/v1.104.2/cmd/tailscale/cli/set.go#L294-L322).
 A route carries nothing until the tailnet approves it.
 
-**A route flag is passed only where it is set**, decided by the author on 2026-10-27:
+**A route flag is passed only where it is set**, provisional, chosen by the advisor on 2026-10-27,
+so that a switch never clears the base connector's routes, RFC 4psyg:
 `--advertise-routes` only where `machine.tailnet.routes` is not empty, and `--advertise-exit-node`
 only where `machine.tailnet.exitNode` is on. With neither, `tailscaled-set` passes neither, not
 even `--advertise-exit-node=false` or an empty `--advertise-routes=`. Both flags set the one pref
@@ -165,17 +166,19 @@ as an edit changes only the prefs it marks, [`ApplyEdits`](https://github.com/ta
 
 ## The base connector
 
-**A machine may advertise itself as a Tailscale app connector, and none does by default**, decided
-by the author on 2026-10-27 after RFC 4psyg, which names the one connector the fleet runs and the
-domains it carries: this repository is a public product and a connector is no default, so
+**A machine may advertise itself as a Tailscale app connector**, decided by the author on
+2026-10-27 in RFC 4psyg, which names the one connector the fleet runs and the domains it carries.
+**None does by default**, provisional, chosen by the advisor on 2026-10-27: this repository is a
+public product and a connector is no default, so
 `machine.tailnet.connector` is off, and a deployment that wants one sets it on. The domains, the
 connector's tag, its grants and the approval of its routes are the tailnet's policy, never a
 repository's.
 
-On, it adds `--advertise-connector` to the flags `tailscaled-set` passes to `tailscale set` at
-every boot and switch, as the exit node's are, and sets `services.tailscale.useRoutingFeatures =
-"server"` for the kernel forwarding. A connector forwards its clients' traffic as a subnet router
-does: Tailscale 1.104.2 warns when forwarding is off on a machine that advertises one,
+On, it adds `--advertise-connector` and `--stateful-filtering=true` to the flags `tailscaled-set`
+passes to `tailscale set` at every boot and switch, as the exit node's are, and sets
+`services.tailscale.useRoutingFeatures = "server"` for the kernel forwarding. A connector forwards
+its clients' traffic as a subnet router does: Tailscale 1.104.2 warns when forwarding is off on a
+machine that advertises one,
 [`warnOnAdvertiseRoutes`](https://github.com/tailscale/tailscale/blob/v1.104.2/cmd/tailscale/cli/up.go#L1258-L1272),
 and the routes it learns are the routes it forwards.
 
@@ -195,6 +198,11 @@ and the routes it learns are the routes it forwards.
   [`reconfigAppConnectorLocked`](https://github.com/tailscale/tailscale/blob/v1.104.2/ipn/ipnlocal/local.go#L5963-L5978).
   Run `tailscale set --advertise-connector=false --advertise-routes=` on the machine by hand when
   the option is dropped, which clears both.
+- **Stateful filtering is on, as on an exit node**, provisional, chosen by the advisor on
+  2026-10-27 after the integrator's proposal, so that a connection from outside cannot enter the
+  tailnet through the connector. The flag sets its own pref, `NoStatefulFiltering`,
+  [`up.go`](https://github.com/tailscale/tailscale/blob/v1.104.2/cmd/tailscale/cli/up.go#L921), and
+  marks no `AdvertiseRoutes`, so it never clears the connector's routes.
 
 ## Tags
 

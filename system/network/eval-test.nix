@@ -109,6 +109,7 @@ let
       connector.services.tailscale.extraSetFlags == [
         "--accept-dns=false"
         "--advertise-connector"
+        "--stateful-filtering=true"
       ];
     exitRoutes =
       routed.services.tailscale.extraSetFlags == [

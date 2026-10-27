@@ -46,7 +46,10 @@ in
       "--advertise-exit-node"
       "--stateful-filtering=true"
     ]
-    ++ lib.optionals connector [ "--advertise-connector" ]
+    ++ lib.optionals connector [
+      "--advertise-connector"
+      "--stateful-filtering=true"
+    ]
     ++ lib.optionals relay [ "--relay-server-port=${toString relayPort}" ];
   };
   # The relay's port, which Tailscale leaves closed, accepted on input as `openFirewall` accepts

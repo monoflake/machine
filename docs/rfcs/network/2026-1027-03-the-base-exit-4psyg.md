@@ -56,6 +56,20 @@ custom domain is reached from inside: in that day's test IPv6 was steady and IPv
   and switch, an empty one included, [tailnet.md](../../tailnet.md#routes), so each would drop
   what the connector learned. Read on 2026-10-27.
 
+### Ledger
+
+Choices made provisionally while the thread runs, read by the author at its end.
+
+- **`tailscaled-set` passes a route flag only where it is set**, provisional, chosen by the advisor
+  on 2026-10-27, so that a switch never clears the connector's routes: `--advertise-routes` only
+  where routes are configured and `--advertise-exit-node` only on an exit node, neither else.
+- **The connector runs with stateful filtering on, as an exit node does**, provisional, chosen by
+  the advisor on 2026-10-27 after the integrator's proposal, so that a connection from outside
+  cannot enter the tailnet through it. `--stateful-filtering` sets `NoStatefulFiltering` alone,
+  Tailscale 1.104.2's `cmd/tailscale/cli/up.go:921`, so it never clears the connector's routes.
+- **A machine is no connector by default**, provisional, chosen by the advisor on 2026-10-27, this
+  repository being a public product.
+
 ### Owed before it is trusted
 
 - **The author's laptop must not install the connector's learned routes.** It is tagged
