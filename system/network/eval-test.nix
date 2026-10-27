@@ -30,6 +30,8 @@ let
   open = template { machine.ssh.public = "open"; };
   renamed = template { services.tailscale.interfaceName = "tailnet-test"; };
   relay = template { machine.tailnet.relayPort = 40000; };
+  exit = template { machine.tailnet.exitNode = true; };
+  connector = template { machine.tailnet.connector = true; };
   driver = template {
     machine.driver = {
       enable = true;
@@ -43,6 +45,7 @@ let
     open
     renamed
     relay
+    connector
     driver
   ];
   tailnetFirewall =
@@ -64,7 +67,9 @@ let
       && lib.all (range: 37483 < range.from || 37483 > range.to) interface.allowedTCPPortRanges
     ) (builtins.attrValues cfg.networking.firewall.allInterfaces);
   accepted = value: (import ./cidr.nix { inherit lib; }) value;
-  refused = flags: lib.any (a: !a.assertion && lib.hasInfix "--accept-routes" a.message) flags;
+  refusedBy = infix: lib.any (a: !a.assertion && lib.hasInfix infix a.message);
+  refused = refusedBy "--accept-routes";
+  conflicting = refusedBy "machine.tailnet.connector";
   assertionsFor = extra: (template extra).assertions;
   rules = import ./ssh/input.nix {
     inherit (defaults.services.tailscale) interfaceName;
@@ -88,10 +93,22 @@ let
     in
     lib.hasSuffix (toString file) cfg.systemd.services.machine-ssh-close.serviceConfig.ExecStart;
   tests = {
-    defaultRoutes =
-      defaults.services.tailscale.extraSetFlags == [
+    defaultRoutes = defaults.services.tailscale.extraSetFlags == [ "--accept-dns=false" ];
+    subnetRoutes =
+      subnet.services.tailscale.extraSetFlags == [
         "--accept-dns=false"
-        "--advertise-routes="
+        "--advertise-routes=192.0.2.0/24"
+      ];
+    exitOnly =
+      exit.services.tailscale.extraSetFlags == [
+        "--accept-dns=false"
+        "--advertise-exit-node"
+        "--stateful-filtering=true"
+      ];
+    connectorFlags =
+      connector.services.tailscale.extraSetFlags == [
+        "--accept-dns=false"
+        "--advertise-connector"
       ];
     exitRoutes =
       routed.services.tailscale.extraSetFlags == [
@@ -104,8 +121,21 @@ let
       routed.services.tailscale.useRoutingFeatures == "server"
       && subnet.services.tailscale.useRoutingFeatures == "server"
       && defaults.services.tailscale.useRoutingFeatures == "none"
-      &&
-        (template { machine.tailnet.exitNode = true; }).services.tailscale.useRoutingFeatures == "server";
+      && exit.services.tailscale.useRoutingFeatures == "server"
+      && connector.services.tailscale.useRoutingFeatures == "server";
+    connectorAlone = !(conflicting connector.assertions);
+    connectorExitRefused = conflicting (assertionsFor {
+      machine.tailnet = {
+        connector = true;
+        exitNode = true;
+      };
+    });
+    connectorRoutesRefused = conflicting (assertionsFor {
+      machine.tailnet = {
+        connector = true;
+        routes = [ "198.51.100.7/32" ];
+      };
+    });
     setRefused = refused (assertionsFor {
       services.tailscale.extraSetFlags = [ "--accept-routes" ];
     });

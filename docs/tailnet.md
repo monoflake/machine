@@ -5,11 +5,15 @@ Every machine runs unstable's Tailscale and keeps the tailnet's resolver out of 
 one is set, or is logged in by hand. Its interface is not trusted by the host firewall,
 [network.md](network.md#public-ssh).
 
-**The tailnet is the fleet's management and fallback mesh, and carries no traffic steering**,
-decided by the author on 2026-10-27, so it holds no App Connector: a connector routes by the
-addresses it learns rather than by name, for every client that accepts routes, so it cannot hold
-precise rules. The deployment's two connectors were removed that day, and steering belongs to
-egress, monoflake/egress.
+**The tailnet is the fleet's management and fallback mesh, and carries no traffic steering but
+the base connector**, decided by the author on 2026-10-27, so it holds no App Connector for
+business traffic: a connector routes by the addresses it learns rather than by name, for every
+client that accepts routes, so it cannot hold precise rules. The deployment's two connectors were
+removed that day, and steering belongs to egress, monoflake/egress. The one exception carries base
+traffic alone, RFC 4psyg, [the base connector](#the-base-connector).
+
+**No machine of the fleet advertises an exit node or a subnet route**, decided by the author on
+2026-10-27 after RFC 4psyg. The options stay, off by default, for a deployment that wants them.
 
 ## The host firewall
 
@@ -136,13 +140,61 @@ On the relay, `tailscale debug peer-relay-sessions` lists the sessions it carrie
 
 **A machine advertises the subnet routes its configuration lists, `machine.tailnet.routes`, and no
 others**, provisional, chosen by the advisor on 2026-10-26 at the author's request that a server
-advertise its own LAN address as a /32 and never a whole subnet. The list is passed as
-`--advertise-routes` at every boot and switch, an empty one included: Tailscale 1.104.2's
-`tailscale set` keeps an exit node's two default routes beside it and drops a route set by hand, so
-the configuration is the only source. A route carries nothing until the tailnet approves it.
+advertise its own LAN address as a /32 and never a whole subnet. A list that is not empty is passed
+as `--advertise-routes` at every boot and switch, and Tailscale 1.104.2's `tailscale set` keeps an
+exit node's two default routes beside it and drops a route set by hand,
+[`calcAdvertiseRoutesForSet`](https://github.com/tailscale/tailscale/blob/v1.104.2/cmd/tailscale/cli/set.go#L294-L322).
+A route carries nothing until the tailnet approves it.
+
+**A route flag is passed only where it is set**, decided by the author on 2026-10-27:
+`--advertise-routes` only where `machine.tailnet.routes` is not empty, and `--advertise-exit-node`
+only where `machine.tailnet.exitNode` is on. With neither, `tailscaled-set` passes neither, not
+even `--advertise-exit-node=false` or an empty `--advertise-routes=`. Both flags set the one pref
+`AdvertiseRoutes`, [`up.go`](https://github.com/tailscale/tailscale/blob/v1.104.2/cmd/tailscale/cli/up.go#L904-L907),
+and a `tailscale set` that sets it clears an app connector's routes,
+[the base connector](#the-base-connector). One that names neither flag leaves the pref as it is,
+as an edit changes only the prefs it marks, [`ApplyEdits`](https://github.com/tailscale/tailscale/blob/v1.104.2/ipn/prefs.go#L419-L442).
+
+- **Emptying the list does not withdraw it.** `tailscale set` changes only the flags it is given,
+  so a machine that dropped its routes goes on advertising them. Run
+  `tailscale set --advertise-routes=` on the machine by hand when the list is emptied, which keeps
+  an exit node's default routes.
 
 - **A machine never accepts routes**: an assertion refuses `--accept-routes` in its flags but as
   `--accept-routes=false`, so a server's own subnet stays its own however others advertise it.
+
+## The base connector
+
+**A machine may advertise itself as a Tailscale app connector, and none does by default**, decided
+by the author on 2026-10-27 after RFC 4psyg, which names the one connector the fleet runs and the
+domains it carries: this repository is a public product and a connector is no default, so
+`machine.tailnet.connector` is off, and a deployment that wants one sets it on. The domains, the
+connector's tag, its grants and the approval of its routes are the tailnet's policy, never a
+repository's.
+
+On, it adds `--advertise-connector` to the flags `tailscaled-set` passes to `tailscale set` at
+every boot and switch, as the exit node's are, and sets `services.tailscale.useRoutingFeatures =
+"server"` for the kernel forwarding. A connector forwards its clients' traffic as a subnet router
+does: Tailscale 1.104.2 warns when forwarding is off on a machine that advertises one,
+[`warnOnAdvertiseRoutes`](https://github.com/tailscale/tailscale/blob/v1.104.2/cmd/tailscale/cli/up.go#L1258-L1272),
+and the routes it learns are the routes it forwards.
+
+- **The routes a connector learns live in the pref `--advertise-routes` sets.** `AdvertiseRoute`
+  appends each learned prefix to `AdvertiseRoutes` by an edit of the prefs,
+  [`local.go`](https://github.com/tailscale/tailscale/blob/v1.104.2/ipn/ipnlocal/local.go#L8568-L8606),
+  and any edit that sets that pref clears the connector's routes first,
+  [`MaybeClearAppConnector`](https://github.com/tailscale/tailscale/blob/v1.104.2/ipn/ipnlocal/local.go#L5188-L5200)
+  called from [the prefs handler](https://github.com/tailscale/tailscale/blob/v1.104.2/ipn/localapi/localapi.go#L1009-L1016).
+  `--advertise-exit-node` sets that pref as `--advertise-routes` does, either value, so either flag
+  at a boot or a switch would drop what the connector learned.
+- **An assertion refuses a connector beside `machine.tailnet.exitNode` or a list of
+  `machine.tailnet.routes` that is not empty**, as either passes a flag that clears its routes.
+- **Turning it off does not withdraw it.** `tailscale set` changes only the flags it is given, so a
+  machine that dropped the option goes on advertising itself as a connector. Even
+  `--advertise-connector=false` alone closes the connector and leaves its learned routes advertised,
+  [`reconfigAppConnectorLocked`](https://github.com/tailscale/tailscale/blob/v1.104.2/ipn/ipnlocal/local.go#L5963-L5978).
+  Run `tailscale set --advertise-connector=false --advertise-routes=` on the machine by hand when
+  the option is dropped, which clears both.
 
 ## Tags
 

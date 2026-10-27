@@ -285,14 +285,14 @@ in
           };
         };
       };
-      # The machine's place on the tailnet and whether it is an exit node or a peer relay,
-      # docs/tailnet.md.
+      # The machine's place on the tailnet and whether it is an exit node, a peer relay or an app
+      # connector, docs/tailnet.md.
       tailnet = {
         routes = mkOption {
           type = types.listOf (types.addCheck types.str (import ./network/cidr.nix { inherit lib; }));
           default = [ ];
           example = [ "198.51.100.7/32" ];
-          description = "IPv4 or IPv6 CIDRs advertised as subnet routes, replacing all manually configured subnet routes even when empty and enabling kernel forwarding when nonempty.";
+          description = "IPv4 or IPv6 CIDRs advertised as subnet routes, replacing all manually configured subnet routes and enabling kernel forwarding when nonempty; emptying it does not withdraw routes already advertised, docs/tailnet.md.";
         };
         authKeyFile = mkOption {
           type = types.nullOr file;
@@ -303,6 +303,12 @@ in
           type = types.bool;
           default = false;
           description = "Whether the machine advertises itself as a Tailscale exit node, forwarding with Tailscale's stateful filtering on, which the tailnet's admin has to approve before any traffic leaves through it; turning it off does not withdraw an advertisement already made, docs/tailnet.md.";
+        };
+        # Never beside an exit node or routes, whose flags clear the routes a connector learned.
+        connector = mkOption {
+          type = types.bool;
+          default = false;
+          description = "Whether the machine advertises itself as a Tailscale app connector, forwarding the traffic for the domains the tailnet's policy names, which cannot be set beside exitNode or routes; turning it off does not withdraw an advertisement already made nor the routes it learned, docs/tailnet.md.";
         };
         # Never 0, which Tailscale reads as a random port the firewall could not open.
         relayPort = mkOption {
