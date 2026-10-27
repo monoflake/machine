@@ -1,5 +1,4 @@
-# A machine's network, DHCP or its provider's seed with fixed nameservers, nftables, the tailnet's
-# interface trusted, the fence around the containers, the tunnel, and the ports its listeners keep.
+# A machine's network and host firewall, docs/network.md.
 { config, lib, ... }:
 let
   tailnet = config.services.tailscale.interfaceName;
@@ -35,8 +34,7 @@ in
       }
       .${config.machine.network.resolvers};
     nftables.enable = true;
-    firewall.trustedInterfaces = [ tailnet ];
-    firewall.interfaces.${tailnet}.allowedTCPPorts = [ driver ];
+    firewall.interfaces.${tailnet}.allowedTCPPorts = [ 22 ];
   };
 
   # Ports no connection is given as its own, so the entry, the driver, conform's and any the machine

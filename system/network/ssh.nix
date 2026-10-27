@@ -8,7 +8,11 @@
 }:
 let
   closing = config.machine.ssh.public == "until-healthy";
-  rules = pkgs.writeText "machine-ssh.nft" (import ./ssh/input.nix);
+  rules = pkgs.writeText "machine-ssh.nft" (
+    import ./ssh/input.nix {
+      inherit (config.services.tailscale) interfaceName;
+    }
+  );
   closer = pkgs.writeShellApplication {
     name = "machine-ssh-close";
     runtimeInputs = [

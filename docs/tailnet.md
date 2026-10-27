@@ -1,8 +1,57 @@
 # The tailnet
 
-Every machine runs unstable's Tailscale, trusts its interface in NixOS's firewall and keeps the
-tailnet's resolver out of its nameservers, `system/network/tailnet.nix`. It joins the tailnet at
-boot with `machine.tailnet.authKeyFile` where one is set, or is logged in by hand.
+Every machine runs unstable's Tailscale and keeps the tailnet's resolver out of its nameservers,
+`system/network/tailnet.nix`. It joins the tailnet at boot with `machine.tailnet.authKeyFile` where
+one is set, or is logged in by hand. Its interface is not trusted by the host firewall,
+[network.md](network.md#public-ssh).
+
+## The host firewall
+
+**Peerapi needs no host firewall opening with the locked Tailscale 1.104.2.** No fixed port or
+dynamic port range is opened for it. See upstream's
+[port advertisement](https://github.com/tailscale/tailscale/blob/v1.104.2/ipn/ipnlocal/local.go)
+and [listener](https://github.com/tailscale/tailscale/blob/v1.104.2/ipn/ipnlocal/peerapi.go#L93-L158).
+
+- **Remote peerapi TCP terminates in tailscaled's netstack before it reaches the TUN device.**
+  Thus the host firewall sees no remote peerapi connection to drop,
+  [`netstack.go`](https://github.com/tailscale/tailscale/blob/v1.104.2/wgengine/netstack/netstack.go#L1253-L1276)
+  and [`injectInbound`](https://github.com/tailscale/tailscale/blob/v1.104.2/wgengine/netstack/netstack.go#L1440-L1488).
+  The Linux kernel listener is for local use,
+  [`peerapi_linux.go`](https://github.com/tailscale/tailscale/blob/v1.104.2/ipn/ipnlocal/peerapi_linux.go).
+  A build without netstack would need a different firewall decision; no port range is opened in
+  anticipation of one.
+- **An app connector's split DNS follows the same peerapi path**, so removing interface trust
+  requires no DNS opening. Tailscale's peer permissions still apply,
+  [the handler](https://github.com/tailscale/tailscale/blob/v1.104.2/ipn/ipnlocal/peerapi.go#L802-L909)
+  and [the client forwarder](https://github.com/tailscale/tailscale/blob/v1.104.2/net/dns/resolver/forwarder.go#L692-L699).
+- **The peer relay's public UDP opening stays as declared by `machine.tailnet.relayPort`**, and
+  `services.tailscale.openFirewall` still opens Tailscale's own UDP transport port,
+  `system/network/tailnet.nix`. Neither depends on trusting the tailnet interface. The relay's
+  input path is described below.
+- **DERP connections are outbound TCP on HTTPS, unchanged by the input policy**,
+  [Tailscale's firewall requirements](https://tailscale.com/kb/1082/firewall-ports).
+  **MagicDNS at `100.100.100.100` is served inside tailscaled**, not by a host input listener,
+  [the local resolver](https://tailscale.com/kb/1381/what-is-quad100). The machine still declines
+  the tailnet's DNS configuration; a client's MagicDNS behavior does not change.
+- **Ordinary ping over the tailnet remains allowed by NixOS's firewall.** `allowPing` defaults to
+  true for ICMPv4 echo requests, and its nftables backend permits ICMPv6 echo requests regardless
+  of that option,
+  [`firewall.nix`](https://github.com/NixOS/nixpkgs/blob/1f607aa79b6356ed45d3cd3c8079c196e79efa2c/nixos/modules/services/networking/firewall.nix#L175-L184)
+  and [`firewall-nftables.nix`](https://github.com/NixOS/nixpkgs/blob/1f607aa79b6356ed45d3cd3c8079c196e79efa2c/nixos/modules/services/networking/firewall-nftables.nix#L170-L176).
+  Tailscale's access policy still applies. No ICMP exception is needed here.
+
+**Tailscale's `ts-input` and `ts-forward` accepts cannot override a NixOS drop.** NixOS's
+`inet nixos-fw` input base chain has policy drop and accepts only what its own rules allow,
+[`firewall-nftables.nix`](https://github.com/NixOS/nixpkgs/blob/1f607aa79b6356ed45d3cd3c8079c196e79efa2c/nixos/modules/services/networking/firewall-nftables.nix#L101-L138).
+An accept in one base chain still passes through the other base chains at that hook, whereas a
+drop is final, [nftables' chain semantics](https://wiki.nftables.org/wiki-nftables/index.php/Configuring_chains#Base_chain_policy).
+Peerapi stays reachable because it terminates before host input, not because `ts-input` rescues it.
+
+**Exit-node forwarding does not change.** Interface trust is an input rule, not a forwarding
+rule. NixOS's `filterForward` remains at its default false,
+[`firewall.nix`](https://github.com/NixOS/nixpkgs/blob/1f607aa79b6356ed45d3cd3c8079c196e79efa2c/nixos/modules/services/networking/firewall.nix#L235-L243).
+The exit node's forwarding sysctls, Tailscale's forwarding rules and the containers' fence stay as
+they are. DNS through an exit node uses the same peerapi path above.
 
 ## An exit node
 

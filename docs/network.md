@@ -36,6 +36,14 @@ AliDNS's 223.5.5.5 and 223.6.6.6, for a machine where the global ones are blocke
 
 ## Public SSH
 
+**The tailnet interface is not trusted by the host firewall, and its only allowed TCP port is
+SSH**, decided by the author on 2026-10-26, `system/network/default.nix`. The interface is read
+from `services.tailscale.interfaceName`. The driver's port is opened on no interface, and neither
+it nor the entry's port is opened on the tailnet. The control reaches both through the Cloudflare
+tunnel to the machine itself, `system/network/tunnel.nix`, and the author through SSH then
+`localhost`. The entry's opening on the containers' bridge stays fenced, [fence.md](fence.md).
+Tailscale's own traffic is accounted for in [tailnet.md](tailnet.md#the-host-firewall).
+
 **Public port 22 is open by default, and the machine closes it itself once it works**, decided by
 the author on 2026-10-26; the seconds it is open around a boot or a switch are accepted. Every
 machine sets `services.openssh.openFirewall`, so the base firewall always accepts 22, and SSH takes
@@ -45,7 +53,8 @@ without its comment**, decided by the author the same day; a machine's builders 
 
 `machine.ssh.public`, `until-healthy` by default, runs `machine-ssh-close` each minute,
 `system/network/ssh.nix`: while Tailscale reports itself running and online, it adds a table of its
-own ahead of NixOS's filter that drops 22 arriving on any interface but `tailscale0` and `lo`.
+own ahead of NixOS's filter that drops 22 arriving on any interface but the configured tailnet
+interface and `lo`.
 **Port 22 over the tailnet and over loopback is never dropped by it, in any state**, as it is the
 author's way in. A firewall reload removes the table, and nftables' start and reload run the
 closer again at once. `open` leaves 22 open always, for a machine under repair.

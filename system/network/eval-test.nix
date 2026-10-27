@@ -28,13 +28,65 @@ let
   subnet = template { machine.tailnet.routes = [ "192.0.2.0/24" ]; };
   china = template { machine.network.resolvers = "china"; };
   open = template { machine.ssh.public = "open"; };
+  renamed = template { services.tailscale.interfaceName = "tailnet-test"; };
+  relay = template { machine.tailnet.relayPort = 40000; };
+  driver = template {
+    machine.driver = {
+      enable = true;
+      override = "/var/lib/driver-machine/dev/driver-machine";
+    };
+  };
+  configurations = [
+    defaults
+    routed
+    subnet
+    open
+    renamed
+    relay
+    driver
+  ];
+  tailnetFirewall =
+    cfg:
+    let
+      firewall = cfg.networking.firewall;
+      interface = cfg.services.tailscale.interfaceName;
+    in
+    !(lib.elem interface firewall.trustedInterfaces)
+    && firewall.interfaces.${interface}.allowedTCPPorts == [ 22 ]
+    && firewall.interfaces.${interface}.allowedTCPPortRanges == [ ]
+    && firewall.allowedTCPPorts == [ 22 ]
+    && firewall.allowedTCPPortRanges == [ ];
+  driverClosed =
+    cfg:
+    lib.all (
+      interface:
+      !(lib.elem 37483 interface.allowedTCPPorts)
+      && lib.all (range: 37483 < range.from || 37483 > range.to) interface.allowedTCPPortRanges
+    ) (builtins.attrValues cfg.networking.firewall.allInterfaces);
   accepted = value: (import ./cidr.nix { inherit lib; }) value;
   refused = flags: lib.any (a: !a.assertion && lib.hasInfix "--accept-routes" a.message) flags;
   assertionsFor = extra: (template extra).assertions;
-  rules = import ./ssh/input.nix;
+  rules = import ./ssh/input.nix {
+    inherit (defaults.services.tailscale) interfaceName;
+  };
   script = import ./ssh/close.nix;
   service = defaults.systemd.services.machine-ssh-close;
   unit = defaults.systemd.units."nftables.service".text;
+  # The closer must preserve SSH on the configured tailnet interface.
+  sshInterface =
+    cfg:
+    let
+      expected = ''
+        table inet machine-ssh {
+        	chain input {
+        		type filter hook input priority filter - 10; policy accept;
+        		tcp dport 22 iifname != { "${cfg.services.tailscale.interfaceName}", "lo" } drop
+        	}
+        }
+      '';
+      file = flake.inputs.nixpkgs.legacyPackages.x86_64-linux.writeText "machine-ssh.nft" expected;
+    in
+    lib.hasSuffix (toString file) cfg.systemd.services.machine-ssh-close.serviceConfig.ExecStart;
   tests = {
     defaultRoutes =
       defaults.services.tailscale.extraSetFlags == [
@@ -119,6 +171,16 @@ let
       defaults.services.openssh.openFirewall
       && open.services.openssh.openFirewall
       && lib.elem 22 defaults.networking.firewall.allowedTCPPorts;
+    tailnetInput = lib.all tailnetFirewall configurations;
+    driverInput = lib.all driverClosed configurations;
+    tailnetPing = lib.all (cfg: cfg.networking.firewall.allowPing) configurations;
+    exitForwarding =
+      !routed.networking.firewall.filterForward
+      && routed.boot.kernel.sysctl."net.ipv4.conf.all.forwarding" == true
+      && routed.boot.kernel.sysctl."net.ipv6.conf.all.forwarding" == true;
+    relayInput =
+      lib.elem relay.machine.tailnet.relayPort relay.networking.firewall.allowedUDPPorts
+      && lib.elem relay.services.tailscale.port relay.networking.firewall.allowedUDPPorts;
     repair =
       !(builtins.hasAttr "machine-ssh-close" open.systemd.services)
       && !(builtins.hasAttr "machine-ssh-close" open.systemd.timers);
@@ -133,6 +195,8 @@ let
       );
     timer = defaults.systemd.timers.machine-ssh-close.timerConfig.OnCalendar == "*-*-* *:*:00";
     renderedRules = lib.hasSuffix (toString (flake.inputs.nixpkgs.legacyPackages.x86_64-linux.writeText "machine-ssh.nft" rules)) service.serviceConfig.ExecStart;
+    defaultSshInterface = sshInterface defaults;
+    renamedSshInterface = sshInterface renamed;
     cleanup = lib.hasInfix "delete table inet machine-ssh" open.networking.nftables.extraDeletions;
   };
 in
