@@ -217,3 +217,9 @@ tag the tailnet takes: lowercase English, a large country written as country and
 one hyphen, as `tag:us-west`, and a small place written whole with no hyphen, as `tag:hongkong`,
 `tag:taiwan` or `tag:singapore`. Tags live only in the tailnet's policy and on its devices, so no
 check in this repository can read them, and the rule is kept by judgment.
+
+**A host alias in the tailnet's policy never takes a machine's Network Name**, seen on 2026-10-29,
+its cause not proven: with an alias of a machine's name in the policy's `hosts`, the tailnet gave
+that machine its name with `-1`, and renaming the alias and then the device through the tailnet's
+API gave the name back. An alias says what it is, as `<name>-address`, a name no machine is
+given, [names.md](names.md).
