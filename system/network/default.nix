@@ -15,6 +15,7 @@ in
     ./seed
     ./ssh.nix
     ./tailnet.nix
+    ./tcp.nix
     ./tunnel.nix
   ];
 

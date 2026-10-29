@@ -82,6 +82,12 @@ in
           default = "global";
           description = "Fixed nameservers written to the plain resolv.conf file, Cloudflare and Google for global or AliDNS for china.";
         };
+        buffer = mkOption {
+          type = types.ints.positive;
+          default = 33554432;
+          example = 134217728;
+          description = "Largest socket buffer in bytes, the cap a TCP connection's receive and send windows grow to, 32 MiB by default.";
+        };
         seed = mkOption {
           type = types.bool;
           default = false;

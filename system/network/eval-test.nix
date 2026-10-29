@@ -27,6 +27,7 @@ let
   };
   subnet = template { machine.tailnet.routes = [ "192.0.2.0/24" ]; };
   china = template { machine.network.resolvers = "china"; };
+  wide = template { machine.network.buffer = 134217728; };
   open = template { machine.ssh.public = "open"; };
   renamed = template { services.tailscale.interfaceName = "tailnet-test"; };
   relay = template { machine.tailnet.relayPort = 40000; };
@@ -206,6 +207,20 @@ let
       && china.networking.resolvconf.enable
       && !(defaults.environment.etc ? "resolv.conf")
       && !(china.environment.etc ? "resolv.conf");
+    tcp =
+      lib.elem "tcp_bbr" defaults.boot.kernelModules
+      && defaults.boot.kernel.sysctl."net.ipv4.tcp_congestion_control" == "bbr"
+      && defaults.boot.kernel.sysctl."net.core.default_qdisc" == "fq";
+    defaultBuffer =
+      defaults.boot.kernel.sysctl."net.core.rmem_max" == 33554432
+      && defaults.boot.kernel.sysctl."net.core.wmem_max" == 33554432
+      && defaults.boot.kernel.sysctl."net.ipv4.tcp_rmem" == "4096 131072 33554432"
+      && defaults.boot.kernel.sysctl."net.ipv4.tcp_wmem" == "4096 16384 33554432";
+    wideBuffer =
+      wide.boot.kernel.sysctl."net.core.rmem_max" == 134217728
+      && wide.boot.kernel.sysctl."net.core.wmem_max" == 134217728
+      && wide.boot.kernel.sysctl."net.ipv4.tcp_rmem" == "4096 131072 134217728"
+      && wide.boot.kernel.sysctl."net.ipv4.tcp_wmem" == "4096 16384 134217728";
     firewall =
       defaults.services.openssh.openFirewall
       && open.services.openssh.openFirewall

@@ -34,6 +34,32 @@ by the advisor on 2026-10-26: `global`, the default, is 1.1.1.1 and 8.8.8.8, and
 AliDNS's 223.5.5.5 and 223.6.6.6, for a machine where the global ones are blocked.
 `/etc/resolv.conf` stays a plain file listing them, which every container binds as it is.
 
+## Its TCP
+
+**Every machine runs BBR over fq, and caps every socket buffer at `machine.network.buffer`, 32 MiB
+by default**, decided by the author on 2026-10-29, `system/network/tcp.nix`: the cap is the largest
+`net.core.rmem_max` and `wmem_max`, and the most `net.ipv4.tcp_rmem` and `tcp_wmem` grow to from
+4 KiB and their 128 KiB and 16 KiB defaults. A machine of several Gbit/s on long paths raises it
+in its own configuration, to 128 MiB. Measured by the advisor the same day with iperf3 over public
+IPv4 on 443, ten seconds a run:
+
+- **Cubic over fq_codel with a 4 MiB cap left the long paths far below their ports**: one flow at
+  68, 100 and 167 ms between machines of 4 Gbit/s ran 372, 256 and 151 Mbit/s, one from a machine
+  of 200 Mbit/s at 151 ms ran 55, and one to a 1 Gbit/s port policed near 700 ran 173.
+- **BBR over fq with a 128 MiB cap filled them**: the same three paths of 4 Gbit/s ran 2.9 to 3.3
+  Gbit/s on one flow and 3.8 to 4.0 on four, the port's cap, retransmitting 1 to 3 percent, the
+  processor at most 22 percent of four cores.
+- **A provider's policer is not something TCP tuning removes**: the machine of 200 Mbit/s, with
+  BBR and 32 MiB, ran 164 to 195 Mbit/s with 14,000 to 30,000 retransmits in ten seconds against a
+  policer near 200, and the 1 Gbit/s port policed near 700 went from 173 to 670 Mbit/s. Shaping a
+  machine's egress below its policer is RFC la4oy, a draft.
+
+`net.core.default_qdisc` applies only to a qdisc created after it is set, so a switch leaves an
+interface already up on the qdisc it had; after the switch that brings this in, the NIC's root is
+checked to be `fq`, or `mq` with `fq` beneath it, and not `fq_codel`. Whether a container's network
+namespace, which the driver creates, inherits `bbr` is confirmed on the test platform, and if it
+does not, the driver sets it.
+
 ## Public SSH
 
 **The tailnet interface is not trusted by the host firewall, and its only allowed TCP port is
