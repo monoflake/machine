@@ -5,6 +5,11 @@ Every machine runs unstable's Tailscale and keeps the tailnet's resolver out of 
 one is set, or is logged in by hand. Its interface is not trusted by the host firewall,
 [network.md](network.md#public-ssh).
 
+**A machine reaches another by `tailscale nc <name> <port>`, never by the name alone**, seen on
+2026-10-29: with the tailnet's resolver kept out, a machine cannot resolve another's tailnet name,
+so a jump through one, as an SSH `ProxyJump`, fails, and a `ProxyCommand` running `tailscale nc`
+on the jump host reaches the other by the tailnet's own lookup.
+
 **The tailnet is the fleet's management and fallback mesh, and carries no traffic steering but
 the base connector**, decided by the author on 2026-10-27, so it holds no App Connector for
 business traffic: a connector routes by the addresses it learns rather than by name, for every
