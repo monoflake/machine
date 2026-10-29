@@ -3,11 +3,44 @@
 { config, lib, ... }:
 let
   inherit (lib) mkOption types;
+  labels = import ./labels.nix;
+  networkName = types.strMatching "[a-z][a-z0-9-]{0,62}";
   file = types.addCheck types.str (lib.hasPrefix "/");
 in
 {
   options = {
     machine = {
+      # Names and labels belong to the machine, docs/names.md.
+      name = mkOption {
+        type = networkName;
+        description = "Network Name, the unique machine identifier and its tailnet name.";
+      };
+      hostname = mkOption {
+        type = networkName;
+        default = config.machine.name;
+        defaultText = lib.literalExpression "config.machine.name";
+        description = "Static hostname shown by an SSH shell.";
+      };
+      prettyName = mkOption {
+        type = types.strMatching "[A-Za-z0-9-]+";
+        default =
+          lib.toUpper (builtins.substring 0 1 config.machine.name)
+          + builtins.substring 1 (-1) config.machine.name;
+        defaultText = lib.literalMD "`machine.name` with its first letter capitalized";
+        description = "Display name and DHCP host name reported to the LAN router.";
+      };
+      region = mkOption {
+        type = types.enum labels.regions;
+        description = "Region from the public list exported as lib.labels.regions.";
+      };
+      provider = mkOption {
+        type = types.enum labels.providers;
+        description = "Vendor from the public list exported as lib.labels.providers, selfhost for one's own machines.";
+      };
+      account = mkOption {
+        type = types.nonEmptyStr;
+        description = "Unverified account label, paired with the provider to identify a failure domain.";
+      };
       disk = mkOption {
         type = types.str;
         description = "Block device to partition and install the system onto.";

@@ -11,10 +11,10 @@ let
         ../../../../template/configuration.nix
         {
           nixpkgs.hostPlatform = system;
-          networking.hostName = lib.mkOverride 60 name;
           machine = lib.mkMerge [
             fleet.${name}.machine
             {
+              name = lib.mkOverride 60 name;
               upgrade = {
                 inherit (example) flake;
               };
@@ -56,7 +56,7 @@ let
             large
             consumer
             badAt
-            badHost
+            badName
             badNames
             repeated
             missing
@@ -69,7 +69,26 @@ let
       cacheNames = lib.concatMap builtins.attrNames cacheServices;
       run = lib.findFirst (p: p.name or "" == "machine-cache-run") null small.environment.systemPackages;
       badAt = configured system "c1" { machine.upgrade.at = lib.mkForce "09:00"; };
-      badHost = configured system "a1" { networking.hostName = lib.mkForce "a9"; };
+      renamed = configured system "a1" {
+        machine.hostname = lib.mkForce "alder-box";
+        nixpkgs.overlays = [
+          (_: previous: {
+            writeText =
+              name: text:
+              if name == "machine-cache.json" then
+                builtins.toFile name (builtins.unsafeDiscardStringContext text)
+              else
+                previous.writeText name text;
+          })
+        ];
+      };
+      builderConfig = builtins.fromJSON (
+        builtins.readFile renamed.systemd.services.machine-cache-self.environment.MACHINE_CACHE_CONFIG
+      );
+      fetchConfig = builtins.fromJSON (
+        builtins.readFile renamed.systemd.services.machine-cache-fetch.environment.MACHINE_CACHE_CONFIG
+      );
+      badName = configured system "a1" { machine.name = lib.mkForce "a9"; };
       badNames = configured system "c1" {
         machine.cache.fetch.builders = lib.mkForce [ (example.machines.a1.keys // { name = "a9"; }) ];
       };
@@ -117,11 +136,19 @@ let
     in
     assert lib.all rejected [
       badAt
-      badHost
+      badName
       badNames
       repeated
       missing
     ];
+    assert !rejected renamed;
+    assert renamed.networking.hostName == "alder-box";
+    assert builderConfig.builder == "a1";
+    assert builderConfig.machines.a1.host == "a1";
+    assert !(builderConfig.machines ? alder-box);
+    assert fetchConfig.machine == "a1";
+    assert lib.hasSuffix " a1 --self"
+      renamed.systemd.services.machine-cache-self.serviceConfig.ExecStart;
     assert !small.machine.cache.builder.data;
     assert small.machine.cache.builder.store == null;
     assert !(small.systemd.services ? machine-cache-build-store);
@@ -215,7 +242,7 @@ let
     ) cacheServices;
     assert calendars == map (at: "*-*-* ${at}:00 UTC") fleet.c1.slots;
     assert consumer.machine.upgrade.at == example.machines.c1.at;
-    assert (builtins.head consumer.machine.cache.fetch.builders).name == small.networking.hostName;
+    assert (builtins.head consumer.machine.cache.fetch.builders).name == small.machine.name;
     assert !rejected small;
     assert lib.hasSuffix " c1 --now"
       small.systemd.services."machine-cache-now@c1".serviceConfig.ExecStart;

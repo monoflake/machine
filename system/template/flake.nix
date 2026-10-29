@@ -10,7 +10,7 @@
     { machine, nixpkgs, ... }:
     {
       # The system is the hardware configuration's, `nixpkgs.hostPlatform`.
-      nixosConfigurations.machine = nixpkgs.lib.nixosSystem {
+      nixosConfigurations.alder = nixpkgs.lib.nixosSystem {
         modules = [
           machine.nixosModules.machine
           ./configuration.nix

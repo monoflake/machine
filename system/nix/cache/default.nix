@@ -18,13 +18,13 @@ in
         assertion =
           cfg.inventory == null
           || (
-            config.networking.hostName == cfg.inventory.name
+            config.machine.name == cfg.inventory.name
             && config.machine.upgrade.at == cfg.inventory.at
             &&
               builtins.sort builtins.lessThan (map (b: if b.name == null then "" else b.name) cfg.fetch.builders)
               == cfg.inventory.builders
           );
-        message = "machine ${config.networking.hostName}: cache inventory name, upgrade time or builder names differ";
+        message = "machine ${config.machine.name}: cache inventory name, upgrade time or builder names differ";
       }
       {
         assertion =
@@ -38,7 +38,7 @@ in
                 == builtins.length cfg.fetch.builders
             )
           );
-        message = "machine ${config.networking.hostName}: builder names must be present and unique except for one legacy unnamed builder";
+        message = "machine ${config.machine.name}: builder names must be present and unique except for one legacy unnamed builder";
       }
     ]
     ++ lib.optionals cfg.enable [

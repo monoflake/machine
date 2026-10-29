@@ -11,7 +11,7 @@ let
   given = pkgs.writeText "machine-cache.json" (
     builtins.toJSON {
       inherit (cfg) bucket;
-      builder = config.networking.hostName;
+      builder = config.machine.name;
       self = cfg.builder.self;
       fetch =
         if cfg.fetch.builders == [ ] then
@@ -33,9 +33,9 @@ let
       machines =
         cfg.builds
         // lib.optionalAttrs (cfg.builder.self != null) {
-          ${config.networking.hostName} = {
+          ${config.machine.name} = {
             flake = config.machine.upgrade.flake;
-            host = config.networking.hostName;
+            host = config.machine.name;
             builders = { };
             slots = [ ];
             gap = 20;
@@ -112,7 +112,7 @@ in
             environment.MACHINE_CACHE_CONFIG = given;
             serviceConfig = {
               Type = "oneshot";
-              ExecStart = "${lib.getExe run} ${config.networking.hostName} --self";
+              ExecStart = "${lib.getExe run} ${config.machine.name} --self";
               EnvironmentFile = lib.mkIf (cfg.credentials != null) cfg.credentials;
               StateDirectory = "machine";
             };

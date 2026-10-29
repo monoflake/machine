@@ -93,23 +93,30 @@ let
     in
     lib.hasSuffix (toString file) cfg.systemd.services.machine-ssh-close.serviceConfig.ExecStart;
   tests = {
-    defaultRoutes = defaults.services.tailscale.extraSetFlags == [ "--accept-dns=false" ];
+    defaultRoutes =
+      defaults.services.tailscale.extraSetFlags == [
+        "--accept-dns=false"
+        "--hostname=alder"
+      ];
     subnetRoutes =
       subnet.services.tailscale.extraSetFlags == [
         "--accept-dns=false"
         "--advertise-routes=192.0.2.0/24"
+        "--hostname=alder"
       ];
     exitOnly =
       exit.services.tailscale.extraSetFlags == [
         "--accept-dns=false"
         "--advertise-exit-node"
         "--stateful-filtering=true"
+        "--hostname=alder"
       ];
     connectorFlags =
       connector.services.tailscale.extraSetFlags == [
         "--accept-dns=false"
         "--advertise-connector"
         "--stateful-filtering=true"
+        "--hostname=alder"
       ];
     exitRoutes =
       routed.services.tailscale.extraSetFlags == [
@@ -117,6 +124,7 @@ let
         "--advertise-routes=198.51.100.7/32,2001:db8::/32"
         "--advertise-exit-node"
         "--stateful-filtering=true"
+        "--hostname=alder"
       ];
     routing =
       routed.services.tailscale.useRoutingFeatures == "server"

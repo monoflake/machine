@@ -3,6 +3,7 @@
 {
   imports = [
     ./options.nix
+    ./names.nix
     ./base.nix
     ./memory.nix
     ./boot

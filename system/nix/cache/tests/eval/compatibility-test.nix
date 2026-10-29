@@ -11,7 +11,7 @@ let
             ../../../../template/configuration.nix
             {
               nixpkgs.hostPlatform = "x86_64-linux";
-              networking.hostName = lib.mkForce name;
+              machine.name = lib.mkForce name;
               machine.cache = {
                 enable = true;
                 bucket = "/var/lib/machine-cache-bucket";

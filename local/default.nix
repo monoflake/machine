@@ -17,7 +17,6 @@ in
   # Docker gives the address, the public nameservers and its name for this computer, and publishes
   # only ssh, the entry and the driver, on localhost, scripts/local.res.
   networking = {
-    hostName = "local";
     useDHCP = lib.mkForce false;
     resolvconf.enable = false;
     # NixOS's firewall runs as on a real machine, Docker's eth0 trusted in the tailnet's place.
@@ -32,6 +31,11 @@ in
   ];
 
   machine = {
+    name = "local";
+    # A container's labels are placeholders nothing reads, docs/names.md.
+    provider = "selfhost";
+    region = "us-west";
+    account = "local";
     # Neither is read in a container, which has no disk of its own to install to and takes no swap.
     disk = "/dev/null";
     memory = 4096;

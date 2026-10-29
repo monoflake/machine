@@ -41,22 +41,25 @@
         ];
       };
 
-      lib.fleet = import ./system/nix/cache/fleet.nix { inherit (nixpkgs) lib; };
+      lib = {
+        labels = import ./system/labels.nix;
+        fleet = import ./system/nix/cache/fleet.nix { inherit (nixpkgs) lib; };
 
-      # A test machine as a container in Docker, of the system and with the SSH keys given, which
-      # `mise run local` starts, RFC n0o4l.
-      lib.local =
-        { system, keys }:
-        nixpkgs.lib.nixosSystem {
-          modules = [
-            self.nixosModules.machine
-            ./local
-            {
-              nixpkgs.hostPlatform = system;
-              machine.keys = keys;
-            }
-          ];
-        };
+        # A test machine as a container in Docker, of the system and with the SSH keys given, which
+        # `mise run local` starts, RFC n0o4l.
+        local =
+          { system, keys }:
+          nixpkgs.lib.nixosSystem {
+            modules = [
+              self.nixosModules.machine
+              ./local
+              {
+                nixpkgs.hostPlatform = system;
+                machine.keys = keys;
+              }
+            ];
+          };
+      };
 
       templates.machine = {
         path = system + "/template";

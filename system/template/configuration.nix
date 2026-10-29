@@ -1,8 +1,13 @@
 # What this machine is alone; the rest is the platform's module.
 {
   imports = [ ./hardware-configuration.nix ];
-  networking.hostName = "machine";
   machine = {
+    name = "alder";
+    hostname = "alder-box";
+    prettyName = "Alder";
+    region = "us-west";
+    provider = "selfhost";
+    account = "example";
     disk = "/dev/vda";
     memory = 4096;
     keys = [ "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPlaceholderReplaceWithYourOwnPublicKey0000" ];
