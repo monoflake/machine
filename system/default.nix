@@ -17,6 +17,6 @@
     ./maintenance
   ];
 
-  # The system is the release, and containerd, its runtimes and the tailnet are unstable's.
+  # The system is the release, containerd and its runtimes unstable's, docs/releases.md.
   nixpkgs.overlays = [ (final: _: { inherit (final.unstable) containerd; }) ];
 }

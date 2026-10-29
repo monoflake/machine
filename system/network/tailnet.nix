@@ -1,4 +1,4 @@
-# A machine's place on the tailnet, joined at boot by the machine's auth key, unstable's Tailscale,
+# A machine's place on the tailnet, joined at boot by the machine's auth key, the newest Tailscale,
 # and an exit node, a peer relay or an app connector where the machine is one, docs/tailnet.md.
 {
   config,
@@ -31,7 +31,8 @@ in
   ];
   services.tailscale = {
     enable = true;
-    package = pkgs.unstable.tailscale;
+    # The one package named onto nixpkgs-unstable, docs/releases.md.
+    package = pkgs.latest.tailscale;
     openFirewall = true;
     authKeyFile = config.machine.tailnet.authKeyFile;
     # The kernel forwarding an exit node, a subnet router or an app connector needs.

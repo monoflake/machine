@@ -1,6 +1,6 @@
 # The tailnet
 
-Every machine runs unstable's Tailscale and keeps the tailnet's resolver out of its nameservers,
+Every machine runs nixpkgs-unstable's Tailscale, [releases.md](releases.md), and keeps the tailnet's resolver out of its nameservers,
 `system/network/tailnet.nix`. It joins the tailnet at boot with `machine.tailnet.authKeyFile` where
 one is set, or is logged in by hand. Its interface is not trusted by the host firewall,
 [network.md](network.md#public-ssh).

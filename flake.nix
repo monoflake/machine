@@ -4,6 +4,7 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
     unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
+    latest.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     disko = {
       url = "github:nix-community/disko";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -15,6 +16,7 @@
       self,
       nixpkgs,
       unstable,
+      latest,
       disko,
       ...
     }:
@@ -28,7 +30,8 @@
       each = f: nixpkgs.lib.genAttrs systems (s: f nixpkgs.legacyPackages.${s});
     in
     {
-      # Unstable beside the release, RFC vr5lw, as `pkgs.unstable`.
+      # Unstable beside the release, RFC vr5lw, as `pkgs.unstable`, and the named exceptions newer
+      # still as `pkgs.latest`, docs/releases.md.
       nixosModules.machine = {
         imports = [
           disko.nixosModules.disko
@@ -37,6 +40,7 @@
         nixpkgs.overlays = [
           (final: _: {
             unstable = import unstable { inherit (final.stdenv.hostPlatform) system; };
+            latest = import latest { inherit (final.stdenv.hostPlatform) system; };
           })
         ];
       };

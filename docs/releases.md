@@ -1,5 +1,18 @@
 # Released inputs
 
+**The OS is the latest stable release, what it takes newer is nixos-unstable's, and a named
+exception is nixpkgs-unstable's**, decided by the author on 2026-10-29. The flake's `nixpkgs` input
+follows the release channel, today `nixos-26.05`, and builds the system. `unstable`, `nixos-unstable`
+as `pkgs.unstable`, is where software newer than the release comes from by default, RFC vr5lw:
+containerd, the runtimes, btrfs-progs and the maintenance tools. `latest`, `nixpkgs-unstable` as
+`pkgs.latest`, takes only what the author names, and today that is Tailscale alone: it is the
+network layer and tracks the newest release, and `nixos-unstable` advances only once Hydra's NixOS
+tests pass where `nixpkgs-unstable` waits on a smaller set, so a fix can sit on `nixpkgs-unstable` a
+day or more first, as 1.104.4's
+vulnerability fix did on 2026-10-29 while `nixos-unstable` held 1.104.2. Nothing else moves to
+`latest` unless the author names it. The update workflow moves all three with the flake's lock,
+and its message names Tailscale's version when it changes.
+
 **A machine takes the released driver as it takes the runtimes' images**, monoflake/driver's RFC
 8c0rg. `system/containers/manifest.toml` names each source, monoflake/runtime's images at its top
 and monoflake/driver's `driver-machine` in its `[driver]` table, and the workspace's
