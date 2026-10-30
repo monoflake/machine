@@ -10,5 +10,7 @@ systemctl start "$unit" >/dev/null 2>&1 || status=$?
 systemctl show -p Result --value "$unit" || true
 if [ "$SSH_ORIGINAL_COMMAND" = system ]; then
 	readlink /run/current-system || true
+else
+	readlink /var/lib/driver/current || true
 fi
 exit "$status"

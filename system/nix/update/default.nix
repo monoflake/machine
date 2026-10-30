@@ -8,10 +8,24 @@ let
   cfg = config.machine.update;
   given = pkgs.writeText "machine-update.json" (
     builtins.toJSON {
-      inherit (cfg) bucket credentialsFile endpointFile;
+      inherit (cfg)
+        bucket
+        credentialsFile
+        endpointFile
+        driverBuilds
+        ;
       machine = config.machine.name;
       signers = pkgs.writeText "system-pointer-signers" (
         ''ci namespaces="system-pointer" ${cfg.pointerPublicKey}'' + "\n"
+      );
+      driverChannel = config.machine.driver.enable && config.machine.driver.channel;
+      architecture = pkgs.stdenv.hostPlatform.system;
+      driverSigners = pkgs.writeText "driver-pointer-signers" (
+        ''ci namespaces="driver-pointer" ${cfg.pointerPublicKey}''
+        + "\n"
+        + lib.optionalString (cfg.testSigner != null) (
+          ''mac namespaces="driver-pointer" ${cfg.testSigner}'' + "\n"
+        )
       );
       trusted = lib.concatStringsSep " " config.nix.settings.trusted-public-keys;
     }
@@ -25,16 +39,37 @@ let
       pkgs.gawk
       pkgs.jq
       pkgs.openssh
+      pkgs.gnutar
+      pkgs.gzip
+      pkgs.util-linux
+      pkgs.systemd
     ];
-    text = builtins.readFile ./protocol.sh + builtins.readFile ./fetch.sh;
+    text = lib.concatMapStrings builtins.readFile [
+      ./protocol.sh
+      ./driver-protocol.sh
+      ./driver-links.sh
+      ./driver.sh
+      ./fetch.sh
+    ];
   };
   # The service's own check by hand, run over ssh, which realises nothing and writes no state.
   check = pkgs.writeShellScriptBin "machine-update-check" ''
     export MACHINE_UPDATE_CONFIG=${given}
     export AWS_SHARED_CREDENTIALS_FILE=${toString cfg.credentialsFile}
-    export STATE_DIRECTORY=/var/lib/machine-update/system
-    exec ${lib.getExe fetch} system --dry-run
+    instance=''${1:-system}
+    case $instance in system | driver) ;; *) echo 'update: unsupported instance' >&2; exit 1 ;; esac
+    export STATE_DIRECTORY=/var/lib/machine-update/$instance
+    exec ${lib.getExe fetch} "$instance" --dry-run
   '';
+  rollback = pkgs.writeShellApplication {
+    name = "machine-driver-rollback";
+    runtimeInputs = [
+      pkgs.coreutils
+      pkgs.util-linux
+      pkgs.systemd
+    ];
+    text = builtins.readFile ./driver-links.sh + builtins.readFile ./rollback.sh;
+  };
 in
 {
   imports = [ ./nudge.nix ];
@@ -66,7 +101,10 @@ in
     (lib.mkIf cfg.enable {
       nix.settings.trusted-public-keys = lib.optional (cfg.nixPublicKey != null) cfg.nixPublicKey;
       system.autoUpgrade.enable = lib.mkForce false;
-      environment.systemPackages = [ check ];
+      environment.systemPackages = [
+        check
+      ]
+      ++ lib.optional (config.machine.driver.enable && config.machine.driver.channel) rollback;
       systemd = {
         # A path alone, so a realise through the daemon reads the same root only file.
         services.nix-daemon.environment.AWS_SHARED_CREDENTIALS_FILE = cfg.credentialsFile;
@@ -89,6 +127,15 @@ in
             UMask = "0077";
           };
         };
+        timers."update-now@driver" =
+          lib.mkIf (config.machine.driver.enable && config.machine.driver.channel)
+            {
+              wantedBy = [ "timers.target" ];
+              timerConfig = {
+                OnCalendar = "*-*-* ${cfg.at}:00 UTC";
+                Persistent = true;
+              };
+            };
         timers."update-now@system" = {
           wantedBy = [ "timers.target" ];
           timerConfig = {

@@ -59,4 +59,7 @@ has moved.
 
 **Systems can now follow CI’s signed pointer**, through `machine.update`,
 [update.md](update.md). The old cache mechanism stays frozen until monoflake/cloud’s reset.
-The driver release lock described here remains current until its independent pointer channel lands.
+Machines with `machine.driver.channel` take the driver from their signed driver pointer,
+independently of system releases. NixOS supplies their units, runtime arguments, directories and
+trusted signer without selecting a driver version. The release lock described here stays for
+frozen machines until monoflake/cloud's reset.

@@ -172,6 +172,12 @@ in
           default = null;
           description = "SSH public key CI signs system pointers with.";
         };
+        driverBuilds = lib.mkEnableOption "driver build archives on this test ring machine independently of testSigner";
+        testSigner = mkOption {
+          type = types.nullOr (types.strMatching "ssh-ed25519 [A-Za-z0-9+/]+={0,2}( [^\n\r]*)?");
+          default = null;
+          description = "SSH public key trusted as mac for driver pointers on a test machine alone.";
+        };
         nixPublicKey = mkOption {
           type = types.nullOr (types.strMatching "[^[:space:]:]+:[A-Za-z0-9+/]{43}=");
           default = null;
@@ -403,6 +409,11 @@ in
         };
       };
       driver = {
+        channel = mkOption {
+          type = types.bool;
+          default = false;
+          description = "Whether to take the driver from its signed pointer through machine.update instead of package or override.";
+        };
         enable = mkOption {
           type = types.bool;
           default = false;

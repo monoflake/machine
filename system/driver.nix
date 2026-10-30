@@ -46,7 +46,13 @@ let
     youki
     btrfs-progs
     ;
-  binary = if cfg.override != null then cfg.override else lib.getExe' cfg.package "driver-machine";
+  binary =
+    if cfg.channel then
+      "/var/lib/driver/current/driver-machine"
+    else if cfg.override != null then
+      cfg.override
+    else
+      lib.getExe' cfg.package "driver-machine";
   # What the container kind's containers are given addresses from, on a bridge of its own.
   bridge = (import ./network/bridge.nix).live;
   subnet = "10.88.0.0/16";
@@ -81,12 +87,23 @@ in
 {
   config = lib.mkIf cfg.enable {
     # A test machine's override stands in for the release, so the default gives way to it.
-    machine.driver.package = lib.mkDefault (if cfg.override != null then null else released);
+    machine.driver.package = lib.mkDefault (
+      if cfg.override != null || cfg.channel then null else released
+    );
 
     assertions = [
       {
-        assertion = (cfg.package != null) != (cfg.override != null);
-        message = "machine.driver needs exactly one of package and override set.";
+        assertion =
+          lib.count (value: value) [
+            (cfg.package != null)
+            (cfg.override != null)
+            cfg.channel
+          ] == 1;
+        message = "machine.driver needs exactly one of package, override and channel set.";
+      }
+      {
+        assertion = cfg.channel -> config.machine.update.enable;
+        message = "machine.driver.channel requires machine.update.enable.";
       }
     ];
 
@@ -106,7 +123,7 @@ in
           ];
           # A test machine's override not copied yet leaves the service inactive, never restarting.
           unitConfig = {
-            ConditionPathExists = lib.mkIf (cfg.override != null) cfg.override;
+            ConditionPathExists = lib.mkIf (cfg.override != null || cfg.channel) binary;
             RequiresMountsFor = [
               "/data"
               "/run/driver-machine/secrets"
@@ -154,7 +171,7 @@ in
           # Restarted by a switch rather than stopped before it, so its socket waits a moment alone.
           stopIfChanged = false;
           unitConfig = {
-            ConditionPathExists = lib.mkIf (cfg.override != null) cfg.override;
+            ConditionPathExists = lib.mkIf (cfg.override != null || cfg.channel) binary;
             # Never started without the data disk containerd keeps its containers on.
             RequiresMountsFor = [ "/data" ];
             # Started again however often it ends, as the data plane is never given up on.
@@ -244,6 +261,7 @@ in
       tmpfiles.rules = [
         "d ${roots} 0755 root root -"
       ]
+      ++ lib.optional cfg.channel "d /var/lib/driver 0755 root root -"
       ++ lib.optional (cfg.local != null) "d ${cfg.local} 0755 root root -";
     };
     users.groups.${group} = { };

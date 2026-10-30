@@ -5,7 +5,10 @@ refuse() {
 	exit 1
 }
 dry=false
-if [ "${1:-}" = system ]; then shift; fi
+instance=system
+case ${1:-} in
+system | driver) instance=$1; shift ;;
+esac
 if [ "${1:-}" = --dry-run ]; then
 	dry=true
 	shift
@@ -39,7 +42,10 @@ secret=$(credential aws_secret_access_key) || refuse 'systems credentials malfor
 host=${endpoint#https://}
 host=${host%/}
 if [[ $bucket == file:///* ]]; then
-	get() { cp "${bucket#file://}/$1" "$2" 2>/dev/null; }
+	get() {
+		[ -e "${bucket#file://}/$1" ] || return 2
+		cp "${bucket#file://}/$1" "$2" 2>/dev/null
+	}
 	substituter=$bucket
 else
 	[[ $bucket =~ ^[a-z0-9][a-z0-9.-]*$ ]] || refuse 'bucket malformed'
@@ -50,16 +56,52 @@ else
 		code=$(printf 'user = "%s:%s"\n' "$access" "$secret" |
 			curl --silent --output "$2" --write-out '%{http_code}' \
 				--aws-sigv4 aws:amz:auto:s3 -K - "https://$host/$bucket/$1" 2>/dev/null) || return 1
+		[ "$code" != 404 ] || return 2
 		[ "$code" = 200 ]
 	}
 fi
+# A failed tool's last lines, the endpoint's host and the key pair masked as literal text.
+masked() {
+	local line
+	tail -n 5 "$1" | while IFS= read -r line; do
+		[ -z "$host" ] || line=${line//"$host"/<endpoint>}
+		line=${line//"$access"/<key>}
+		printf 'update: %s\n' "${line//"$secret"/<secret>}"
+	done >&2
+}
+verify_pointer() {
+	local signers=$1 namespace=$2 principal
+	ssh-keygen -Y find-principals -f "$signers" -s "$work/pointer.sig" \
+		>"$work/principals" 2>/dev/null || return 1
+	while IFS= read -r principal; do
+		case $principal in
+		ci) ;;
+		mac) [ "$namespace" = driver-pointer ] || continue ;;
+		*) continue ;;
+		esac
+		if ssh-keygen -Y verify -f "$signers" -I "$principal" -n "$namespace" \
+			-s "$work/pointer.sig" <"$work/pointer" >/dev/null 2>&1; then return 0; fi
+	done <"$work/principals"
+	return 1
+}
+record() {
+	local pending
+	pending=$(mktemp "${STATE_DIRECTORY}/.accepted.XXXXXX")
+	cp "$work/pointer" "$pending"
+	mv -f "$pending" "$state"
+	say 'accepted pointer recorded'
+}
+if [ "$instance" = driver ]; then
+	[ "$(field .driverChannel)" = true ] || refuse 'driver channel disabled'
+	update_driver
+	exit 0
+fi
 say 'fetching system pointer'
-get "pointer/$machine" "$work/pointer" || refuse 'pointer fetch failed'
+get "pointer/system/$machine" "$work/pointer" || refuse 'pointer fetch failed'
 say 'fetching pointer signature'
-get "pointer/$machine.sig" "$work/pointer.sig" || refuse 'signature fetch failed'
+get "pointer/system/$machine.sig" "$work/pointer.sig" || refuse 'signature fetch failed'
 say 'verifying system pointer signature'
-ssh-keygen -Y verify -f "$(field .signers)" -I ci -n system-pointer \
-	-s "$work/pointer.sig" <"$work/pointer" >/dev/null 2>&1 || refuse 'invalid system-pointer signature'
+verify_pointer "$(field .signers)" system-pointer || refuse 'invalid system-pointer signature'
 say 'validating system pointer'
 reason=$(update_pointer "$work/pointer" "$machine" "$(date -u +%s)") || refuse "$reason"
 at=$(jq -r .at "$work/pointer")
@@ -80,22 +122,6 @@ if [ -f "$state" ]; then
 fi
 say 'reading the running system'
 current=$(readlink /run/current-system) || refuse 'running system unavailable'
-# A failed tool's last lines, the endpoint's host and the key pair masked as literal text.
-masked() {
-	local line
-	tail -n 5 "$1" | while IFS= read -r line; do
-		[ -z "$host" ] || line=${line//"$host"/<endpoint>}
-		line=${line//"$access"/<key>}
-		printf 'update: %s\n' "${line//"$secret"/<secret>}"
-	done >&2
-}
-record() {
-	local pending
-	pending=$(mktemp "${STATE_DIRECTORY}/.accepted.XXXXXX")
-	cp "$work/pointer" "$pending"
-	mv -f "$pending" "$state"
-	say 'accepted pointer recorded'
-}
 if [ "$current" = "$path" ]; then
 	say 'pointer is the running system'
 	if [ "$dry" = false ] && [ "$taken" = false ]; then record; fi

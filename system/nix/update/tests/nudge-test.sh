@@ -22,7 +22,11 @@ SH
 cat >"$t/bin/readlink" <<'SH'
 #!/usr/bin/env bash
 set -euo pipefail
-[ "$*" = /run/current-system ]
+case $1 in
+/run/current-system) ;;
+/var/lib/driver/current) echo readlink >>"$TEST_ROOT/calls"; echo 1.0; exit "${READLINK_STATUS:-0}" ;;
+*) exit 1 ;;
+esac
 echo readlink >>"$TEST_ROOT/calls"
 echo /nix/store/0123456789abcdfghijklmnpqrsvwxyz-system
 exit "${READLINK_STATUS:-0}"
@@ -42,8 +46,10 @@ accepted() {
 	printf 'start %s\nshow -p Result --value %s\n' "$EXPECTED_UNIT" "$EXPECTED_UNIT" >"$t/expected-calls"
 	if [ "$1" = system ]; then
 		echo /nix/store/0123456789abcdfghijklmnpqrsvwxyz-system >>"$t/expected"
-		echo readlink >>"$t/expected-calls"
+	else
+		echo 1.0 >>"$t/expected"
 	fi
+	echo readlink >>"$t/expected-calls"
 	cmp "$t/output" "$t/expected"
 	cmp "$t/calls" "$t/expected-calls"
 	[ ! -s "$t/error" ]

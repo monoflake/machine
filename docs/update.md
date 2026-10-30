@@ -1,4 +1,4 @@
-# Signed system updates
+# Signed updates
 
 `machine.update.enable` makes a machine take its system from CI's signed pointer, RFC oej2a.
 Set its bucket, UTC `at` time, `pointerPublicKey`, `nixPublicKey`, `credentialsFile` and
@@ -10,11 +10,11 @@ credentials file path in their environment. The endpoint is read only
 at runtime and never added to nix.conf or a unit.
 
 The persistent daily timer starts `update-now@system` at `at` UTC. Starting that service by hand
-runs the same check. Its template reserves other instances for later channels and presently
-accepts only `system`. The service survives its own switch and keeps accepted state under
+runs the same check. Its template also accepts `driver` when the driver channel is enabled. The service survives its own
+switch and keeps accepted state under
 `/var/lib/machine-update/system`, mode 0700.
 
-The updater fetches `pointer/<machine>` before its signature. It verifies identity `ci` in
+The updater fetches `pointer/system/<machine>` before its signature. It verifies identity `ci` in
 namespace `system-pointer`, then requires exactly the machine name, store path, UTC `at` and
 nonempty `run`. Invalid signatures, a driver namespace, another machine, malformed fields and
 times more than an hour ahead are refused. The accepted pointer prevents rollback to an older
@@ -40,7 +40,54 @@ paths.
 
 The old `system/nix/cache/` mechanism stays frozen until monoflake/cloud's reset. Both mechanisms
 cannot be enabled on one machine. Its builder and fetch documentation remains in [cache.md](cache.md).
-The driver's existing release lock remains in force until its separate pointer channel lands.
+The release lock still supplies frozen machines until monoflake/cloud's reset.
+
+## Driver channel
+
+`machine.driver.channel = true` selects the signed driver channel instead of `package` or
+`override` and requires `machine.update.enable`. Both driver services run
+`/var/lib/driver/current/driver-machine` with the system's runtime arguments. Until that binary
+exists, the services remain inactive. The root owned directory and installed versions are mode
+0755 so the entry's dynamic user can read and execute them.
+
+The persistent `update-now@driver` timer uses the same `machine.update.at` UTC window. Its state
+is separate under `/var/lib/machine-update/driver`, mode 0700. It uses the system updater's bucket,
+endpoint, credentials and public key, fetching `pointer/driver/<machine>` before its signature.
+An absent driver pointer or signature is nothing to do and leaves installed files and state alone.
+The signature uses namespace `driver-pointer` and identity `ci`. A test machine alone may set
+`machine.update.testSigner` to trust identity `mac` for that namespace; system pointers accept
+`ci` alone. The pointer contains exactly
+`machine`, `version`, `archives`, `at` and `run`. Both Linux architectures need an archive URL and a SHA-256. The URL is either HTTPS or exactly
+`build/driver/<sha256>.tar.gz` with that archive's hash.
+`machine.update.driverBuilds` defaults to false and is the machine's own guard that a production
+machine takes Releases alone, set true only on a test ring's machine independently of `testSigner`.
+The URL only locates the archive; the signed SHA-256 is trusted. Malformed fields, another machine and times more than one hour ahead are refused. Versions use letters,
+digits, dots, plus signs and hyphens; `.`, `..`, `current` and `previous` are reserved directory
+names and refused.
+
+The pointer's `at` and `run` are what is monotonic, never the version, so a ring may deliberately
+move a machine to an older release; this is a design choice, not a rollback hole. Older times and
+equal times from another run are refused. An accepted pointer cannot change and is never applied
+again, including after a manual rollback. A newer pointer naming the current version records its
+state without downloading or restarting.
+
+A new version downloads over HTTPS without credentials, or from its build key with the same
+bucket credentials and endpoint as the pointers, verifies the hash and unpacks
+regular release files into a temporary directory under `/var/lib/driver`. It requires an
+executable `driver-machine`, installs `/var/lib/driver/<version>`, atomically replaces `current`,
+and points `previous` at the version it replaced. Both services restart and must become active
+within a bounded wait. Failure restores the links and restarts again without recording state.
+On the first install there is no earlier binary, so failure removes `current` and `previous`,
+stops both services and does not wait for them to become active. Only success records the pointer
+and removes all version directories except `current` and exactly one `previous`.
+An installed build outlives its object in the bucket; an expired archive refuses a new install
+without changing any installed version, link or accepted state.
+
+`machine-update-check driver` fetches and verifies with the service's paths and reports whether
+it would install, changing no installed files, links or accepted state. Each stage uses `update:`
+output, masking runtime access values in tool diagnostics. Root can run `machine-driver-rollback`
+to swap `current` and `previous` and restart both services. It leaves accepted pointer state alone;
+a failed restart restores the original links and attempts another restart.
 
 ## Nudge
 
@@ -54,4 +101,4 @@ the unit's `Result` and the current system path, returning the start's exit stat
 Exactly `system` and `driver` are accepted; an empty command, arguments, whitespace variants and
 all other commands are refused. The account has no terminal or forwarding and may only start
 those two units through polkit, with no sudo permission. It reads no journal or update state.
-`driver` waits for B5's unit; the current updater refuses that instance.
+`driver` prints its unit's `Result` followed by `readlink /var/lib/driver/current`.

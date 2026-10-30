@@ -12,7 +12,7 @@ fi
 t=$(realpath "$(mktemp -d)")
 trap 'rm -rf "$t"' EXIT
 export TEST_ROOT=$t STATE_DIRECTORY=$t/state MACHINE_UPDATE_CONFIG=$t/config
-mkdir -p "$t/bin" "$t/state" "$t/bucket/pointer"
+mkdir -p "$t/bin" "$t/state" "$t/bucket/pointer/system"
 export PATH=$t/bin:$PATH
 export UPDATE_TEST_DATE
 UPDATE_TEST_DATE=$(command -v date)
@@ -82,11 +82,11 @@ eval "function $path/bin/switch-to-configuration() { switch-to-configuration '$p
 eval "function $old/bin/switch-to-configuration() { switch-to-configuration '$old' \"\$@\"; }"
 pointer() {
 	jq -n --arg path "$path" --arg at "${1:-2026-10-29T13:00:00Z}" --arg run "${2:-1}" \
-		'{machine:"c1",path:$path,at:$at,run:$run}' >"$t/bucket/pointer/c1"
+		'{machine:"c1",path:$path,at:$at,run:$run}' >"$t/bucket/pointer/system/c1"
 }
 sign() {
-	rm -f "$t/bucket/pointer/c1.sig"
-	ssh-keygen -q -Y sign -f "$t/key" -n "${1:-system-pointer}" "$t/bucket/pointer/c1"
+	rm -f "$t/bucket/pointer/system/c1.sig"
+	ssh-keygen -q -Y sign -f "$t/key" -n "${1:-system-pointer}" "$t/bucket/pointer/system/c1"
 }
 fetch() (
 	set -euo pipefail
@@ -139,14 +139,20 @@ run_fetch
 grep -q 'would not switch again' "$t/output"
 [ "$(wc -l <"$t/switches")" = 1 ]
 cmp "$t/state/accepted.json" "$t/accepted"
-printf broken >"$t/bucket/pointer/c1.sig"
+printf broken >"$t/bucket/pointer/system/c1.sig"
 refused 'invalid system-pointer signature'
 sign driver-pointer
 refused 'invalid system-pointer signature'
+ssh-keygen -q -t ed25519 -N '' -C '' -f "$t/mac"
+printf 'mac namespaces="driver-pointer" %s\n' "$(cat "$t/mac.pub")" >>"$t/signers"
+rm "$t/bucket/pointer/system/c1.sig"
+ssh-keygen -q -Y sign -f "$t/mac" -n system-pointer "$t/bucket/pointer/system/c1"
+refused 'invalid system-pointer signature'
+
 for mutation in '.machine="c2"' '.path="/tmp/system"' '.at="tomorrow"' '.at="2026-02-30T12:00:00Z"' '.at="2026-10-29T15:00:01Z"' '.run=""' '.run="line\nfeed"' '.extra="value"'; do
 	pointer
-	jq "$mutation" "$t/bucket/pointer/c1" >"$t/changed"
-	mv "$t/changed" "$t/bucket/pointer/c1"
+	jq "$mutation" "$t/bucket/pointer/system/c1" >"$t/changed"
+	mv "$t/changed" "$t/bucket/pointer/system/c1"
 	sign
 	case $mutation in
 	*machine*) reason='another machine' ;;
@@ -179,10 +185,10 @@ run_fetch --dry-run
 cmp "$t/state/accepted.json" "$t/accepted"
 [ "$(cat "$t/current")" = "$old" ]
 [ "$(cat "$t/profile")" = "$old" ]
-rm "$t/bucket/pointer/c1.sig"
+rm "$t/bucket/pointer/system/c1.sig"
 refused 'signature fetch failed'
 sign
-rm "$t/bucket/pointer/c1"
+rm "$t/bucket/pointer/system/c1"
 refused 'pointer fetch failed'
 for value in access secret endpoint key.pub; do
 	if grep -Fq "$(cat "$t/$value")" "$t/all-output"; then
