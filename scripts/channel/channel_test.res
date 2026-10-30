@@ -4,7 +4,15 @@
 
 let store = "/nix/store/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-nix-2.34.9"
 let lock = `{"root":"root","nodes":{"root":{"inputs":{"nixpkgs":"pkgs"}},"pkgs":{"locked":{"narHash":"sha256-abc/def="}}}}`
-let make = (~hit=true, ~platform="linux", ~same=true, ~failure=false, ()) => {
+let make = (
+  ~hit=true,
+  ~platform="linux",
+  ~same=true,
+  ~failure=false,
+  ~links=[],
+  ~installed=false,
+  (),
+) => {
   let ran = []
   let said = []
   let warned = []
@@ -20,8 +28,9 @@ let make = (~hit=true, ~platform="linux", ~same=true, ~failure=false, ()) => {
     exists: p =>
       p->String.includes("/warnings/")
         ? made->Array.includes(p)
-        : p->String.startsWith("/cache/") && hit,
+        : (p->String.startsWith("/cache/") && hit) || (p == Channel.installed && installed),
     directories: _ => ["z", "a"],
+    entries: p => p == Channel.profiles ? Array.concat(["per-user"], links) : [],
     mkdir: p => made->Array.push(p),
     run: c => {
       ran->Array.push(c)
@@ -149,6 +158,28 @@ test("mac dry run runs nothing even without a cached package", () => {
     ok(said->Array.includes(`sudo nix-env --profile ${Channel.profile} --install ${target}`))
     ok(said->Array.includes("sudo launchctl kickstart -k system/org.nixos.nix-daemon"))
   })
+})
+
+test("the first switch restores the installer's profile rather than rolling back", () => {
+  let lines = (args, ~links, ~installed, ~same=true) => {
+    let (world, _, said, _, _) = make(~platform="darwin", ~links, ~installed, ~same, ())
+    Channel.execute(world, args)
+    said
+  }
+  let shows = (said, expected) => expected->Array.every(line => said->Array.includes(line))
+  let first = lines(["mac"], ~links=["default-1-link"], ~installed=true)
+  ok(shows(first, Channel.restore))
+  ok(!shows(first, Channel.rollback))
+  ok(shows(lines(["mac", "--dry-run"], ~links=[], ~installed=true), Channel.restore))
+  let next = lines(["mac", "--dry-run"], ~links=["default-1-link"], ~installed=true, ~same=false)
+  ok(shows(next, Channel.rollback))
+  ok(
+    shows(lines(["mac", "--dry-run"], ~links=["default-1-link"], ~installed=true), Channel.restore),
+  )
+  let second = lines(["mac"], ~links=["default-1-link", "default-2-link"], ~installed=true)
+  ok(shows(second, Channel.rollback))
+  ok(!shows(second, Channel.restore))
+  ok(shows(lines(["mac"], ~links=["default-1-link"], ~installed=false), Channel.rollback))
 })
 
 test("cloud picks its first machine and follows nixpkgs references", () => {

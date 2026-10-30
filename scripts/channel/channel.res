@@ -4,6 +4,7 @@ type world = {
   realpath: string => string,
   exists: string => bool,
   directories: string => array<string>,
+  entries: string => array<string>,
   mkdir: string => unit,
   run: command => result<string, string>,
   say: string => unit,
@@ -14,7 +15,9 @@ type world = {
   platform: string,
 }
 
-let profile = "/nix/var/nix/profiles/default"
+let profiles = "/nix/var/nix/profiles"
+let profile = `${profiles}/default`
+let installed = `${profiles}/per-user/root/profile`
 let macCommand = "mise run //repos/monoflake/machine:channel mac"
 let text = (json, key) =>
   json->JSON.Decode.object->Option.flatMap(d => d->Dict.get(key))->Option.getOrThrow
@@ -160,6 +163,16 @@ let rollback = [
   `sudo nix-env --profile ${profile} --rollback`,
   "sudo launchctl kickstart -k system/org.nixos.nix-daemon",
 ]
+// The first switch starts the default chain anew, its one generation with nothing to roll back to.
+let restore = [
+  `sudo ln -sfn per-user/root/profile ${profile}`,
+  "sudo launchctl kickstart -k system/org.nixos.nix-daemon",
+]
+let generations = world =>
+  world.entries(profiles)
+  ->Array.filter(name => /^default-\d+-link$/->RegExp.test(name))
+  ->Array.length
+let rollbackAfter = (world, count) => count <= 1 && world.exists(installed) ? restore : rollback
 let help =
   [
     "channel path [--lock <flake directory>] | daemon | mac [--dry-run]",
@@ -175,6 +188,8 @@ let help =
     "--dry-run prints the commands and runs none.",
     "Rollback with these commands",
     ...rollback,
+    "After the first switch, whose chain holds one generation, restore the installer's profile",
+    ...restore,
   ]->Array.join("\n")
 
 let execute = (world, args) => {
@@ -227,7 +242,13 @@ let execute = (world, args) => {
           versions(world, channel)
         }
         world.say("rollback")
-        rollback->Array.forEach(world.say)
+        // nix-env adds no generation when the profile already holds the channel's Nix.
+        let adds =
+          dry && try world.realpath(`${profile}/bin/nix-daemon`) !=
+            world.realpath(`${channel}/bin/nix-daemon`) catch {
+          | _ => true
+          }
+        rollbackAfter(world, generations(world) + (adds ? 1 : 0))->Array.forEach(world.say)
       } else {
         if !dry {
           world.say(call(world, "systemctl", ["cat", "nix-daemon.service"])->required)
@@ -273,6 +294,7 @@ let live: world = {
   exists,
   directories: path =>
     readdir(path)->Array.filter(name => stat(`${path}/${name}`)["isDirectory"]()),
+  entries: path => exists(path) ? readdir(path) : [],
   mkdir: path => mkdir(path, {"recursive": true}),
   run: c => {
     let output = spawn(c.program, c.args, {encoding: "utf8", input: c.input})
