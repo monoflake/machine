@@ -9,8 +9,10 @@ let make = (
   ~platform="linux",
   ~same=true,
   ~failure=false,
-  ~links=[],
   ~installed=false,
+  ~moved=true,
+  ~root=None,
+  ~builds=true,
   (),
 ) => {
   let ran = []
@@ -24,18 +26,24 @@ let make = (
         ? `${p->String.startsWith(Channel.profile) && !same
               ? "/nix/store/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb-nix-2.35.3"
               : store}/bin/nix-daemon`
+        : p == Channel.installed && moved
+        ? "/nix/store/cccccccccccccccccccccccccccccccc-user-environment"
         : store,
     exists: p =>
       p->String.includes("/warnings/")
         ? made->Array.includes(p)
         : (p->String.startsWith("/cache/") && hit) || (p == Channel.installed && installed),
     directories: _ => ["z", "a"],
-    entries: p => p == Channel.profiles ? Array.concat(["per-user"], links) : [],
+    entries: p => p == Channel.installer && installed ? ["profile", "profile-1-link"] : [],
     mkdir: p => made->Array.push(p),
     run: c => {
       ran->Array.push(c)
       if failure {
         Error("nix unavailable\nsecond line")
+      } else if c.args->Array.includes("readlink") {
+        root->Option.mapOr(Error("readlink failed"), target => Ok(target))
+      } else if c.args->Array.includes("--expr") && !builds {
+        Error("build failed")
       } else if c.args->Array.includes("--json") {
         Ok(`{"version":"2.34.9"}`)
       } else if c.args->Array.includes("--version") {
@@ -138,7 +146,8 @@ test("mac installs by name and reports versions before and after", () => {
     privileged->Array.map(c => c.args),
     [
       ["nix-env", "--profile", Channel.profile, "--install", store],
-      ["launchctl", "kickstart", "-k", "system/org.nixos.nix-daemon"],
+      Channel.kickstart,
+      Channel.prune,
     ],
   )
   ok(ran->Array.every(c => !(c.args->Array.includes("--set"))))
@@ -160,26 +169,44 @@ test("mac dry run runs nothing even without a cached package", () => {
   })
 })
 
-test("the first switch restores the installer's profile rather than rolling back", () => {
-  let lines = (args, ~links, ~installed, ~same=true) => {
-    let (world, _, said, _, _) = make(~platform="darwin", ~links, ~installed, ~same, ())
-    Channel.execute(world, args)
-    said
+test("a verified switch keeps one generation back and retires the installer's links", () => {
+  let privileged = (~root=None, ~moved=true, ~builds=true) => {
+    let (world, ran, said, _, _) = make(
+      ~platform="darwin",
+      ~installed=true,
+      ~root,
+      ~moved,
+      ~builds,
+      (),
+    )
+    Channel.execute(world, ["mac"])
+    Channel.rollback->Array.forEach(line => ok(said->Array.includes(line)))
+    (ran->Array.filter(c => c.program == "sudo")->Array.map(c => c.args), said)
   }
-  let shows = (said, expected) => expected->Array.every(line => said->Array.includes(line))
-  let first = lines(["mac"], ~links=["default-1-link"], ~installed=true)
-  ok(shows(first, Channel.restore))
-  ok(!shows(first, Channel.rollback))
-  ok(shows(lines(["mac", "--dry-run"], ~links=[], ~installed=true), Channel.restore))
-  let next = lines(["mac", "--dry-run"], ~links=["default-1-link"], ~installed=true, ~same=false)
-  ok(shows(next, Channel.rollback))
-  ok(
-    shows(lines(["mac", "--dry-run"], ~links=["default-1-link"], ~installed=true), Channel.restore),
-  )
-  let second = lines(["mac"], ~links=["default-1-link", "default-2-link"], ~installed=true)
-  ok(shows(second, Channel.rollback))
-  ok(!shows(second, Channel.restore))
-  ok(shows(lines(["mac"], ~links=["default-1-link"], ~installed=false), Channel.rollback))
+  let switched = [["nix-env", "--profile", Channel.profile, "--install", store], Channel.kickstart]
+  let links = [`${Channel.installer}/profile`, `${Channel.installer}/profile-1-link`]
+  let readlink = ["readlink", Channel.rootLink]
+  let (retired, _) = privileged()
+  equal(retired, [...switched, Channel.prune, readlink, ["rm", ...links]])
+  let (held, said) = privileged(~root=Some(Channel.installed))
+  equal(held, [...switched, Channel.prune, readlink])
+  ok(said->Array.some(line => line->String.startsWith(`${Channel.rootLink} points at`)))
+  let (joined, _) = privileged(~moved=false)
+  equal(joined, [...switched, Channel.prune])
+  let (unverified, said) = privileged(~builds=false)
+  equal(unverified, switched)
+  ok(said->Array.includes("not verified, so no generation is pruned and nothing is removed"))
+})
+
+test("mac dry run prints every privileged line", () => {
+  let (world, ran, said, _, _) = make(~platform="darwin", ~installed=true, ())
+  Channel.execute(world, ["mac", "--dry-run"])
+  equal(ran, [])
+  [
+    `sudo ${Channel.prune->Array.join(" ")}`,
+    `sudo readlink ${Channel.rootLink}`,
+    `sudo rm ${Channel.installer}/profile ${Channel.installer}/profile-1-link`,
+  ]->Array.forEach(line => ok(said->Array.includes(line)))
 })
 
 test("cloud picks its first machine and follows nixpkgs references", () => {

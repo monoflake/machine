@@ -17,7 +17,9 @@ type world = {
 
 let profiles = "/nix/var/nix/profiles"
 let profile = `${profiles}/default`
-let installed = `${profiles}/per-user/root/profile`
+let installer = `${profiles}/per-user/root`
+let installed = `${installer}/profile`
+let rootLink = "/var/root/.nix-profile"
 let macCommand = "mise run //repos/monoflake/machine:channel mac"
 let text = (json, key) =>
   json->JSON.Decode.object->Option.flatMap(d => d->Dict.get(key))->Option.getOrThrow
@@ -159,20 +161,58 @@ let versions = (world, channel) => {
   }
   world.say(info)
 }
+let kickstart = ["launchctl", "kickstart", "-k", "system/org.nixos.nix-daemon"]
+let prune = ["nix-env", "--profile", profile, "--delete-generations", "+2"]
 let rollback = [
   `sudo nix-env --profile ${profile} --rollback`,
-  "sudo launchctl kickstart -k system/org.nixos.nix-daemon",
+  `sudo ${kickstart->Array.join(" ")}`,
 ]
-// The first switch starts the default chain anew, its one generation with nothing to roll back to.
-let restore = [
-  `sudo ln -sfn per-user/root/profile ${profile}`,
-  "sudo launchctl kickstart -k system/org.nixos.nix-daemon",
-]
-let generations = world =>
-  world.entries(profiles)
-  ->Array.filter(name => /^default-\d+-link$/->RegExp.test(name))
-  ->Array.length
-let rollbackAfter = (world, count) => count <= 1 && world.exists(installed) ? restore : rollback
+
+// A derivation named by the time it is evaluated, so the daemon builds it rather than reusing one.
+let probe = "derivation { name = \"channel-check\"; system = builtins.currentSystem; builder = \"/bin/sh\"; args = [ \"-c\" \"echo ${toString builtins.currentTime} > $out\" ]; }"
+
+let verified = (world, channel) => {
+  let nix = `${channel}/bin/nix`
+  let last = output => output->String.split(" ")->Array.at(-1)->Option.getOr("")
+  let daemon = call(world, nix, ["store", "info", "--json"])->Result.flatMap(json =>
+    try Ok(text(JSON.parseOrThrow(json), "version")->string) catch {
+    | _ => Error("the daemon's version could not be read")
+    }
+  )
+  switch (
+    call(world, nix, ["--version"])->Result.map(last),
+    call(world, `${profile}/bin/nix`, ["--version"])->Result.map(last),
+    daemon,
+  ) {
+  | (Ok(wanted), Ok(client), Ok(daemon)) =>
+    wanted == client &&
+    wanted == daemon &&
+    call(
+      world,
+      nix,
+      [
+        "--extra-experimental-features",
+        "nix-command",
+        "build",
+        "--no-link",
+        "--impure",
+        "--expr",
+        probe,
+      ],
+    )->Result.isOk
+  | (Error(_), _, _) | (_, Error(_), _) | (_, _, Error(_)) => false
+  }
+}
+
+// The installer's own root chain, retired once the default profile no longer points into it.
+let chain = world =>
+  world.entries(installer)
+  ->Array.filter(name => /^profile(-\d+-link)?$/->RegExp.test(name))
+  ->Array.map(name => `${installer}/${name}`)
+let apart = world =>
+  try world.realpath(profile) != world.realpath(installed) catch {
+  | _ => true
+  }
 let help =
   [
     "channel path [--lock <flake directory>] | daemon | mac [--dry-run]",
@@ -185,11 +225,11 @@ let help =
     "/nix/nix-installer repair at boot to restore the shell hook after macOS updates.",
     "Renaming it would desync /nix/receipt.json and the installer's uninstall.",
     "mac prints client and daemon versions before and after, then the rollback commands.",
+    "Once the versions match and a fresh derivation builds, it keeps one generation back,",
+    `removes the installer's links under ${installer} and never collects garbage.`,
     "--dry-run prints the commands and runs none.",
     "Rollback with these commands",
     ...rollback,
-    "After the first switch, whose chain holds one generation, restore the installer's profile",
-    ...restore,
   ]->Array.join("\n")
 
 let execute = (world, args) => {
@@ -236,19 +276,37 @@ let execute = (world, args) => {
           versions(world, channel)
         }
         sudo(["nix-env", "--profile", profile, "--install", channel])
-        sudo(["launchctl", "kickstart", "-k", "system/org.nixos.nix-daemon"])
+        sudo(kickstart)
         if !dry {
           world.say("after")
           versions(world, channel)
         }
-        world.say("rollback")
-        // nix-env adds no generation when the profile already holds the channel's Nix.
-        let adds =
-          dry && try world.realpath(`${profile}/bin/nix-daemon`) !=
-            world.realpath(`${channel}/bin/nix-daemon`) catch {
-          | _ => true
+        if dry || verified(world, channel) {
+          sudo(prune)
+          let links = chain(world)
+          if links->Array.length > 0 && apart(world) {
+            let held = if dry {
+              world.say(`sudo readlink ${rootLink}`)
+              None
+            } else {
+              switch call(world, "sudo", ["readlink", rootLink]) {
+              | Ok(target) => Some(target)
+              | Error(_) => None
+              }
+            }
+            switch held {
+            | Some(target) if target->String.includes("per-user/root") =>
+              world.say(
+                `${rootLink} points at ${target}, so nothing under ${installer} is removed; point it at the default profile first: sudo ln -sfn ${profile} ${rootLink}`,
+              )
+            | _ => sudo(["rm", ...links])
+            }
           }
-        rollbackAfter(world, generations(world) + (adds ? 1 : 0))->Array.forEach(world.say)
+        } else {
+          world.say("not verified, so no generation is pruned and nothing is removed")
+        }
+        world.say("rollback")
+        rollback->Array.forEach(world.say)
       } else {
         if !dry {
           world.say(call(world, "systemctl", ["cat", "nix-daemon.service"])->required)

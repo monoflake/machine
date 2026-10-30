@@ -20,14 +20,14 @@ CI takes its client through the mise path and its daemon through `channel daemon
 runs upstream Nix installed by NixOS/nix-installer, never Determinate Nix, its version held by
 root's default profile. Only `mise run //repos/monoflake/machine:channel mac` changes it, asking
 for sudo when the daemon differs from the channel, as the resolver's warning says. It installs
-by name, keeping nss-cacert, and restarts the daemon. `nix upgrade-nix`, which takes Nix's latest
-release rather than the channel's, `nix-env --set`, rerunning the installer and Determinate Nix
-are never used. Rollback is `sudo nix-env --profile /nix/var/nix/profiles/default --rollback`
-followed by `sudo launchctl kickstart -k system/org.nixos.nix-daemon`, except after the first
-switch: the installer's `/nix/var/nix/profiles/per-user/root/profile` is kept as the fallback and a
-GC root, and the default chain then starts anew with one generation, so the restore is `sudo ln
--sfn per-user/root/profile /nix/var/nix/profiles/default` before the same kickstart, as `channel
-mac` prints. The launchd job
+by name, keeping nss-cacert, and restarts the daemon. Once the profile's client and the daemon are
+the channel's version and a fresh derivation builds, it keeps one generation back and nothing older;
+the installer's original root chain, `/nix/var/nix/profiles/per-user/root`, was retired on its first
+switch, 2026-10-29, as its links alone, its store paths left to the author's own garbage
+collection. `nix upgrade-nix`, which takes Nix's latest release rather than the channel's,
+`nix-env --set`, rerunning the installer and Determinate Nix are never used. Rollback is
+`sudo nix-env --profile /nix/var/nix/profiles/default --rollback` followed by
+`sudo launchctl kickstart -k system/org.nixos.nix-daemon`. The launchd job
 `systems.determinate.nix-installer.nix-hook` keeps its name and runs `/nix/nix-installer repair`
 at boot to restore the shell hook after a macOS update; its name comes from the installer's
 origin, and renaming it would desync `/nix/receipt.json` and the installer's uninstall.
