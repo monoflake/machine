@@ -143,6 +143,39 @@ in
           description = "Port conform's driver answers its management on, on loopback.";
         };
       };
+      update = {
+        enable = lib.mkEnableOption "signed system pointer updates";
+        bucket = mkOption {
+          type = types.nullOr types.nonEmptyStr;
+          default = null;
+          description = "Bucket holding signed system pointers and substitutes.";
+        };
+        at = mkOption {
+          type = types.nullOr (types.strMatching "([01][0-9]|2[0-3]):[0-5][0-9]");
+          default = null;
+          description = "Time of day in UTC to take the signed system pointer.";
+        };
+        pointerPublicKey = mkOption {
+          type = types.nullOr (types.strMatching "ssh-ed25519 [A-Za-z0-9+/]+={0,2}( [^\n\r]*)?");
+          default = null;
+          description = "SSH public key CI signs system pointers with.";
+        };
+        nixPublicKey = mkOption {
+          type = types.nullOr (types.strMatching "[^[:space:]:]+:[A-Za-z0-9+/]{43}=");
+          default = null;
+          description = "Nix public key CI signs substitutes with.";
+        };
+        credentialsFile = mkOption {
+          type = types.nullOr (types.addCheck file (p: !lib.hasPrefix "/nix/store/" p));
+          default = null;
+          description = "Runtime path to a root only AWS shared credentials file with a systems profile.";
+        };
+        endpointFile = mkOption {
+          type = types.nullOr (types.addCheck file (p: !lib.hasPrefix "/nix/store/" p));
+          default = null;
+          description = "Runtime path to a root only file containing the endpoint URL alone.";
+        };
+      };
       upgrade = {
         flake = mkOption {
           type = types.nullOr types.str;

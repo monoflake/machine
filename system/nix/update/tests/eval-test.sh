@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -euo pipefail
+here=$(cd "$(dirname "$0")" && pwd)
+t=$(realpath "$(mktemp -d)")
+trap 'rm -rf "$t"' EXIT
+rsync -a --exclude=.jj --exclude=.git --exclude=node_modules "$here/../../../../" "$t/"
+ssh-keygen -q -t ed25519 -N '' -C '' -f "$t/key"
+openssl rand -base64 32 >"$t/nix-key"
+nix eval --impure --json --expr "
+let flake = builtins.getFlake \"path:$t\";
+in import $here/eval-test.nix {
+  inherit flake;
+  pointerKey = builtins.replaceStrings [ \"\\n\" ] [ \"\" ] (builtins.readFile $t/key.pub);
+  nixKey = \"fixture:\" + builtins.replaceStrings [ \"\\n\" ] [ \"\" ] (builtins.readFile $t/nix-key);
+}
+" >"$t/result"
+jq -e 'all(.[]; .passed)' "$t/result" >/dev/null
+echo 'update eval: required options, cache exclusion, runtime access paths, trust, service and timer passed on both Linux architectures'

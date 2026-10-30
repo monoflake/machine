@@ -3,6 +3,7 @@
   imports = [
     ./cache
     ./collect.nix
+    ./update
     ./upgrade.nix
   ];
 

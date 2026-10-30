@@ -56,3 +56,7 @@ nothing: once from this checkout's lock, and once from a copy whose lock is the 
 `.github/update/driver.lock`, which no configuration reads. It holds the package's version, its one
 URL and hash, both services' executable and the override. The update workflow runs it once the lock
 has moved.
+
+**Systems can now follow CI’s signed pointer**, through `machine.update`,
+[update.md](update.md). The old cache mechanism stays frozen until monoflake/cloud’s reset.
+The driver release lock described here remains current until its independent pointer channel lands.
