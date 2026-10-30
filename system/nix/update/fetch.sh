@@ -78,6 +78,7 @@ if [ -f "$state" ]; then
 		say 'pointer already taken'
 	fi
 fi
+say 'reading the running system'
 current=$(readlink /run/current-system) || refuse 'running system unavailable'
 # A failed tool's last lines, the endpoint's host and the key pair masked as literal text.
 masked() {
