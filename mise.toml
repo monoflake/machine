@@ -1,7 +1,7 @@
 # This repository's own tasks; its tools are the workspace's, read by walking up, and Nix's own are
 # what flake.lock pins.
 [env]
-_.path = ["{{config_root}}/node_modules/.bin", "/nix/var/nix/profiles/default/bin"]
+_.path = ['''{{exec(command="if [ -f '" ~ config_root ~ "/scripts/channel/channel.res.mjs' ]; then node '" ~ config_root ~ "/scripts/channel/channel.res.mjs' path --lock '" ~ config_root ~ "'; else echo 'channel: compiled resolver missing; using /nix/var/nix/profiles/default' >&2; echo /nix/var/nix/profiles/default; fi")}}/bin''', "{{config_root}}/node_modules/.bin", "/nix/var/nix/profiles/default/bin"]
 
 # What oxfmt formats here.
 [vars]
@@ -21,14 +21,14 @@ rescript format --check; oxfmt --list-different {{vars.formatted}}; mise run nix
 description = "Format the Nix with nixfmt, as flake.lock pins it: `nixfmt [--check]`"
 usage = 'flag "--check" help="Fail where anything is not formatted, and write nothing"'
 run = """
-t=$(mktemp -d) && cp flake.nix flake.lock "$t/" || exit 1
+t=$(realpath "$(mktemp -d)") && cp flake.nix flake.lock "$t/" || exit 1
 nix run --inputs-from "path:$t" nixpkgs#nixfmt -- ${usage_check:+--check} $(find flake.nix system local .github -name '*.nix')
 """
 
 [tasks.nixed]
 description = "Lint the Nix with statix and deadnix and evaluate the flake for every system"
 run = """
-t=$(mktemp -d) && rsync -a --exclude=.jj --exclude=.git --exclude=node_modules --include='*/' --include='*.nix' --include='*.lock' --exclude='*' --prune-empty-dirs ./ "$t/" || exit 1
+t=$(realpath "$(mktemp -d)") && rsync -a --exclude=.jj --exclude=.git --exclude=node_modules --include='*/' --include='*.nix' --include='*.lock' --exclude='*' --prune-empty-dirs ./ "$t/" || exit 1
 n() { nix run --inputs-from "path:$t" "nixpkgs#$1" -- "${@:2}"; }
 n statix check "$t" && n deadnix --fail "$t" && nix flake check --all-systems --no-build "path:$t"
 """
@@ -41,7 +41,7 @@ flag "-n --dry-run" help="Say what would move and write nothing"
 flag "--major" help="Taken by the workspace's movers; a newer NixOS release is still an edit to flake.nix"
 '''
 run = """
-t=$(mktemp -d) && cp flake.nix flake.lock "$t/" && nix flake update --flake "path:$t" || exit 1
+t=$(realpath "$(mktemp -d)") && cp flake.nix flake.lock "$t/" && nix flake update --flake "path:$t" || exit 1
 ! cmp -s flake.lock "$t/flake.lock" || echo "update: each input at its branch's head"
 [ -n "${usage_dry_run:-}" ] || cp "$t/flake.lock" flake.lock
 [ -z "${usage_major:-}" ] || echo "update: a newer NixOS release is an edit to flake.nix"
@@ -79,3 +79,11 @@ run = "node {{env.WORKSPACE}}/scripts/clean.res.mjs"
 [tasks.verify]
 description = "What a commit has to pass: everything formatted, the scripts compiled, the Nix linted, the flake evaluated for every system, the cache's and the seed's tests run; the workflows are the workspace's check"
 run = ["oxfmt --check {{vars.formatted}}", "rescript format --check && rescript build", "mise run nixfmt --check", "mise run nixed", "bash system/nix/cache/tests/tests.sh && bash system/network/seed/tests.sh && bash system/network/tests.sh && nix eval --impure --json --file system/names-test.nix --apply 'f: f {}' && nix eval --impure --json --file system/time/eval-test.nix --apply 'f: f {}' && nix eval --impure --json --file system/nix/collect-test.nix --apply 'f: f {}' && bash .github/update/driver-test.sh"]
+
+[tasks.channel]
+description = "Use the lock's Nix and align the daemon with it"
+run = 'rescript build > /dev/null && node {{config_root}}/scripts/channel/channel.res.mjs'
+
+[tasks.test]
+description = "Test the channel resolver with a faked filesystem and commands"
+run = "rescript build > /dev/null && node --test 'scripts/channel/*_test.res.mjs'"

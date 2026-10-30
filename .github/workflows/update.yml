@@ -33,7 +33,12 @@ jobs:
 
       - uses: NixOS/nix-installer-action@62c1943b776c509394b550f3f983adc14e9212d6 # v1.0.0
         with:
-          installer-version: 2.35.3 # NixOS/nix-installer
+          installer-version: 2.35.3 # The installer only bootstraps.
+
+      - name: take the channel's nix
+        run: |
+          pnpm install --frozen-lockfile
+          mise run channel daemon
 
       # The flake as locked before is kept, so the message can say what moved.
       - name: update
@@ -42,7 +47,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           rsync -a --exclude=.git ./ "$RUNNER_TEMP/old/"
-          nix flake update
+          mise run update
           # Exit 2 is a source held back while the rest was written, kept and failed at the end.
           status=0
           node "$GITHUB_WORKSPACE/scripts/deps/releases.res.mjs" system/containers/manifest.toml || status=$?
@@ -52,14 +57,16 @@ jobs:
       - name: evaluate
         if: steps.update.outputs.moved == 'true'
         run: |
-          nix flake check --all-systems --no-build
-          bash .github/update/driver-test.sh
+          mise run channel daemon
+          mise run nixed
+          mise exec -- bash .github/update/driver-test.sh
 
       # Both systems' derivations before and after say what changed beneath the held packages.
       - name: commit
         if: steps.update.outputs.moved == 'true'
         run: |
           rsync -a --exclude=.git ./ "$RUNNER_TEMP/new/"
+          PATH="$(node scripts/channel/channel.res.mjs path --lock .)/bin:$PATH"
           for v in old new; do
             drvs=()
             for s in x86_64-linux aarch64-linux; do

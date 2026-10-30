@@ -11,24 +11,26 @@ jobs:
   check:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: repos/monoflake/machine
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: canmi21/canmi/.github/actions/workspace@main
         with:
-          persist-credentials: false
+          path: monoflake/machine
+          scripts: true
 
       - uses: NixOS/nix-installer-action@62c1943b776c509394b550f3f983adc14e9212d6 # v1.0.0
         with:
-          installer-version: 2.35.3 # NixOS/nix-installer
+          installer-version: 2.35.3 # The installer only bootstraps.
 
-      # nixfmt, statix and deadnix are the ones flake.lock pins.
+      - name: take the channel's nix
+        run: |
+          pnpm install --frozen-lockfile
+          mise run channel daemon
+
       - name: nixfmt
-        run: find flake.nix system local .github -name '*.nix' -exec nix run --inputs-from . nixpkgs#nixfmt -- --check {} +
+        run: mise run nixfmt --check
 
-      - name: statix
-        run: nix run --inputs-from . nixpkgs#statix -- check .
-
-      - name: deadnix
-        run: nix run --inputs-from . nixpkgs#deadnix -- --fail .
-
-      - name: evaluate
-        run: nix flake check --all-systems --no-build
+      - name: lint and evaluate
+        run: mise run nixed
