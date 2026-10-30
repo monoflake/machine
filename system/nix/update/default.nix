@@ -36,6 +36,7 @@ let
       config.nix.package
       pkgs.coreutils
       pkgs.curl
+      pkgs.diffutils
       pkgs.gawk
       pkgs.jq
       pkgs.openssh
