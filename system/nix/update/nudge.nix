@@ -14,9 +14,14 @@ let
     ];
     text = builtins.readFile ./nudge.sh;
   };
-  shell = pkgs.writeShellScript "nudge-shell" ''
-    exec ${lib.getExe command}
-  '';
+  # A shell package NixOS accepts, which runs the forced command whatever it is given.
+  shell =
+    pkgs.writeShellScriptBin "nudge-shell" ''
+      exec ${lib.getExe command}
+    ''
+    // {
+      shellPath = "/bin/nudge-shell";
+    };
 in
 {
   config = lib.mkMerge [

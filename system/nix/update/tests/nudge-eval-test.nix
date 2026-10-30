@@ -47,6 +47,8 @@ let
     assert rejected (configured system { inherit expiry; } true);
     assert rejected (configured system { inherit key expiry; } false);
     assert !rejected c;
+    # The whole system evaluates, as NixOS checks the account's shell only there.
+    assert lib.hasSuffix ".drv" c.system.build.toplevel.drvPath;
     assert !rejected disabled;
     assert !rejected off;
     assert disabled.machine.nudge.key == null;
