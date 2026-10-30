@@ -3,14 +3,14 @@
 set -o errexit -o nounset -o pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 if [ -z "${MACHINE_ADDRESSES_TOOLS:-}" ]; then
-	t=$(mktemp -d)
+	t=$(realpath "$(mktemp -d)")
 	trap 'rm -rf "$t"' EXIT
 	cp "$here/../../../flake.nix" "$here/../../../flake.lock" "$t/"
 	nix shell --inputs-from "path:$t" nixpkgs#jq nixpkgs#coreutils \
 		-c env MACHINE_ADDRESSES_TOOLS=1 ${TMPDIR:+TMPDIR="$TMPDIR"} bash "$0"
 	exit
 fi
-tmp=$(mktemp -d)
+tmp=$(realpath "$(mktemp -d)")
 trap 'chmod -R u+w "$tmp"; rm -rf "$tmp"' EXIT
 mkdir -p "$tmp/bin" "$tmp/state"
 export PATH=$tmp/bin:$PATH FAKE_ADDRESSES=$tmp MACHINE_ADDRESSES_STATE=$tmp/state/addresses.json

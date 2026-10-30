@@ -4,7 +4,7 @@
 set -o errexit -o nounset -o pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 root=$(cd "$here/../.." && pwd)
-t=$(mktemp -d)
+t=$(realpath "$(mktemp -d)")
 trap 'rm -rf "$t"' EXIT
 rsync -a --exclude=.jj --exclude=.git --exclude=node_modules "$root/" "$t/"
 cp "$here/driver.lock" "$t/system/containers/manifest.lock"

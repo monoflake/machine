@@ -1,7 +1,7 @@
 # Cache tests use local keys and a directory bucket with shell command substitutes.
 cache_test_tools() {
 	if [ -z "${MACHINE_CACHE_TOOLS:-}" ]; then
-		cache_test_inputs=$(mktemp -d)
+		cache_test_inputs=$(realpath "$(mktemp -d)")
 		trap 'rm -rf "$cache_test_inputs"' EXIT
 		cp "$(dirname "${BASH_SOURCE[0]}")/../../../../"{flake.nix,flake.lock} "$cache_test_inputs/"
 		nix shell --inputs-from "path:$cache_test_inputs" nixpkgs#coreutils nixpkgs#jq nixpkgs#util-linux \
@@ -11,7 +11,7 @@ cache_test_tools() {
 }
 cache_test_tools "$@"
 setup_test() {
-	t=$(mktemp -d)
+	t=$(realpath "$(mktemp -d)")
 	export TEST_ROOT=$t TMPDIR=$t
 	mkdir -p "$t/bin" "$t/bucket/pending/c1" "$t/state" "$t/work" "$t/hosts/c1" "$t/upstream"
 	export CACHE_TEST_DATE

@@ -7,7 +7,7 @@ here=$(cd "$(dirname "$0")" && pwd)
 # Nix reads a copy of the flake, as git's index lacks what jj adds, the workspace's docs/lessons.md.
 # TMPDIR is given again, as nix shell drops it.
 if [ -z "${MACHINE_SEED_TOOLS:-}" ]; then
-	t=$(mktemp -d)
+	t=$(realpath "$(mktemp -d)")
 	trap 'rm -rf "$t"' EXIT
 	cp "$here/../../../flake.nix" "$here/../../../flake.lock" "$t/"
 	nix shell --inputs-from "path:$t" nixpkgs#yq-go nixpkgs#jq \
@@ -15,7 +15,7 @@ if [ -z "${MACHINE_SEED_TOOLS:-}" ]; then
 	exit
 fi
 
-tmp=$(mktemp -d)
+tmp=$(realpath "$(mktemp -d)")
 trap 'rm -rf "$tmp"' EXIT
 mkdir -p "$tmp/bin"
 export PATH=$tmp/bin:$PATH FAKE_CALLS=$tmp/calls

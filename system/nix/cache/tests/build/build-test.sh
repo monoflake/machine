@@ -4,7 +4,7 @@
 set -o errexit -o nounset -o pipefail
 
 # Nix reads a copy of the flake, as git's index lacks what jj adds, the workspace's docs/lessons.md.
-t=$(mktemp -d)
+t=$(realpath "$(mktemp -d)")
 trap 'rm -rf "$t"' EXIT
 rsync -a --exclude=.jj --exclude=.git --exclude=node_modules "$(dirname "$0")/../../../../../" "$t/"
 

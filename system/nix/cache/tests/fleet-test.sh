@@ -4,7 +4,7 @@ set -euo pipefail
 cache_dir=$(cd "$(dirname "$0")" && pwd)
 . "$cache_dir/test-support.sh"
 . "$cache_dir/../protocol.sh"
-t=$(mktemp -d)
+t=$(realpath "$(mktemp -d)")
 trap 'rm -rf "$t"' EXIT
 cp "$cache_dir/../../../../"{flake.nix,flake.lock} "$t/"
 nix eval --impure --json --expr "

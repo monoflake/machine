@@ -2,7 +2,7 @@
 # Tailscale and nft are faked on PATH while the production script keeps its state in a scratch run.
 set -o errexit -o nounset -o pipefail
 closer=$2
-tmp=$(mktemp -d)
+tmp=$(realpath "$(mktemp -d)")
 trap 'rm -rf "$tmp"' EXIT
 mkdir "$tmp/bin"
 export PATH=$tmp/bin:$PATH MACHINE_SSH_STATE=$tmp/run FAKE_SSH=$tmp

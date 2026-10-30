@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Both builder upgrade modes retain their generated units on each Linux architecture.
 set -o errexit -o nounset -o pipefail
-t=$(mktemp -d)
+t=$(realpath "$(mktemp -d)")
 trap 'rm -rf "$t"' EXIT
 rsync -a --exclude=.jj --exclude=.git --exclude=node_modules ../../../../ "$t/"
 nix eval --impure --json --expr "

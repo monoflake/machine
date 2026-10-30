@@ -9,7 +9,7 @@ compare_base() {
 		echo "skipped: no base given"
 		return 0
 	fi
-	comparison=$(mktemp -d)
+	comparison=$(realpath "$(mktemp -d)")
 	mkdir "$comparison/base" "$comparison/lane"
 	rsync -a --exclude=.jj --exclude=.git --exclude=node_modules "$base/" "$comparison/base/"
 	rsync -a --exclude=.jj --exclude=.git --exclude=node_modules "$(dirname "$0")/../../../../" "$comparison/lane/"

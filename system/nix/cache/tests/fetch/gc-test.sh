@@ -4,7 +4,7 @@
 set -euo pipefail
 cache_dir=$(cd "$(dirname "$0")/.." && pwd)
 if [ -z "${MACHINE_CACHE_STORE_TOOLS:-}" ]; then
-	inputs=$(mktemp -d)
+	inputs=$(realpath "$(mktemp -d)")
 	trap 'rm -rf "$inputs"' EXIT
 	cp "$cache_dir/../../../../"{flake.nix,flake.lock} "$inputs/"
 	nix shell --inputs-from "path:$inputs" nixpkgs#nix nixpkgs#coreutils nixpkgs#jq \
