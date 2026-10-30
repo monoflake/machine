@@ -29,7 +29,7 @@ nix run --inputs-from "path:$t" nixpkgs#nixfmt -- ${usage_check:+--check} $(find
 description = "Lint the Nix with statix and deadnix and evaluate the flake for every system"
 run = """
 t=$(realpath "$(mktemp -d)") && rsync -a --exclude=.jj --exclude=.git --exclude=node_modules --include='*/' --include='*.nix' --include='*.lock' --exclude='*' --prune-empty-dirs ./ "$t/" || exit 1
-n() { nix run --inputs-from "path:$t" "nixpkgs#$1" -- "${@:2}"; }
+n() { p=$1; shift; nix run --inputs-from "path:$t" "nixpkgs#$p" -- "$@"; }
 n statix check "$t" && n deadnix --fail "$t" && nix flake check --all-systems --no-build "path:$t"
 """
 
