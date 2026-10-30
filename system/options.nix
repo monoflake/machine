@@ -143,6 +143,18 @@ in
           description = "Port conform's driver answers its management on, on loopback.";
         };
       };
+      nudge = {
+        key = mkOption {
+          type = types.nullOr (types.strMatching "ssh-ed25519 [A-Za-z0-9+/]+={0,2}( [^\n\r]*)?");
+          default = null;
+          description = "SSH public key allowed to start a signed pointer update.";
+        };
+        expiry = mkOption {
+          type = types.nullOr (types.strMatching "[0-9]{8}Z");
+          default = null;
+          description = "UTC expiry date of the nudge key in OpenSSH YYYYMMDDZ form.";
+        };
+      };
       update = {
         enable = lib.mkEnableOption "signed system pointer updates";
         bucket = mkOption {

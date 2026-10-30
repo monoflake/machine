@@ -41,3 +41,17 @@ paths.
 The old `system/nix/cache/` mechanism stays frozen until monoflake/cloud's reset. Both mechanisms
 cannot be enabled on one machine. Its builder and fetch documentation remains in [cache.md](cache.md).
 The driver's existing release lock remains in force until its separate pointer channel lands.
+
+## Nudge
+
+`machine.nudge.key` and `machine.nudge.expiry` come from monoflake/cloud. Both default to null;
+setting the key requires its UTC `YYYYMMDDZ` expiry and `machine.update.enable`. The key creates
+the passwordless system user `nudge`, whose restricted SSH key and shell run only the forced
+command. This adds no firewall port and changes no sshd setting.
+
+`ssh nudge@<machine> system` starts `update-now@system.service` and waits for its result. It prints
+the unit's `Result` and the current system path, returning the start's exit status even on failure.
+Exactly `system` and `driver` are accepted; an empty command, arguments, whitespace variants and
+all other commands are refused. The account has no terminal or forwarding and may only start
+those two units through polkit, with no sudo permission. It reads no journal or update state.
+`driver` waits for B5's unit; the current updater refuses that instance.

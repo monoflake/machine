@@ -37,6 +37,8 @@ let
   '';
 in
 {
+  imports = [ ./nudge.nix ];
+
   config = lib.mkMerge [
     {
       assertions = lib.optionals cfg.enable (
