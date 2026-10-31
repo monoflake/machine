@@ -354,9 +354,9 @@ async fn skipped_job_succeeds() {
 #[tokio::test]
 async fn switch_does_not_wait_for_descendants_output() {
 	let store = tempfile::tempdir().unwrap();
-	let system = fake_system(store.path(), "#!/bin/sh\nsleep 2 &\necho parent\nexit 1\n");
+	let system = fake_system(store.path(), "#!/bin/sh\nsleep 20 &\necho parent\nexit 1\n");
 	let process = Process::in_store(StoreDir::new(store.path()).unwrap());
-	let error = tokio::time::timeout(Duration::from_secs(1), process.switch(&system))
+	let error = tokio::time::timeout(Duration::from_secs(5), process.switch(&system))
 		.await
 		.expect("an inherited output descriptor must not delay process exit")
 		.unwrap_err();
