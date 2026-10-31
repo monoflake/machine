@@ -30,7 +30,7 @@ let
       trusted = lib.concatStringsSep " " config.nix.settings.trusted-public-keys;
     }
   );
-  package = pkgs.callPackage ./package.nix { };
+  package = config.machine.update.package;
   # The service's own check by hand, run over ssh, which realises nothing and writes no state.
   check = pkgs.writeShellScriptBin "machine-update-check" ''
     export MACHINE_UPDATE_CONFIG=${given}

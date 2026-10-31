@@ -48,7 +48,7 @@ let
       c = configured system { } { };
       package = c.nix.package;
       pkgs = import flake.inputs.nixpkgs { inherit system; };
-      updatePackage = pkgs.callPackage (flake.outPath + "/system/nix/update/package.nix") { };
+      updatePackage = c.machine.update.package;
       rollback = pkgs.linkFarm "machine-driver-rollback" [
         {
           name = "bin/machine-driver-rollback";

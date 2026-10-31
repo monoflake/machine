@@ -6,7 +6,7 @@
 }:
 let
   cfg = config.machine.nudge;
-  package = pkgs.callPackage ./package.nix { };
+  package = config.machine.update.package;
   command = lib.getExe' package "machine-update-nudge";
   # A shell package NixOS accepts, which runs the forced command whatever it is given.
   shell =
