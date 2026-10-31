@@ -11,8 +11,8 @@ use futures_util::{StreamExt, stream};
 use harmonia_store_path::{StoreDir, StorePath};
 use machine_update::effects::{Clock, Switch, UnitError};
 use machine_update::host::{
-	Jobs, Process, Removed, SystemClock, is_active_state, link, lock, read_link, set_profile,
-	wait_removed,
+	Jobs, Process, Removed, SystemClock, is_active_state, link, lock, read_link, run_merged,
+	set_profile, subscription, wait_removed,
 };
 
 const SYSTEM: &str = "55xkmqns51sw7nrgykp5vnz36w4fr3cw-nixos-system";
@@ -79,9 +79,11 @@ async fn ended_stream_is_a_bus_error() {
 }
 
 #[test]
-fn only_active_is_active() {
-	assert!(is_active_state("active"));
-	for state in ["inactive", "activating", "deactivating", "failed", "reloading"] {
+fn systemctl_active_states_are_active() {
+	for state in ["active", "reloading", "refreshing"] {
+		assert!(is_active_state(state), "systemctl accepts {state}");
+	}
+	for state in ["inactive", "activating", "deactivating", "failed"] {
 		assert!(!is_active_state(state), "{state}");
 	}
 }
@@ -93,6 +95,10 @@ async fn switch_merges_output_and_succeeds() {
 		fake_system(store.path(), "#!/bin/sh\necho \"out $1\"\necho err >&2\necho out2\nexit 0\n");
 	let process = Process::in_store(StoreDir::new(store.path()).unwrap());
 	process.switch(&system).await.unwrap();
+	let program = store.path().join(SYSTEM).join("bin/switch-to-configuration");
+	let (output, success) = run_merged(&program, "switch").await.unwrap();
+	assert!(success);
+	assert_eq!(output, "out switch\nerr\nout2\n", "successful switches must retain merged output");
 }
 
 #[tokio::test]
@@ -226,7 +232,7 @@ fn set_profile_leaves_no_staging_links() {
 		.map(|entry| entry.unwrap().file_name().into_string().unwrap())
 		.collect();
 	names.sort();
-	assert_eq!(names, ["system", "system-1-link"]);
+	assert_eq!(names, ["system", "system-1-link", "system.lock"]);
 }
 
 #[test]
@@ -274,4 +280,60 @@ fn lock_waits_while_another_holds_it() {
 	drop(held);
 	receiver.recv_timeout(Duration::from_secs(5)).unwrap();
 	waiter.join().unwrap();
+}
+
+#[test]
+fn repeated_subscription_is_success() {
+	assert!(subscription(Ok(())).is_ok());
+	let error = |name: &str| {
+		zbus::Error::MethodError(
+			name.try_into().unwrap(),
+			None,
+			zbus::Message::method_call("/", "Subscribe").build(&()).unwrap(),
+		)
+	};
+	assert!(
+		subscription(Err(error("org.freedesktop.systemd1.AlreadySubscribed"))).is_ok(),
+		"restore uses the same connection"
+	);
+	assert!(subscription(Err(error("org.freedesktop.DBus.Error.AccessDenied"))).is_err());
+}
+
+#[tokio::test]
+async fn skipped_job_succeeds() {
+	wait_removed(stream::iter([removed("/j/1", "skipped")]), jobs(&[("/j/1", "a.service")]), None)
+		.await
+		.expect("systemctl accepts skipped jobs");
+}
+
+#[tokio::test]
+async fn switch_does_not_wait_for_descendants_output() {
+	let store = tempfile::tempdir().unwrap();
+	let system = fake_system(store.path(), "#!/bin/sh\nsleep 2 &\necho parent\nexit 1\n");
+	let process = Process::in_store(StoreDir::new(store.path()).unwrap());
+	let error = tokio::time::timeout(Duration::from_secs(1), process.switch(&system))
+		.await
+		.expect("an inherited output descriptor must not delay process exit")
+		.unwrap_err();
+	assert_eq!(error.output, "parent\n");
+}
+
+#[test]
+fn set_profile_waits_for_its_generation_lock() {
+	let dir = tempfile::tempdir().unwrap();
+	let profile = dir.path().join("system");
+	let held = lock(&dir.path().join("system.lock")).unwrap();
+	let (sender, receiver) = mpsc::channel();
+	let waiter = std::thread::spawn(move || {
+		set_profile(&profile, "/nix/store/new").unwrap();
+		sender.send(()).unwrap();
+	});
+	let blocked = receiver.recv_timeout(Duration::from_millis(300)).is_err();
+	assert!(
+		!dir.path().join("system-1-link").exists(),
+		"generation selection must wait for nix-env's lock"
+	);
+	drop(held);
+	waiter.join().unwrap();
+	assert!(blocked, "set_profile must hold the profile lock");
 }

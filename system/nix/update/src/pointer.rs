@@ -160,11 +160,11 @@ fn archive_fields<'a>(
 	Ok((url, sha256))
 }
 
-/// `https://` and then something, none of it a space of the C locale.
+/// `https://` and then something, none of it whitespace.
 fn remote(url: &str) -> bool {
-	url.strip_prefix("https://").is_some_and(|rest| {
-		!rest.is_empty() && !rest.bytes().any(|byte| matches!(byte, b' ' | b'\t'..=b'\r'))
-	})
+	url
+		.strip_prefix("https://")
+		.is_some_and(|rest| !rest.is_empty() && !rest.chars().any(char::is_whitespace))
 }
 
 /// `/nix/store/` and thirty-two base32 characters, a hyphen and a name.

@@ -3,8 +3,8 @@
 
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
-use std::io;
-use std::os::fd::OwnedFd;
+use std::io::{self, Read};
+use std::os::unix::fs::OpenOptionsExt;
 use std::path::Path;
 use std::process::Stdio;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -13,7 +13,6 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use futures_util::{Stream, StreamExt};
 use harmonia_store_path::{StoreDir, StorePath};
 use rustix::fs::{FlockOperation, flock};
-use tokio::io::AsyncReadExt;
 use zbus::OwnedObjectPath;
 use zbus::{Connection, Proxy};
 
@@ -34,7 +33,7 @@ const JOB_LIMIT: Duration = Duration::from_secs(40);
 pub struct Removed {
 	/// The job's object path.
 	pub job: String,
-	/// How the job ended, `done` when it succeeded.
+	/// How the job ended, `done` or `skipped` when it succeeded.
 	pub result: String,
 }
 
@@ -55,13 +54,12 @@ impl Jobs {
 		self.waiting.is_empty()
 	}
 
-	/// Takes in a removed job, a job nobody asked for passed over, a result other than `done`
-	/// refused with the unit it was for.
+	/// Takes in a removed job, passing over unrequested jobs and refusing failed results.
 	pub fn removed(&mut self, removed: &Removed) -> Result<(), UnitError> {
 		let Some(unit) = self.waiting.remove(&removed.job) else {
 			return Ok(());
 		};
-		if removed.result == "done" {
+		if matches!(removed.result.as_str(), "done" | "skipped") {
 			return Ok(());
 		}
 		Err(UnitError::Job { unit, result: removed.result.clone() })
@@ -91,11 +89,23 @@ pub async fn wait_removed(
 
 /// Whether a unit's `ActiveState` counts as active.
 pub fn is_active_state(state: &str) -> bool {
-	state == "active"
+	matches!(state, "active" | "reloading" | "refreshing")
 }
 
 fn bus(error: impl std::fmt::Display) -> UnitError {
 	UnitError::Bus(error.to_string())
+}
+
+/// Interprets the manager's reply to a subscription request.
+pub fn subscription(reply: Result<(), zbus::Error>) -> Result<(), UnitError> {
+	match reply {
+		Err(zbus::Error::MethodError(name, _, _))
+			if name.as_str() == "org.freedesktop.systemd1.AlreadySubscribed" =>
+		{
+			Ok(())
+		}
+		other => other.map_err(bus),
+	}
 }
 
 fn is_no_such_unit(error: &zbus::Error) -> bool {
@@ -137,7 +147,7 @@ impl Systemd {
 	) -> Result<(), UnitError> {
 		let manager = self.manager().await?;
 		let signals = manager.receive_signal("JobRemoved").await.map_err(bus)?;
-		manager.call_method("Subscribe", &()).await.map_err(bus)?;
+		subscription(manager.call_method("Subscribe", &()).await.map(|_| ()))?;
 		let removals = signals.filter_map(|message| async move {
 			let body = message.body();
 			let (_, job, _, result) =
@@ -220,20 +230,36 @@ impl Switch for Process {
 	}
 }
 
-/// Runs a program with one argument, its standard output and error one pipe, and returns what it
-/// wrote and whether it exited zero.
-async fn run_merged(program: &Path, argument: &str) -> io::Result<(String, bool)> {
-	let (sender, mut receiver) = tokio::net::unix::pipe::pipe()?;
-	let out: OwnedFd = sender.into_blocking_fd()?;
-	let err = out.try_clone()?;
-	let mut command = tokio::process::Command::new(program);
-	command.arg(argument).stdin(Stdio::null()).stdout(Stdio::from(out)).stderr(Stdio::from(err));
-	let mut child = command.spawn()?;
-	drop(command);
+/// Runs a program with one argument, merging its output in write order and waiting for its exit.
+pub async fn run_merged(program: &Path, argument: &str) -> io::Result<(String, bool)> {
+	let (output, reader) = loop {
+		let path = std::env::temp_dir().join(format!(
+			"machine-update.{}.{}",
+			std::process::id(),
+			STAGING.fetch_add(1, Ordering::Relaxed)
+		));
+		match OpenOptions::new().read(true).append(true).create_new(true).mode(0o600).open(&path) {
+			Ok(file) => {
+				let reader = File::open(&path)?;
+				std::fs::remove_file(path)?;
+				break (file, reader);
+			}
+			Err(error) if error.kind() == io::ErrorKind::AlreadyExists => continue,
+			Err(error) => return Err(error),
+		}
+	};
+	let status = tokio::process::Command::new(program)
+		.arg(argument)
+		.stdin(Stdio::null())
+		.stdout(Stdio::from(output.try_clone()?))
+		.stderr(Stdio::from(output.try_clone()?))
+		.status()
+		.await?;
 	let mut bytes = Vec::new();
-	let (read, status) = tokio::join!(receiver.read_to_end(&mut bytes), child.wait());
-	read?;
-	Ok((String::from_utf8_lossy(&bytes).into_owned(), status?.success()))
+	// A descendant may still write, so only read the bytes present at the parent's exit.
+	let length = output.metadata()?.len();
+	reader.take(length).read_to_end(&mut bytes)?;
+	Ok((String::from_utf8_lossy(&bytes).into_owned(), status.success()))
 }
 
 /// The machine's real clock.
@@ -293,6 +319,7 @@ pub fn set_profile(profile: &Path, target: &str) -> io::Result<()> {
 	let invalid = || io::Error::new(io::ErrorKind::InvalidInput, "profile has no directory or name");
 	let dir = profile.parent().ok_or_else(invalid)?;
 	let name = profile.file_name().and_then(|name| name.to_str()).ok_or_else(invalid)?;
+	let _lock = lock(&dir.join(format!("{name}.lock")))?;
 	let mut last = None::<u64>;
 	for entry in std::fs::read_dir(dir)? {
 		let entry = entry?;

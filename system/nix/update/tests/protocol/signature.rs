@@ -85,3 +85,28 @@ fn a_changed_pointer_or_a_broken_signature_or_no_signers_does_not_verify() {
 	pointer.push(b'\n');
 	assert!(!verify(&signers, Namespace::System, &pointer, &signature));
 }
+
+#[test]
+fn restricted_or_pattern_options_fail_closed() {
+	let ci = text("keys/ci.pub");
+	let pointer = signed("pointers/system");
+	let signature = sample("pointers/system.sig");
+	for options in [
+		"namespaces=\"driver-pointer\",valid-before=\"20990101\"",
+		"namespaces=\"driver-pointer\",cert-authority",
+		"namespaces=\"system-pointer\",valid-after=\"20000101\"",
+		"cert-authority,namespaces=\"system-pointer\"",
+		"namespaces=\"!system-pointer,*\"",
+		"namespaces=\"system-pointer,?\"",
+		"namespaces=\"system-pointer,*\"",
+		"namespaces=\"system-pointer",
+	] {
+		let signers = format!("ci {options} {}", ci.trim());
+		assert!(
+			!verify(&signers, Namespace::System, &pointer, &signature),
+			"unsupported or malformed options must fail closed {options}"
+		);
+	}
+	let signers = format!("ci namespaces=\"driver-pointer,system-pointer\" {}", ci.trim());
+	assert!(verify(&signers, Namespace::System, &pointer, &signature));
+}

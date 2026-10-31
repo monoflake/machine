@@ -1,5 +1,4 @@
-//! A temporary store under its own trusted daemon, as the integrator probed it, stopped and removed
-//! when dropped.
+//! A temporary store under its own trusted daemon, stopped and removed when dropped.
 
 #![cfg(test)]
 

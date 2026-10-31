@@ -82,3 +82,15 @@ fn a_hash_with_a_trailing_newline_is_refused() {
 		Err(Refusal::DriverFields)
 	);
 }
+
+#[test]
+fn unicode_whitespace_in_archive_urls_is_refused() {
+	for space in ['\u{a0}', '\u{2028}'] {
+		let url = format!("https://example.invalid/a{space}b");
+		assert_eq!(
+			driver(&driver_pointer(&url, &"a".repeat(64)), "c1", NOW, true),
+			Err(Refusal::DriverFields),
+			"jq refused Unicode spaces too"
+		);
+	}
+}

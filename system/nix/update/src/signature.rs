@@ -35,10 +35,7 @@ pub fn verify(signers: &str, namespace: Namespace, message: &[u8], signature: &[
 			_ => false,
 		};
 		allowed
-			&& signer
-				.namespaces
-				.as_ref()
-				.is_none_or(|list| list.iter().any(|item| item == name || item == "*"))
+			&& signer.namespaces.as_ref().is_none_or(|list| list.iter().any(|item| item == name))
 			&& signer.key.key_data() == signature.public_key()
 			&& signer.key.verify(name, message, &signature).is_ok()
 	})
@@ -47,7 +44,7 @@ pub fn verify(signers: &str, namespace: Namespace, message: &[u8], signature: &[
 /// One allowed signers line, its principals field whole.
 struct Signer {
 	principal: String,
-	/// The `namespaces` option's patterns, `None` where the line sets none.
+	/// The `namespaces` option's literal names, `None` where the line sets none.
 	namespaces: Option<Vec<String>>,
 	key: PublicKey,
 }
@@ -81,8 +78,13 @@ fn word(text: &str) -> Option<(String, &str)> {
 	let text = text.trim_start();
 	let mut quoted = false;
 	let mut end = text.len();
+	let mut escaped = false;
 	for (index, c) in text.char_indices() {
-		if c == '"' {
+		if escaped {
+			escaped = false;
+		} else if c == '\\' && quoted {
+			escaped = true;
+		} else if c == '"' {
 			quoted = !quoted;
 		} else if c.is_whitespace() && !quoted {
 			end = index;
@@ -90,12 +92,38 @@ fn word(text: &str) -> Option<(String, &str)> {
 		}
 	}
 	let (head, tail) = text.split_at_checked(end)?;
-	(!head.is_empty()).then(|| (head.replace('"', ""), tail))
+	(!head.is_empty() && !quoted && !escaped).then(|| (head.to_owned(), tail))
 }
 
-/// An options field that is `namespaces="a,b"` alone, the patterns of the one; `Some(None)` is
-/// never returned, so the outer `Option` marks a field this verifier refuses.
-fn options(field: &str) -> Option<Option<Vec<String>>> {
-	let list = field.strip_prefix("namespaces=")?;
-	Some(Some(list.split(',').map(str::to_owned).collect()))
+/// Reads comma separated options while preserving commas inside quoted namespace lists.
+fn options(mut field: &str) -> Option<Option<Vec<String>>> {
+	let mut namespaces = None;
+	while !field.is_empty() {
+		let rest = field.strip_prefix("namespaces=")?;
+		if namespaces.is_some() {
+			return None;
+		}
+		let (list, rest) = if let Some(quoted) = rest.strip_prefix('"') {
+			let (list, rest) = quoted.split_once('"')?;
+			(list, rest)
+		} else {
+			rest.find(',').map_or((rest, ""), |index| rest.split_at(index))
+		};
+		if list.is_empty() || list.contains(['*', '?', '!', '"', '\\']) {
+			return None;
+		}
+		let names: Vec<_> = list.split(',').map(str::to_owned).collect();
+		if names.iter().any(String::is_empty) {
+			return None;
+		}
+		namespaces = Some(names);
+		if rest.is_empty() {
+			break;
+		}
+		field = rest.strip_prefix(',')?;
+		if field.is_empty() {
+			return None;
+		}
+	}
+	Some(namespaces)
 }

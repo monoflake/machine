@@ -93,6 +93,8 @@ EUPL-1.2 and snix's GPL-3.0.
    allowed for aws-lc-sys in this repository alone, decided by the author on 2026-10-31; verify
    lints and tests both. Its tests take a temporary store under `nix daemon --force-trusted`, and
    `AddToStoreNar` keeps the daemon's own signature check, so the program and the daemon both
-   verify each path. **Every line it prints is the shell's word for
-   word**, read by cloud's nudge, but for the detail lines before a failed realise or restart,
-   which were the tool's own output and are now the error's.
+   verify each path. A read from the bucket stalls out after 300 seconds, the bound Nix's
+   stalled-download-timeout gave the shell, and a driver archive's download has none, as the
+   shell's curl had none, decided by the author on 2026-10-31. **Every line it prints is the
+   shell's word for word**, read by cloud's nudge, but for the detail lines before a failed realise
+   or restart, which were the tool's own output and are now the error's.

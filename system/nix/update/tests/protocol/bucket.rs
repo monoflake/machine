@@ -125,3 +125,16 @@ fn refuses_a_malformed_endpoint() {
 		assert_eq!(refusal, Err(Refusal::EndpointMalformed), "{endpoint:?}");
 	}
 }
+
+#[test]
+fn debug_redacts_runtime_access_values() {
+	let remote = Remote::new("systems", "https://private.example.invalid", pair()).unwrap();
+	assert_eq!(format!("{:?}", pair()), r#"Credentials { key: "<key>", secret: "<secret>" }"#);
+	let debug = format!("{remote:?}");
+	for private in [KEY, SECRET, "private.example.invalid"] {
+		assert!(!debug.contains(private), "Debug must mask runtime access values");
+	}
+	for masked in ["<key>", "<secret>", "<endpoint>"] {
+		assert!(debug.contains(masked));
+	}
+}

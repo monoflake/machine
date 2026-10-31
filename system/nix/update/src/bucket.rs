@@ -1,12 +1,12 @@
 //! The bucket over S3 with the systems credentials, or a directory for a test, and a driver archive
 //! over HTTPS, as `fetch.sh` and `driver.sh` read them. Written by the store lane.
 
-use std::io;
 use std::path::PathBuf;
 use std::pin::Pin;
 use std::sync::OnceLock;
 use std::task::{Context, Poll, ready};
 use std::time::Duration;
+use std::{fmt, io};
 
 use bytes::Bytes;
 use futures_util::{Stream, StreamExt};
@@ -19,12 +19,18 @@ use crate::effects::{Bucket, BucketError, Download, Object};
 use crate::output::Refusal;
 
 /// The `[systems]` profile's key pair.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct Credentials {
 	/// `aws_access_key_id`, letters and digits.
 	pub key: String,
 	/// `aws_secret_access_key`, base64's alphabet.
 	pub secret: String,
+}
+
+impl fmt::Debug for Credentials {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		f.debug_struct("Credentials").field("key", &"<key>").field("secret", &"<secret>").finish()
+	}
 }
 
 /// Reads the `[systems]` profile from a shared credentials file, each key once, as `credential`
@@ -63,7 +69,6 @@ fn credential(text: &str, wanted: &str) -> Option<String> {
 }
 
 /// The bucket a configuration names.
-#[derive(Debug)]
 pub enum Remote {
 	/// A bucket over S3, path style, region `auto`.
 	S3 {
@@ -76,6 +81,20 @@ pub enum Remote {
 	},
 	/// A bucket on disk, `file:///<directory>`.
 	Directory(PathBuf),
+}
+
+impl fmt::Debug for Remote {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		match self {
+			Self::S3 { bucket, credentials, .. } => f
+				.debug_struct("S3")
+				.field("bucket", bucket)
+				.field("host", &"<endpoint>")
+				.field("credentials", credentials)
+				.finish(),
+			Self::Directory(path) => f.debug_tuple("Directory").field(path).finish(),
+		}
+	}
 }
 
 impl Remote {
@@ -205,12 +224,20 @@ fn s3_client() -> Result<reqwest::Client, BucketError> {
 	if let Some(client) = CLIENT.get() {
 		return Ok(client.clone());
 	}
-	crate::tls::install();
-	let client = reqwest::Client::builder()
-		.redirect(Policy::none())
-		.build()
-		.map_err(|_| BucketError::Transport)?;
+	let client = build_s3_client(READ_TIMEOUT)?;
 	Ok(CLIENT.get_or_init(|| client).clone())
+}
+
+// Nix bounded stalled bucket downloads by this interval before the Rust client read them.
+const READ_TIMEOUT: Duration = Duration::from_secs(300);
+
+fn build_s3_client(read_timeout: Duration) -> Result<reqwest::Client, BucketError> {
+	crate::tls::install();
+	reqwest::Client::builder()
+		.redirect(Policy::none())
+		.read_timeout(read_timeout)
+		.build()
+		.map_err(|_| BucketError::Transport)
 }
 
 /// An object's body read as it arrives, an interrupted body an error naming no URL.
@@ -401,8 +428,9 @@ mod tests {
 
 	#[tokio::test]
 	async fn download_refuses_plain_http_and_redirects_to_it() {
+		let plain = serve(|_| vec![answer("200 OK", "", "archive")]).await;
 		assert!(matches!(
-			Https.download("http://127.0.0.1:9/archive").await,
+			Https.download(&format!("{plain}/archive")).await,
 			Err(BucketError::Transport)
 		));
 		// A followed redirect would take the 404 meant for the second request.
@@ -418,6 +446,30 @@ mod tests {
 		assert!(matches!(fetch(&client, &format!("{origin}/a")).await, Err(BucketError::Transport)));
 		assert!(matches!(fetch(&client, &format!("{origin}/b")).await, Err(BucketError::Status(404))));
 		assert_eq!(fetch(&client, &format!("{origin}/c")).await.unwrap(), b"archive");
+	}
+
+	#[tokio::test]
+	async fn stalled_bucket_read_is_transport() {
+		let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+		let url = Url::parse(&format!("http://{}/object", listener.local_addr().unwrap())).unwrap();
+		let server = tokio::spawn(async move {
+			let (mut socket, _) = listener.accept().await.unwrap();
+			let mut request = [0; 4096];
+			assert!(socket.read(&mut request).await.unwrap() > 0);
+			socket.write_all(b"HTTP/1.1 200 OK\r\ncontent-length: 2\r\n\r\na").await.unwrap();
+			std::future::pending::<()>().await;
+		});
+		let client = build_s3_client(Duration::from_millis(50)).unwrap();
+		let read = async {
+			let response = request(&client, url).await?.unwrap();
+			response.bytes().await.map_err(|_| BucketError::Transport)
+		};
+		let result = tokio::time::timeout(Duration::from_secs(1), read).await;
+		server.abort();
+		assert!(
+			matches!(result, Ok(Err(BucketError::Transport))),
+			"stalled reads must end without a total download deadline"
+		);
 	}
 
 	#[tokio::test]
