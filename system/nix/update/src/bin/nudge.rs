@@ -10,7 +10,7 @@ async fn main() -> std::process::ExitCode {
 	let mut stdout = std::io::stdout();
 	let mut stderr = std::io::stderr();
 	let paths = Paths::machine(std::path::Path::new("/var/lib/machine-update"));
-	let command = std::env::var("SSH_ORIGINAL_COMMAND").unwrap_or_default();
+	let command = std::env::var_os("SSH_ORIGINAL_COMMAND").unwrap_or_default();
 	let code =
 		flow::nudge(&command, &Bus::new(), &paths, &mut Output::new(&mut stdout, &mut stderr)).await;
 	if code == 0 { std::process::ExitCode::SUCCESS } else { std::process::ExitCode::FAILURE }

@@ -127,8 +127,8 @@ fn finish(result: Result<(), Refusal>, out: &mut Output<'_>) -> i32 {
 	}
 }
 
-async fn restart(units: &impl Units) -> Result<(), crate::effects::UnitError> {
-	units.restart(SERVICES).await?;
+async fn restart(units: &impl Units) -> Result<(), Option<crate::effects::UnitError>> {
+	units.restart(SERVICES).await.map_err(Some)?;
 	for _ in 0..20 {
 		if units.is_active("driver-machine.service").await.unwrap_or(false)
 			&& units.is_active("driver-machine-entry.service").await.unwrap_or(false)
@@ -137,7 +137,7 @@ async fn restart(units: &impl Units) -> Result<(), crate::effects::UnitError> {
 		}
 		tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 	}
-	Err(crate::effects::UnitError::Timeout)
+	Err(None)
 }
 
 struct Temporary(PathBuf);

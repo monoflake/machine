@@ -17,6 +17,17 @@ pub async fn fetch_driver(
 	dry: bool,
 	out: &mut Output<'_>,
 ) -> i32 {
+	if !config.driver_channel {
+		return finish(Err(Refusal::DriverChannel), out);
+	}
+	let _lock = if dry {
+		None
+	} else {
+		match host::lock(&paths.driver.join(".update-lock")) {
+			Ok(lock) => Some(lock),
+			Err(_) => return 1,
+		}
+	};
 	let result = run(bucket, download, units, config, paths, clock, secrets, dry, out).await;
 	finish(result, out)
 }
@@ -33,14 +44,6 @@ async fn run(
 	dry: bool,
 	out: &mut Output<'_>,
 ) -> Result<(), Refusal> {
-	if !config.driver_channel {
-		return Err(Refusal::DriverChannel);
-	}
-	let _lock = if dry {
-		None
-	} else {
-		Some(host::lock(&paths.driver.join(".update-lock")).map_err(|_| Refusal::DriverRestart)?)
-	};
 	let Some(bytes) = incoming(bucket, config, true, out).await? else {
 		return Ok(());
 	};
@@ -106,7 +109,9 @@ async fn run(
 	}
 	out.say(Step::RestartingDriver);
 	if let Err(error) = restart(units).await {
-		out.masked(&error.to_string(), secrets);
+		if let Some(error) = error {
+			out.masked(&error.to_string(), secrets);
+		}
 		out.say(Step::RestoringDriver);
 		if let Some(current) = &current {
 			host::link(&paths.driver, "current", current).map_err(|_| Refusal::DriverRestore)?;

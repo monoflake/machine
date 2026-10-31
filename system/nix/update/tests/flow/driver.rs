@@ -295,3 +295,72 @@ async fn rollback_failures_and_failed_restart_restore_both_links() {
 	assert_eq!(f.current().as_deref(), Some("1.0"));
 	assert_eq!(f.previous().as_deref(), Some("0.9"));
 }
+
+#[tokio::test]
+async fn lock_failures_exit_without_update_messages() {
+	let mut f = Fixture::new(true);
+	fs::create_dir(f.paths.driver.join(".update-lock")).unwrap();
+	let (code, text) = f.fetch(false).await;
+	assert_eq!(code, 1);
+	assert_eq!(
+		text, "update: reading runtime access files\n",
+		"a driver lock failure has no shell refusal line"
+	);
+	let mut stdout = Vec::new();
+	let mut stderr = Vec::new();
+	assert_eq!(
+		flow::rollback(&f.units, &f.paths, true, &mut Output::new(&mut stdout, &mut stderr)).await,
+		1
+	);
+	assert!(stdout.is_empty());
+	assert!(stderr.is_empty(), "a rollback lock failure has no shell refusal line");
+	assert!(f.units.calls.borrow().is_empty());
+	assert!(f.bucket.calls.borrow().is_empty());
+}
+
+#[tokio::test]
+async fn rollback_link_failure_never_claims_restoration() {
+	for name in ["current", "previous"] {
+		let f = Fixture::new(true);
+		host::link(&f.paths.driver, "current", "1.0").unwrap();
+		host::link(&f.paths.driver, "previous", "0.9").unwrap();
+		fs::create_dir(f.paths.driver.join("0.9")).unwrap();
+		let binary = f.paths.driver.join("0.9/driver-machine");
+		fs::write(&binary, b"binary").unwrap();
+		fs::set_permissions(binary, fs::Permissions::from_mode(0o755)).unwrap();
+		*f.units.obstruct_link.borrow_mut() = Some(f.paths.driver.join(name));
+		f.units.restarts.borrow_mut().push_back(true);
+		let mut stdout = Vec::new();
+		let mut stderr = Vec::new();
+		assert_eq!(
+			flow::rollback(&f.units, &f.paths, true, &mut Output::new(&mut stdout, &mut stderr)).await,
+			1
+		);
+		assert!(stdout.is_empty());
+		assert!(stderr.is_empty(), "a failed {name} restore must not claim both links were restored");
+		assert_eq!(f.units.calls.borrow().len(), 1);
+	}
+}
+
+#[tokio::test]
+async fn inactive_after_completed_jobs_has_no_restart_detail() {
+	let mut f = Fixture::new(true);
+	*f.download.bytes.borrow_mut() = archive_file("driver-machine", 0o755, tar::EntryType::Regular);
+	f.signed(&f.driver_pointer("1.0", 0));
+	assert_eq!(f.fetch(false).await.0, 0);
+	let accepted = f.accepted();
+	f.signed(&f.driver_pointer("2.0", 1));
+	f.units.active.borrow_mut().extend([false; 20]);
+	let (code, text) = f.fetch(false).await;
+	assert_eq!(code, 1);
+	assert!(
+		text.contains(
+			"update: restarting driver services\nupdate: restart failed, restoring previous driver\n"
+		),
+		"completed jobs leave an empty shell restart log\n{text}"
+	);
+	assert!(text.ends_with("update: refused, driver restart failed\n"));
+	assert_eq!(f.current().as_deref(), Some("1.0"));
+	assert_eq!(f.previous(), None);
+	assert_eq!(f.accepted(), accepted);
+}

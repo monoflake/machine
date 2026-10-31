@@ -337,7 +337,11 @@ fn repeated_subscription_is_success() {
 		subscription(Err(error("org.freedesktop.systemd1.AlreadySubscribed"))).is_ok(),
 		"restore uses the same connection"
 	);
-	assert!(subscription(Err(error("org.freedesktop.DBus.Error.AccessDenied"))).is_err());
+	assert!(
+		subscription(Err(error("org.freedesktop.DBus.Error.AccessDenied"))).is_ok(),
+		"nudge receives its own job removals even when Subscribe is denied"
+	);
+	assert!(subscription(Err(error("org.freedesktop.DBus.Error.NoReply"))).is_err());
 }
 
 #[tokio::test]

@@ -100,7 +100,10 @@ fn bus(error: impl std::fmt::Display) -> UnitError {
 pub fn subscription(reply: Result<(), zbus::Error>) -> Result<(), UnitError> {
 	match reply {
 		Err(zbus::Error::MethodError(name, _, _))
-			if name.as_str() == "org.freedesktop.systemd1.AlreadySubscribed" =>
+			if matches!(
+				name.as_str(),
+				"org.freedesktop.systemd1.AlreadySubscribed" | "org.freedesktop.DBus.Error.AccessDenied"
+			) =>
 		{
 			Ok(())
 		}

@@ -125,6 +125,8 @@ pub struct UnitsFake {
 	pub calls: RefCell<Vec<String>>,
 	/// The next restart jobs that fail.
 	pub restarts: RefCell<VecDeque<bool>>,
+	/// A link to obstruct after the next restart.
+	pub obstruct_link: RefCell<Option<PathBuf>>,
 	/// The next active checks, followed by success.
 	pub active: RefCell<VecDeque<bool>>,
 	/// Whether the start job fails.
@@ -137,6 +139,7 @@ impl Default for UnitsFake {
 		Self {
 			calls: RefCell::default(),
 			restarts: RefCell::default(),
+			obstruct_link: RefCell::default(),
 			active: RefCell::default(),
 			start_failed: Cell::new(false),
 			result_failed: Cell::new(false),
@@ -146,6 +149,10 @@ impl Default for UnitsFake {
 impl Units for UnitsFake {
 	async fn restart(&self, units: &[&str]) -> Result<(), UnitError> {
 		self.calls.borrow_mut().push(format!("restart {}", units.join(" ")));
+		if let Some(link) = self.obstruct_link.borrow_mut().take() {
+			fs::remove_file(&link).unwrap();
+			fs::create_dir(link).unwrap();
+		}
 		if self.restarts.borrow_mut().pop_front().unwrap_or(false) {
 			Err(UnitError::Bus(diagnostic()))
 		} else {
@@ -384,7 +391,7 @@ impl Fixture {
 	pub fn accepted(&self) -> Vec<u8> {
 		fs::read(self.paths.accepted()).unwrap()
 	}
-	/// The running system link.
+	/// Reads the current driver link.
 	pub fn current(&self) -> Option<String> {
 		host::read_link(&self.paths.driver.join("current")).unwrap()
 	}
