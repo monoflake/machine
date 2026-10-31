@@ -65,9 +65,9 @@ let flakeMessage = (base, file) => {
   mkdirSync(old)
   run("git", ["archive", "--format=tar", "-o", `${temp}/old.tar`, "HEAD"])->ignore
   run("tar", ["-xf", `${temp}/old.tar`, "-C", old])->ignore
-  let excluded =
-    [".git", ".jj", "target", "node_modules", "/lib"]->Array.flatMap(e => ["--exclude", e])
-  run("rsync", ["-a", ...excluded, "./", `${now}/`])->ignore
+  if Builder.copied(~into=now, cwd()) == None {
+    fail("layout not copied")
+  }
   let nix =
     run("node", ["scripts/channel/channel.res.mjs", "path", "--lock", "."])->String.trim ++ "/bin"
   closure(~nix, old, `${temp}/old.json`)

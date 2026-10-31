@@ -11,12 +11,10 @@ cargo-deny = "0.20"
 formatted = "README.md 'docs/**/*.md'"
 
 [tasks.fmt]
-description = "Format the Nix with nixfmt, the scripts with ReScript's formatter and the prose with oxfmt: `fmt [--dry-run]`"
+description = "Format ReScript, Rust, Markdown and Nix: `fmt [--dry-run]`"
 usage = 'flag "-n --dry-run" help="List what is not formatted and write nothing"'
-run = """
-if [ -z "${usage_dry_run:-}" ]; then rescript format && oxfmt {{vars.formatted}} && mise run nixfmt; exit; fi
-rescript format --check; oxfmt --list-different {{vars.formatted}}; mise run nixfmt --check; exit 0
-"""
+depends = ["//:build"]
+run = "node {{env.WORKSPACE}}/scripts/fmt.res.mjs --rescript --glob {{vars.formatted}} --nixfmt . --nix-files flake.nix 'system/**/*.nix' 'local/**/*.nix' '.github/**/*.nix'"
 
 # Nix reads a flake's files from git's index, which jj leaves without what @ adds, so each Nix task
 # reads a copy of the flake's own files instead, the workspace's docs/lessons.md.

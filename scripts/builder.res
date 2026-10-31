@@ -4,7 +4,7 @@
  */
 
 type spawned = {status: Nullable.t<int>, stdout: Nullable.t<string>, stderr: Nullable.t<string>}
-type spawnOptions = {stdio: array<string>, encoding: string, env?: Dict.t<string>}
+type spawnOptions = {stdio: array<string>, encoding: string, env?: Dict.t<string>, cwd?: string}
 @module("node:child_process")
 external spawnSync: (string, array<string>, spawnOptions) => spawned = "spawnSync"
 @module("node:fs") external readFileSync: (string, @as("utf8") _) => string = "readFileSync"
@@ -91,16 +91,52 @@ let waited = (seconds, ready) => {
   attempt(seconds * 5)
 }
 
-/** A phase run and its time printed, beside what `told` makes of its value or why it failed. */
-let timed = (name, run, told) => {
-  let started = Date.now()
-  let result = run()
-  let took = ((Date.now() -. started) /. 1000.)->Float.toFixed(~digits=1)
+/** Phase durations are formatted here for synchronous and asynchronous work. */
+let duration = milliseconds => (milliseconds /. 1000.)->Float.toFixed(~digits=1) ++ "s"
+
+let reported = (~say=Console.log, ~warn=Console.error, name, took, result, told) => {
   switch result {
-  | Ok(value) => Console.log(`${name} ${took}s, ${told(value)}`)
-  | Error(why) => Console.error(`${name} failed after ${took}s, ${why}`)
+  | Ok(value) => say(`${name} ${duration(took)}, ${told(value)}`)
+  | Error(why) => warn(`${name} failed after ${duration(took)}, ${why}`)
   }
   result
+}
+
+/** A phase run and its time printed using Builder's duration format. */
+let timed = (~now=Date.now, ~say=Console.log, ~warn=Console.error, name, run, told) => {
+  let started = now()
+  let result = run()
+  reported(~say, ~warn, name, now() -. started, result, told)
+}
+
+type timer
+@module("node:timers") external setInterval: (unit => unit, int) => timer = "setInterval"
+@module("node:timers") external clearInterval: timer => unit = "clearInterval"
+
+/** An awaited phase with an optional heartbeat, cleared even when the action throws. */
+let timedAsync = async (
+  ~now=Date.now,
+  ~say=Console.log,
+  ~warn=Console.error,
+  ~heartbeat=?,
+  name,
+  run,
+  told,
+) => {
+  let started = now()
+  let timer =
+    heartbeat->Option.map(milliseconds =>
+      setInterval(() => say(`${name} running, ${duration(now() -. started)}`), milliseconds)
+    )
+  try {
+    let result = await run()
+    timer->Option.forEach(clearInterval)
+    reported(~say, ~warn, name, now() -. started, result, told)
+  } catch {
+  | e =>
+    timer->Option.forEach(clearInterval)
+    throw(e)
+  }
 }
 
 /** The SSH public keys this computer logs in with, its agent's and its own files', each once. */
@@ -189,18 +225,32 @@ let configured = (containers: array<reached>) => {
 /** Nix's environment with ssh reading `config`. */
 let nixEnv = config => with_(env, Dict.fromArray([("NIX_SSHOPTS", `-F ${config}`)]))
 
-/** A flake's directory copied whole but for what version control and tools keep, which Nix reads
- * as `path:`, since it reads a flake in place from git's index, the workspace's docs/lessons.md. */
-let copied = directory => {
-  let copy = mkdtempSync(join([tmpdir(), "flake-"]))
-  ran(
+/** Builder owns the exclusions for layouts copied for Nix. */
+let excluded = [".jj", ".git", "node_modules", "/lib", "/result*", "target", ".DS_Store"]
+
+let copyRun = (~cwd, args) =>
+  spawnSync(
     "rsync",
+    args,
+    {
+      stdio: ["ignore", "inherit", "inherit"],
+      encoding: "utf8",
+      cwd,
+    },
+  ).status->Nullable.toOption == Some(0)
+
+/** Paths copied in a repository's layout, or the whole directory when no paths are given. */
+let copied = (~paths=[], ~excluded=excluded, ~into=?, ~run=copyRun, directory) => {
+  let copy = switch into {
+  | Some(copy) => copy
+  | None => mkdtempSync(join([tmpdir(), "flake-"]))
+  }
+  run(
+    ~cwd=directory,
     [
-      "-a",
-      ...[".jj", ".git", "node_modules", "/lib", "/result*", ".DS_Store"]->Array.map(p =>
-        `--exclude=${p}`
-      ),
-      `${directory}/`,
+      paths == [] ? "-a" : "-aR",
+      ...excluded->Array.map(p => `--exclude=${p}`),
+      ...paths == [] ? ["./"] : paths,
       `${copy}/`,
     ],
   )
