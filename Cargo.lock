@@ -1535,11 +1535,13 @@ name = "machine-update"
 version = "0.1.0"
 dependencies = [
  "async-compression",
+ "bytes",
  "flate2",
  "futures-util",
  "harmonia-protocol",
  "harmonia-store-nar-info",
  "harmonia-store-path",
+ "harmonia-store-path-info",
  "harmonia-store-remote",
  "harmonia-utils-signature",
  "hex",

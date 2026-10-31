@@ -31,11 +31,13 @@ ring = ["rustls/ring"]
 
 [dependencies]
 async-compression = { version = "0.4.51", features = ["tokio", "zstd"] }
+bytes = "1.12.1"
 flate2 = "1.1.10"
 futures-util = "0.3.34"
 harmonia-protocol.workspace = true
 harmonia-store-nar-info.workspace = true
 harmonia-store-path.workspace = true
+harmonia-store-path-info.workspace = true
 harmonia-store-remote.workspace = true
 harmonia-utils-signature.workspace = true
 hex = "0.4.3"
@@ -53,7 +55,7 @@ time = { version = "0.3.55", features = ["parsing", "formatting", "macros"] }
 tokio = { version = "1.54.1", features = ["rt", "macros", "net", "io-util", "fs", "process", "time", "sync"] }
 tokio-util = "0.7.20"
 url = "2.5.8"
-zbus = { version = "6.2.0", default-features = false, features = ["tokio"] }
+zbus = { version = "6.2.0", default-features = false, features = ["tokio", "proxy"] }
 
 [dev-dependencies]
 tempfile = "3.27.0"
