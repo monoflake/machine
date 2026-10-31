@@ -93,7 +93,7 @@ run = ["mise run nixfmt --check && mise run nixed"]
 
 [tasks."verify:rust"]
 description = "Format, lint and test the Rust and check its licenses"
-run = ["cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test && cargo clippy --all-targets --no-default-features --features ring -- -D warnings && cargo test --no-default-features --features ring && cargo deny check"]
+run = ["cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo nextest run && cargo clippy --all-targets --no-default-features --features ring -- -D warnings && cargo nextest run --no-default-features --features ring && cargo test --doc && cargo deny check"]
 
 [tasks."verify:tests"]
 description = "Run the shell and eval tests at once, one per core"

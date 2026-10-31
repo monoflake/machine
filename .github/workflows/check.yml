@@ -44,10 +44,13 @@ jobs:
         run: mise exec -- cargo clippy --all-targets --no-default-features --features ring -- -D warnings
 
       - name: test
-        run: mise exec -- cargo test
+        run: mise exec -- cargo nextest run
 
       - name: test with ring
-        run: mise exec -- cargo test --no-default-features --features ring
+        run: mise exec -- cargo nextest run --no-default-features --features ring
+
+      - name: doctests
+        run: mise exec -- cargo test --doc
 
       - name: cargo deny
         run: mise exec -- cargo deny check
