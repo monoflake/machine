@@ -19,10 +19,7 @@ jobs:
         with:
           path: monoflake/machine
           scripts: true
-
-      - uses: NixOS/nix-installer-action@62c1943b776c509394b550f3f983adc14e9212d6 # v1.0.0
-        with:
-          installer-version: 2.35.3 # The installer only bootstraps.
+          nix: "true"
 
       - name: install the packages
         run: pnpm install --frozen-lockfile
