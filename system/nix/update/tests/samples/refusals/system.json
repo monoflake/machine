@@ -1,0 +1,268 @@
+[
+	{
+		"protocol": "system",
+		"builds": false,
+		"mutation": ".",
+		"pointer": {
+			"machine": "c1",
+			"path": "/nix/store/0123456789abcdfghijklmnpqrsvwxyz-system",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "1"
+		},
+		"reason": null
+	},
+	{
+		"protocol": "system",
+		"builds": false,
+		"mutation": ".machine=\"c2\"",
+		"pointer": {
+			"machine": "c2",
+			"path": "/nix/store/0123456789abcdfghijklmnpqrsvwxyz-system",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "1"
+		},
+		"reason": "written for another machine"
+	},
+	{
+		"protocol": "system",
+		"builds": false,
+		"mutation": ".path=\"/tmp/system\"",
+		"pointer": {
+			"machine": "c1",
+			"path": "/tmp/system",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "1"
+		},
+		"reason": "malformed path"
+	},
+	{
+		"protocol": "system",
+		"builds": false,
+		"mutation": ".path=\"/nix/store/short-system\"",
+		"pointer": {
+			"machine": "c1",
+			"path": "/nix/store/short-system",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "1"
+		},
+		"reason": "malformed path"
+	},
+	{
+		"protocol": "system",
+		"builds": false,
+		"mutation": ".path=\"/nix/store/0123456789abcdfghijklmnpqrsvwxyz-\"",
+		"pointer": {
+			"machine": "c1",
+			"path": "/nix/store/0123456789abcdfghijklmnpqrsvwxyz-",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "1"
+		},
+		"reason": "malformed path"
+	},
+	{
+		"protocol": "system",
+		"builds": false,
+		"mutation": ".path=\"/nix/store/0123456789abcdfghijklmnpqrsvwxyz-sys tem\"",
+		"pointer": {
+			"machine": "c1",
+			"path": "/nix/store/0123456789abcdfghijklmnpqrsvwxyz-sys tem",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "1"
+		},
+		"reason": "malformed path"
+	},
+	{
+		"protocol": "system",
+		"builds": false,
+		"mutation": ".at=\"tomorrow\"",
+		"pointer": {
+			"machine": "c1",
+			"path": "/nix/store/0123456789abcdfghijklmnpqrsvwxyz-system",
+			"at": "tomorrow",
+			"run": "1"
+		},
+		"reason": "malformed time"
+	},
+	{
+		"protocol": "system",
+		"builds": false,
+		"mutation": ".at=\"2026-02-30T12:00:00Z\"",
+		"pointer": {
+			"machine": "c1",
+			"path": "/nix/store/0123456789abcdfghijklmnpqrsvwxyz-system",
+			"at": "2026-02-30T12:00:00Z",
+			"run": "1"
+		},
+		"reason": "malformed time"
+	},
+	{
+		"protocol": "system",
+		"builds": false,
+		"mutation": ".at=\"2026-10-29T25:00:00Z\"",
+		"pointer": {
+			"machine": "c1",
+			"path": "/nix/store/0123456789abcdfghijklmnpqrsvwxyz-system",
+			"at": "2026-10-29T25:00:00Z",
+			"run": "1"
+		},
+		"reason": "malformed time"
+	},
+	{
+		"protocol": "system",
+		"builds": false,
+		"mutation": ".at=\"2026-10-29T15:00:00Z\"",
+		"pointer": {
+			"machine": "c1",
+			"path": "/nix/store/0123456789abcdfghijklmnpqrsvwxyz-system",
+			"at": "2026-10-29T15:00:00Z",
+			"run": "1"
+		},
+		"reason": null
+	},
+	{
+		"protocol": "system",
+		"builds": false,
+		"mutation": ".at=\"2026-10-29T15:00:01Z\"",
+		"pointer": {
+			"machine": "c1",
+			"path": "/nix/store/0123456789abcdfghijklmnpqrsvwxyz-system",
+			"at": "2026-10-29T15:00:01Z",
+			"run": "1"
+		},
+		"reason": "more than one hour ahead of its clock"
+	},
+	{
+		"protocol": "system",
+		"builds": false,
+		"mutation": ".at=\"2026-10-29 13:00:00Z\"",
+		"pointer": {
+			"machine": "c1",
+			"path": "/nix/store/0123456789abcdfghijklmnpqrsvwxyz-system",
+			"at": "2026-10-29 13:00:00Z",
+			"run": "1"
+		},
+		"reason": "malformed time"
+	},
+	{
+		"protocol": "system",
+		"builds": false,
+		"mutation": ".run=\"\"",
+		"pointer": {
+			"machine": "c1",
+			"path": "/nix/store/0123456789abcdfghijklmnpqrsvwxyz-system",
+			"at": "2026-10-29T13:00:00Z",
+			"run": ""
+		},
+		"reason": "malformed run"
+	},
+	{
+		"protocol": "system",
+		"builds": false,
+		"mutation": ".run=\"line\\nfeed\"",
+		"pointer": {
+			"machine": "c1",
+			"path": "/nix/store/0123456789abcdfghijklmnpqrsvwxyz-system",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "line\nfeed"
+		},
+		"reason": "malformed run"
+	},
+	{
+		"protocol": "system",
+		"builds": false,
+		"mutation": ".run=\"tab\\there\"",
+		"pointer": {
+			"machine": "c1",
+			"path": "/nix/store/0123456789abcdfghijklmnpqrsvwxyz-system",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "tab\there"
+		},
+		"reason": "malformed run"
+	},
+	{
+		"protocol": "system",
+		"builds": false,
+		"mutation": ".run=\"del\\u007f\"",
+		"pointer": {
+			"machine": "c1",
+			"path": "/nix/store/0123456789abcdfghijklmnpqrsvwxyz-system",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "del"
+		},
+		"reason": "malformed run"
+	},
+	{
+		"protocol": "system",
+		"builds": false,
+		"mutation": ".run=\"ok run\"",
+		"pointer": {
+			"machine": "c1",
+			"path": "/nix/store/0123456789abcdfghijklmnpqrsvwxyz-system",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "ok run"
+		},
+		"reason": null
+	},
+	{
+		"protocol": "system",
+		"builds": false,
+		"mutation": ".extra=\"value\"",
+		"pointer": {
+			"machine": "c1",
+			"path": "/nix/store/0123456789abcdfghijklmnpqrsvwxyz-system",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "1",
+			"extra": "value"
+		},
+		"reason": "malformed pointer fields"
+	},
+	{
+		"protocol": "system",
+		"builds": false,
+		"mutation": "del(.run)",
+		"pointer": {
+			"machine": "c1",
+			"path": "/nix/store/0123456789abcdfghijklmnpqrsvwxyz-system",
+			"at": "2026-10-29T13:00:00Z"
+		},
+		"reason": "malformed pointer fields"
+	},
+	{
+		"protocol": "system",
+		"builds": false,
+		"mutation": ".run=1",
+		"pointer": {
+			"machine": "c1",
+			"path": "/nix/store/0123456789abcdfghijklmnpqrsvwxyz-system",
+			"at": "2026-10-29T13:00:00Z",
+			"run": 1
+		},
+		"reason": "malformed pointer fields"
+	},
+	{
+		"protocol": "system",
+		"builds": false,
+		"mutation": ".machine=null",
+		"pointer": {
+			"machine": null,
+			"path": "/nix/store/0123456789abcdfghijklmnpqrsvwxyz-system",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "1"
+		},
+		"reason": "malformed pointer fields"
+	},
+	{
+		"protocol": "system",
+		"builds": false,
+		"mutation": "[.]",
+		"pointer": [
+			{
+				"machine": "c1",
+				"path": "/nix/store/0123456789abcdfghijklmnpqrsvwxyz-system",
+				"at": "2026-10-29T13:00:00Z",
+				"run": "1"
+			}
+		],
+		"reason": "malformed pointer fields"
+	}
+]

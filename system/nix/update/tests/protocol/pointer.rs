@@ -8,9 +8,16 @@ use serde_json::{Value, json};
 /// 2026-10-29T14:00:00Z, the clock the samples were produced with.
 const NOW: i64 = 1_793_282_400;
 
+/// The samples by pointer kind, the system's and the driver's without and with builds.
 fn samples() -> Vec<Value> {
-	let path = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/samples/refusals.json");
-	serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap()
+	let directory = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/samples/refusals");
+	["system.json", "driver.json", "driver-builds.json"]
+		.iter()
+		.flat_map(|name| {
+			let bytes = std::fs::read(format!("{directory}/{name}")).unwrap();
+			serde_json::from_slice::<Vec<Value>>(&bytes).unwrap()
+		})
+		.collect()
 }
 
 #[test]
