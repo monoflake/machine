@@ -2,6 +2,7 @@
 //! nudge and the tests read them.
 
 use std::fmt;
+use std::io::Write;
 
 /// A step's line on standard output, printed as `update: <step>`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -235,12 +236,12 @@ pub enum Refusal {
 
 /// Prints a step on standard output.
 pub fn say(step: Step) {
-	println!("update: {step}");
+	Output::new(&mut std::io::stdout(), &mut std::io::stderr()).say(step);
 }
 
 /// Prints a refusal on standard error.
 pub fn refuse(refusal: Refusal) {
-	eprintln!("update: refused, {refusal}");
+	Output::new(&mut std::io::stdout(), &mut std::io::stderr()).refuse(refusal);
 }
 
 /// What `masked` takes out of a failed tool's lines, each replaced by its placeholder.
@@ -257,19 +258,54 @@ pub struct Secrets {
 /// A failed tool's last five lines on standard error, each `update: <line>`, the host, key and
 /// secret masked as literal text, as the shell's `masked` printed them.
 pub fn masked(lines: &str, secrets: &Secrets) {
-	let all: Vec<&str> = lines.lines().collect();
-	let start = all.len().saturating_sub(5);
-	for line in all.iter().skip(start) {
-		let mut line = (*line).to_owned();
-		if !secrets.host.is_empty() {
-			line = line.replace(&secrets.host, "<endpoint>");
+	Output::new(&mut std::io::stdout(), &mut std::io::stderr()).masked(lines, secrets);
+}
+
+/// The run's standard output and error, replaced by writers in tests.
+pub struct Output<'a> {
+	out: &'a mut dyn Write,
+	err: &'a mut dyn Write,
+}
+
+impl<'a> Output<'a> {
+	/// Writes through the given standard output and error.
+	pub fn new(out: &'a mut dyn Write, err: &'a mut dyn Write) -> Self {
+		Self { out, err }
+	}
+
+	/// Prints a step on standard output.
+	pub fn say(&mut self, step: Step) {
+		let _ = writeln!(self.out, "update: {step}");
+	}
+
+	/// Prints a refusal on standard error.
+	pub fn refuse(&mut self, refusal: Refusal) {
+		self.error(&format!("update: refused, {refusal}"));
+	}
+
+	/// Prints one unprefixed line on standard output.
+	pub fn line(&mut self, line: &str) {
+		let _ = writeln!(self.out, "{line}");
+	}
+
+	/// Prints one unprefixed line on standard error.
+	pub fn error(&mut self, line: &str) {
+		let _ = writeln!(self.err, "{line}");
+	}
+
+	/// Prints the last five diagnostic lines with runtime access values masked.
+	pub fn masked(&mut self, lines: &str, secrets: &Secrets) {
+		let all: Vec<&str> = lines.lines().collect();
+		for line in all.iter().skip(all.len().saturating_sub(5)) {
+			let mut line = (*line).to_owned();
+			for (value, replacement) in
+				[(&secrets.host, "<endpoint>"), (&secrets.key, "<key>"), (&secrets.secret, "<secret>")]
+			{
+				if !value.is_empty() {
+					line = line.replace(value, replacement);
+				}
+			}
+			self.error(&format!("update: {line}"));
 		}
-		if !secrets.key.is_empty() {
-			line = line.replace(&secrets.key, "<key>");
-		}
-		if !secrets.secret.is_empty() {
-			line = line.replace(&secrets.secret, "<secret>");
-		}
-		eprintln!("update: {line}");
 	}
 }
