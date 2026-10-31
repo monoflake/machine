@@ -47,6 +47,14 @@ let
     let
       c = configured system { } { };
       package = c.nix.package;
+      pkgs = import flake.inputs.nixpkgs { inherit system; };
+      updatePackage = pkgs.callPackage (flake.outPath + "/system/nix/update/package.nix") { };
+      rollback = pkgs.linkFarm "machine-driver-rollback" [
+        {
+          name = "bin/machine-driver-rollback";
+          path = lib.getExe' updatePackage "machine-driver-rollback";
+        }
+      ];
       frozen = configured system { channel = false; } { };
       overridden = configured system {
         channel = false;
@@ -105,7 +113,11 @@ let
     assert timer.timerConfig.OnCalendar == "*-*-* 13:00:00 UTC";
     assert timer.timerConfig.Persistent;
     assert builtins.elem "timers.target" timer.wantedBy;
-    assert lib.any (p: p.name == "machine-driver-rollback") c.environment.systemPackages;
+    assert unit.serviceConfig.ExecStart == "${lib.getExe' updatePackage "machine-update-fetch"} %i";
+    assert builtins.elem rollback c.environment.systemPackages;
+    assert !(builtins.elem updatePackage c.environment.systemPackages);
+    assert !lib.any (p: p.name == "machine-driver-rollback") frozen.environment.systemPackages;
+    assert !lib.any (p: p.name == "machine-driver-rollback") overridden.environment.systemPackages;
     {
       passed = true;
     };

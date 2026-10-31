@@ -55,6 +55,13 @@ let
         machine.cache.enable = true;
         machine.cache.bucket = "/tmp/fixture";
       };
+      pkgs = import flake.inputs.nixpkgs { inherit system; };
+      package = pkgs.callPackage (flake.outPath + "/system/nix/update/package.nix") { };
+      checkPackage = lib.findFirst (
+        p: p.name == "machine-update-check"
+      ) null c.environment.systemPackages;
+      scriptLines =
+        text: builtins.filter (line: line != "" && !lib.hasPrefix "#!" line) (lib.splitString "\n" text);
       unit = c.systemd.services."update-now@";
       daemon = c.systemd.services.nix-daemon;
       timer = c.systemd.timers."update-now@system".timerConfig;
@@ -77,7 +84,7 @@ let
     assert !lib.hasInfix options.credentialsFile nixConf;
     assert !lib.hasInfix options.endpointFile nixConf;
     assert !lib.hasInfix "endpoint=" nixConf;
-    assert daemon.environment.AWS_SHARED_CREDENTIALS_FILE == options.credentialsFile;
+    assert !(daemon.environment ? AWS_SHARED_CREDENTIALS_FILE);
     assert !(daemon.environment ? AWS_ACCESS_KEY_ID);
     assert !(daemon.environment ? AWS_SECRET_ACCESS_KEY);
     assert unit.environment.AWS_SHARED_CREDENTIALS_FILE == options.credentialsFile;
@@ -88,7 +95,19 @@ let
     assert unit.serviceConfig.Type == "oneshot";
     assert unit.serviceConfig.StateDirectory == "machine-update/%i";
     assert unit.serviceConfig.StateDirectoryMode == "0700";
-    assert lib.hasSuffix " %i" unit.serviceConfig.ExecStart;
+    assert unit.serviceConfig.ExecStart == "${lib.getExe' package "machine-update-fetch"} %i";
+    assert checkPackage != null;
+    assert
+      scriptLines checkPackage.text == scriptLines ''
+        export MACHINE_UPDATE_CONFIG=${unit.environment.MACHINE_UPDATE_CONFIG}
+        export AWS_SHARED_CREDENTIALS_FILE=${options.credentialsFile}
+        instance=''${1:-system}
+        case $instance in system | driver) ;; *) echo 'update: unsupported instance' >&2; exit 1 ;; esac
+        export STATE_DIRECTORY=/var/lib/machine-update/$instance
+        exec ${lib.getExe' package "machine-update-fetch"} "$instance" --dry-run
+      '';
+    assert !(builtins.elem package c.environment.systemPackages);
+    assert !lib.any (p: p.name == "machine-driver-rollback") c.environment.systemPackages;
     assert timer.OnCalendar == "*-*-* 13:00:00 UTC";
     assert timer.Persistent;
     {

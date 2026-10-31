@@ -6,18 +6,12 @@
 }:
 let
   cfg = config.machine.nudge;
-  command = pkgs.writeShellApplication {
-    name = "machine-update-nudge";
-    runtimeInputs = [
-      pkgs.systemd
-      pkgs.coreutils
-    ];
-    text = builtins.readFile ./nudge.sh;
-  };
+  package = pkgs.callPackage ./package.nix { };
+  command = lib.getExe' package "machine-update-nudge";
   # A shell package NixOS accepts, which runs the forced command whatever it is given.
   shell =
     pkgs.writeShellScriptBin "nudge-shell" ''
-      exec ${lib.getExe command}
+      exec ${command}
     ''
     // {
       shellPath = "/bin/nudge-shell";
@@ -50,7 +44,7 @@ in
         hashedPassword = "!";
         openssh.authorizedKeys = {
           keys = lib.mkForce [
-            ''restrict,command="${lib.getExe command}",expiry-time="${cfg.expiry}" ${cfg.key}''
+            ''restrict,command="${command}",expiry-time="${cfg.expiry}" ${cfg.key}''
           ];
           keyFiles = lib.mkForce [ ];
         };
