@@ -10,8 +10,9 @@ network layer and tracks the newest release, and `nixos-unstable` advances only 
 tests pass where `nixpkgs-unstable` waits on a smaller set, so a fix can sit on `nixpkgs-unstable` a
 day or more first, as 1.104.4's
 vulnerability fix did on 2026-10-29 while `nixos-unstable` held 1.104.2. Nothing else moves to
-`latest` unless the author names it. The update workflow moves all three with the flake's lock,
-and its message names Tailscale's version when it changes.
+`latest` unless the author names it. [The update workflow](../.github/workflows/update.yml) calls
+the workspace's reusable one, which moves all three with the flake's lock and verifies them before
+committing. Its message names Tailscale's version when it changes.
 
 **The Nix that builds, evaluates, signs or asks upstream for the fleet is the OS channel's,
 taken from the lock**, decided by the author on 2026-10-29. It moves only when the lock moves.
@@ -54,8 +55,8 @@ driver sets a package or an override; no invented hash enters a system.
 **`.github/update/driver-test.sh` evaluates the package on both Linux systems** and fetches
 nothing: once from this checkout's lock, and once from a copy whose lock is the hand-written
 `.github/update/driver.lock`, which no configuration reads. It holds the package's version, its one
-URL and hash, both services' executable and the override. The update workflow runs it once the lock
-has moved.
+URL and hash, both services' executable and the override. The update workflow runs it through
+verify once any declared input has moved.
 
 **Systems can now follow CI’s signed pointer**, through `machine.update`,
 [update.md](update.md). The old cache mechanism stays frozen until monoflake/cloud’s reset.

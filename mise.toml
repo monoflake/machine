@@ -93,11 +93,42 @@ run = ["mise run nixfmt --check && mise run nixed"]
 
 [tasks."verify:rust"]
 description = "Format, lint and test the Rust and check its licenses"
-run = ["cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo nextest run && cargo clippy --all-targets --no-default-features --features ring -- -D warnings && cargo nextest run --no-default-features --features ring && cargo test --doc && cargo deny check"]
+run = "mise run rust:fmt && mise run rust:clippy && mise run rust:test && mise run rust:clippy --ring && mise run rust:test --ring && mise run rust:doc && mise run rust:deny"
+
+[tasks."rust:fmt"]
+description = "Check Rust formatting"
+run = "cargo fmt --check"
+
+[tasks."rust:clippy"]
+description = "Lint the Rust with the default HTTPS provider or ring"
+usage = 'flag "--ring" help="Use ring instead of the default HTTPS provider"'
+run = 'cargo clippy --all-targets ${usage_ring:+--no-default-features --features ring} -- -D warnings'
+
+[tasks."rust:test"]
+description = "Test the Rust with the default HTTPS provider or ring"
+usage = 'flag "--ring" help="Use ring instead of the default HTTPS provider"'
+run = 'cargo nextest run ${usage_ring:+--no-default-features --features ring}'
+
+[tasks."rust:doc"]
+description = "Run the Rust doctests"
+run = "cargo test --doc"
+
+[tasks."rust:deny"]
+description = "Check the Rust dependencies and licenses"
+run = "cargo deny check"
 
 [tasks."verify:tests"]
 description = "Run the shell and eval tests at once, one per core"
 run = "rescript build > /dev/null && node scripts/verify/tests.res.mjs"
+
+[tasks.prepare]
+description = "Install the packages and take the channel's Nix for CI"
+run = ["pnpm install --frozen-lockfile", "mise run channel daemon"]
+
+[tasks.message]
+description = "Write the scheduled update's commit message: `message <file>`"
+usage = 'arg "<file>" help="Where to write the commit message"'
+run = 'rescript build > /dev/null && node {{config_root}}/scripts/update/message.res.mjs "$usage_file"'
 
 [tasks.channel]
 description = "Use the lock's Nix and align the daemon with it"

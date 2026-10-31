@@ -1,12 +1,9 @@
-# Moves the flake's inputs and what manifest.lock locks, the runtimes' images and the driver, and
-# commits them where the flake and the driver's package still evaluate, then wakes check.
+# Moves the declared inputs through the workspace update and verify, then wakes check.
 name: update
 
 on:
   schedule:
-    - cron: "23 7 * * *"
-  push:
-    branches: [main]
+    - cron: "0 22 * * *"
   workflow_dispatch:
 
 permissions:
@@ -18,84 +15,10 @@ concurrency:
 
 jobs:
   update:
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    defaults:
-      run:
-        working-directory: repos/monoflake/machine
-    steps:
-      # The workspace above the repository, as it is checked out at home, whose scripts move pins.
-      - uses: canmi21/canmi/.github/actions/workspace@main
-        with:
-          path: monoflake/machine
-          credentials: true
-          scripts: true
-
-      - uses: NixOS/nix-installer-action@62c1943b776c509394b550f3f983adc14e9212d6 # v1.0.0
-        with:
-          installer-version: 2.35.3 # The installer only bootstraps.
-
-      - name: take the channel's nix
-        run: |
-          pnpm install --frozen-lockfile
-          mise run channel daemon
-
-      # The flake as locked before is kept, so the message can say what moved.
-      - name: update
-        id: update
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        run: |
-          rsync -a --exclude=.git ./ "$RUNNER_TEMP/old/"
-          mise run update
-          # Exit 2 is a source held back while the rest was written, kept and failed at the end.
-          status=0
-          node "$GITHUB_WORKSPACE/scripts/deps/releases.res.mjs" system/containers/manifest.toml || status=$?
-          [ "$status" -eq 0 ] || [ "$status" -eq 2 ] || exit "$status"
-          git diff --quiet flake.lock system/containers/manifest.lock && echo "moved=false" >> "$GITHUB_OUTPUT" || echo "moved=true" >> "$GITHUB_OUTPUT"
-
-      - name: evaluate
-        if: steps.update.outputs.moved == 'true'
-        run: |
-          mise run channel daemon
-          mise run nixed
-          mise exec -- bash .github/update/driver-test.sh
-
-      # Both systems' derivations before and after say what changed beneath the held packages.
-      - name: commit
-        if: steps.update.outputs.moved == 'true'
-        run: |
-          rsync -a --exclude=.git ./ "$RUNNER_TEMP/new/"
-          PATH="$(node scripts/channel/channel.res.mjs path --lock .)/bin:$PATH"
-          for v in old new; do
-            drvs=()
-            for s in x86_64-linux aarch64-linux; do
-              drvs+=("$(nix eval --raw "path:$RUNNER_TEMP/$v#checks.$s.machine.drvPath")^*")
-            done
-            nix derivation show -r "${drvs[@]}" | jq -f .github/update/closure.jq > "$RUNNER_TEMP/$v.json"
-          done
-          nix eval --raw --impure --expr "import ./.github/update {
-            old = \"path:$RUNNER_TEMP/old\";
-            new = \"path:$RUNNER_TEMP/new\";
-            closures = { old = \"$RUNNER_TEMP/old.json\"; new = \"$RUNNER_TEMP/new.json\"; };
-          }" > "$RUNNER_TEMP/message"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -F "$RUNNER_TEMP/message" flake.lock system/containers/manifest.lock
-          git push
-
-      # A push the token makes starts no workflow, so check is woken by name on what main holds now.
-      - name: wake check
-        if: ${{ !cancelled() }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh workflow run check.yml --repo "$GITHUB_REPOSITORY" --ref main
-
-      # A release source held back fails the run once the rest is committed, naming it.
-      - name: held
-        if: ${{ !cancelled() && steps.update.outputs.held != '' }}
-        env:
-          HELD: ${{ steps.update.outputs.held }}
-        run: |
-          echo "::error::the releases of $HELD could not be read, so their pins were kept as they were"
-          exit 1
+    uses: canmi21/canmi/.github/workflows/update-repository.yml@main
+    with:
+      path: monoflake/machine
+      nix: true
+      prepare: mise run prepare
+      message: mise run message "$RUNNER_TEMP/message"
+      wake: check.yml
