@@ -92,8 +92,11 @@ impl TestDaemon {
 			.spawn()
 			.unwrap();
 		let mut daemon = Self { child, dir, socket };
+		// The socket appears at bind, before the daemon listens, so a whole handshake is waited for.
 		for _ in 0..200 {
-			if daemon.socket.exists() {
+			if daemon.socket.exists()
+				&& DaemonClientBuilder::new().connect_unix(&daemon.socket).await.is_ok()
+			{
 				return daemon;
 			}
 			if let Some(status) = daemon.child.try_wait().unwrap() {
