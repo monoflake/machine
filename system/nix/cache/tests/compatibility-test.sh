@@ -11,8 +11,8 @@ compare_base() {
 	fi
 	comparison=$(realpath "$(mktemp -d)")
 	mkdir "$comparison/base" "$comparison/lane"
-	rsync -a --exclude=.jj --exclude=.git --exclude=node_modules --exclude=target "$base/" "$comparison/base/"
-	rsync -a --exclude=.jj --exclude=.git --exclude=node_modules --exclude=target "$(dirname "$0")/../../../../" "$comparison/lane/"
+	rsync -a --exclude=.jj --exclude=.git --exclude=node_modules --exclude=target --exclude=/lib "$base/" "$comparison/base/"
+	rsync -a --exclude=.jj --exclude=.git --exclude=node_modules --exclude=target --exclude=/lib "$(dirname "$0")/../../../../" "$comparison/lane/"
 	"$real_nix" eval --impure --json --expr "
 	let
 	  base = builtins.getFlake \"path:$comparison/base\";
@@ -41,7 +41,7 @@ compare_base() {
 setup_test
 trap 'rm -rf "$t"; [ -z "${comparison:-}" ] || rm -rf "$comparison"' EXIT
 mkdir "$t/flake"
-rsync -a --exclude=.jj --exclude=.git --exclude=node_modules --exclude=target "$cache_dir/../../../../" "$t/flake/"
+rsync -a --exclude=.jj --exclude=.git --exclude=node_modules --exclude=target --exclude=/lib "$cache_dir/../../../../" "$t/flake/"
 "$real_nix" eval --impure --json --expr "
 let flake = builtins.getFlake \"path:$t/flake\";
 in import $cache_dir/eval/compatibility-test.nix {

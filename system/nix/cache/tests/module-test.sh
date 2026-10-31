@@ -3,7 +3,7 @@
 set -o errexit -o nounset -o pipefail
 t=$(realpath "$(mktemp -d)")
 trap 'rm -rf "$t"' EXIT
-rsync -a --exclude=.jj --exclude=.git --exclude=node_modules --exclude=target ../../../../ "$t/"
+rsync -a --exclude=.jj --exclude=.git --exclude=node_modules --exclude=target --exclude=/lib ../../../../ "$t/"
 nix eval --impure --json --expr "
 let flake = builtins.getFlake \"path:$t\";
 in import $(pwd)/eval/module-test.nix { inherit flake; }

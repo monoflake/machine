@@ -8,7 +8,7 @@ use serde_json::{Value, json};
 
 use super::support::*;
 
-#[tokio::test]
+#[tokio::test(start_paused = true)]
 async fn samples_match_stdout_stderr_units_and_normalized_start_status() {
 	let sample: Value = serde_json::from_str(include_str!("../samples/nudge.json")).unwrap();
 	let f = Fixture::new(false);
@@ -59,7 +59,7 @@ async fn samples_match_stdout_stderr_units_and_normalized_start_status() {
 	}
 }
 
-#[tokio::test]
+#[tokio::test(start_paused = true)]
 async fn unreadable_result_and_link_do_not_change_start_status() {
 	let f = Fixture::new(false);
 	let units = UnitsFake::default();

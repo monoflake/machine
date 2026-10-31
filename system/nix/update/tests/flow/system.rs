@@ -20,7 +20,7 @@ async fn refused(f: &mut Fixture, reason: &str, accepted: &[u8]) {
 	);
 }
 
-#[tokio::test]
+#[tokio::test(start_paused = true)]
 async fn shell_fetch_transcript_and_invariants() {
 	let mut f = Fixture::new(false);
 	f.signed(&f.system_pointer(0, "1"));
@@ -98,7 +98,7 @@ async fn shell_fetch_transcript_and_invariants() {
 	f.compare(include_str!("../samples/transcripts/fetch.txt"));
 }
 
-#[tokio::test]
+#[tokio::test(start_paused = true)]
 async fn changed_path_malformed_state_missing_running_and_restore_failures() {
 	let mut f = Fixture::new(false);
 	f.signed(&f.system_pointer(0, "1"));
@@ -169,7 +169,7 @@ fn arguments_and_runtime_access_refuse_before_effects() {
 	assert!(f.bucket.calls.borrow().is_empty());
 }
 
-#[tokio::test]
+#[tokio::test(start_paused = true)]
 async fn a_failed_profile_restoration_keeps_the_accepted_pointer() {
 	let mut f = Fixture::new(false);
 	f.signed(&f.system_pointer(0, "1"));

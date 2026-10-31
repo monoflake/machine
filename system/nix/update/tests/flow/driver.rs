@@ -31,7 +31,7 @@ async fn absent(f: &mut Fixture) {
 	}
 }
 
-#[tokio::test]
+#[tokio::test(start_paused = true)]
 async fn shell_driver_transcript_and_invariants() {
 	let mut f = Fixture::new(true);
 	let good = archive_file("driver-machine", 0o755, tar::EntryType::Regular);
@@ -217,7 +217,7 @@ async fn shell_driver_transcript_and_invariants() {
 	f.compare(include_str!("../samples/transcripts/driver.txt"));
 }
 
-#[tokio::test]
+#[tokio::test(start_paused = true)]
 async fn unsafe_archives_download_failure_and_partial_directories() {
 	let mut f = Fixture::new(true);
 	for (bytes, reason) in [
@@ -251,7 +251,7 @@ async fn unsafe_archives_download_failure_and_partial_directories() {
 	assert!(f.fetch(true).await.1.contains("driver channel disabled"));
 }
 
-#[tokio::test]
+#[tokio::test(start_paused = true)]
 async fn restart_checks_both_services_and_restoration_can_fail() {
 	let mut f = Fixture::new(true);
 	*f.download.bytes.borrow_mut() = archive_file("driver-machine", 0o755, tar::EntryType::Regular);
@@ -265,7 +265,7 @@ async fn restart_checks_both_services_and_restoration_can_fail() {
 	refused(&mut f, "restart failed and driver restoration failed", &accepted).await;
 }
 
-#[tokio::test]
+#[tokio::test(start_paused = true)]
 async fn rollback_failures_and_failed_restart_restore_both_links() {
 	let f = Fixture::new(true);
 	let fixture = &f;
@@ -296,7 +296,7 @@ async fn rollback_failures_and_failed_restart_restore_both_links() {
 	assert_eq!(f.previous().as_deref(), Some("0.9"));
 }
 
-#[tokio::test]
+#[tokio::test(start_paused = true)]
 async fn lock_failures_exit_without_update_messages() {
 	let mut f = Fixture::new(true);
 	fs::create_dir(f.paths.driver.join(".update-lock")).unwrap();
@@ -318,7 +318,7 @@ async fn lock_failures_exit_without_update_messages() {
 	assert!(f.bucket.calls.borrow().is_empty());
 }
 
-#[tokio::test]
+#[tokio::test(start_paused = true)]
 async fn rollback_link_failure_never_claims_restoration() {
 	for name in ["current", "previous"] {
 		let f = Fixture::new(true);
@@ -342,7 +342,7 @@ async fn rollback_link_failure_never_claims_restoration() {
 	}
 }
 
-#[tokio::test]
+#[tokio::test(start_paused = true)]
 async fn inactive_after_completed_jobs_has_no_restart_detail() {
 	let mut f = Fixture::new(true);
 	*f.download.bytes.borrow_mut() = archive_file("driver-machine", 0o755, tar::EntryType::Regular);

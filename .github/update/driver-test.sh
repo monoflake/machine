@@ -6,7 +6,7 @@ here=$(cd "$(dirname "$0")" && pwd)
 root=$(cd "$here/../.." && pwd)
 t=$(realpath "$(mktemp -d)")
 trap 'rm -rf "$t"' EXIT
-rsync -a --exclude=.jj --exclude=.git --exclude=node_modules --exclude=target "$root/" "$t/"
+rsync -a --exclude=.jj --exclude=.git --exclude=node_modules --exclude=target --exclude=/lib "$root/" "$t/"
 cp "$here/driver.lock" "$t/system/containers/manifest.lock"
 evaluated() { nix eval --impure --json --file "$here/driver-test.nix" --apply "f: f { $1 }"; }
 evaluated "root = $root;"
