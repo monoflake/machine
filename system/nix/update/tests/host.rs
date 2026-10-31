@@ -2,6 +2,7 @@
 //! D-Bus code without a bus.
 
 use std::fs;
+use std::io::Write;
 use std::os::unix::fs::{PermissionsExt, symlink};
 use std::path::Path;
 use std::sync::mpsc;
@@ -14,6 +15,7 @@ use machine_update::host::{
 	Jobs, Process, Removed, SystemClock, is_active_state, link, lock, read_link, run_merged,
 	set_profile, subscription, wait_removed,
 };
+use rustix::fs::{FlockOperation, flock};
 
 const SYSTEM: &str = "55xkmqns51sw7nrgykp5vnz36w4fr3cw-nixos-system";
 
@@ -280,6 +282,45 @@ fn lock_waits_while_another_holds_it() {
 	drop(held);
 	receiver.recv_timeout(Duration::from_secs(5)).unwrap();
 	waiter.join().unwrap();
+}
+
+#[test]
+fn lock_reopens_a_file_retired_by_its_previous_holder() {
+	for (marked, unlinked) in [(true, true), (false, true), (true, false)] {
+		let dir = tempfile::tempdir().unwrap();
+		let path = dir.path().join("system.lock");
+		let mut holder = fs::File::create(&path).unwrap();
+		flock(&holder, FlockOperation::LockExclusive).unwrap();
+		let (sender, receiver) = mpsc::channel();
+		let waiting_path = path.clone();
+		let waiter = std::thread::spawn(move || {
+			let _taken = lock(&waiting_path).unwrap();
+			sender.send(()).unwrap();
+		});
+		let initially_blocked = receiver.recv_timeout(Duration::from_millis(300)).is_err();
+		if marked {
+			holder.write_all(b"d").unwrap();
+		}
+		if unlinked {
+			fs::remove_file(&path).unwrap();
+		} else {
+			fs::rename(&path, dir.path().join("retired.lock")).unwrap();
+		}
+		let replacement = fs::File::create(&path).unwrap();
+		flock(&replacement, FlockOperation::LockExclusive).unwrap();
+		drop(holder);
+		let waited_for_replacement = receiver.recv_timeout(Duration::from_millis(300)).is_err();
+		drop(replacement);
+		if waited_for_replacement {
+			receiver.recv_timeout(Duration::from_secs(5)).unwrap();
+		}
+		waiter.join().unwrap();
+		assert!(initially_blocked, "the waiter must first block on the original file");
+		assert!(
+			waited_for_replacement,
+			"a retired inode must not bypass the replacement lock with marked={marked} unlinked={unlinked}"
+		);
+	}
 }
 
 #[test]

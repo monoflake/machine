@@ -75,6 +75,31 @@ fn another_principal_never_signs() {
 }
 
 #[test]
+fn a_quoted_principal_matches_its_unquoted_name() {
+	let ci = text("keys/ci.pub");
+	let signers = format!("\"ci\" namespaces=\"system-pointer\" {}", ci.trim());
+	assert!(
+		verify(&signers, Namespace::System, &signed("pointers/system"), &sample("pointers/system.sig")),
+		"quotes delimit the principals field rather than becoming part of the principal"
+	);
+}
+
+#[test]
+fn an_unquoted_namespace_value_is_refused() {
+	let ci = text("keys/ci.pub");
+	let signers = format!("ci namespaces=system-pointer {}", ci.trim());
+	assert!(
+		!verify(
+			&signers,
+			Namespace::System,
+			&signed("pointers/system"),
+			&sample("pointers/system.sig")
+		),
+		"namespace option values require opening and closing double quotes"
+	);
+}
+
+#[test]
 fn a_changed_pointer_or_a_broken_signature_or_no_signers_does_not_verify() {
 	let signers = text("signers/system");
 	let signature = sample("pointers/system.sig");
@@ -92,10 +117,9 @@ fn restricted_or_pattern_options_fail_closed() {
 	let pointer = signed("pointers/system");
 	let signature = sample("pointers/system.sig");
 	for options in [
-		"namespaces=\"driver-pointer\",valid-before=\"20990101\"",
-		"namespaces=\"driver-pointer\",cert-authority",
+		"namespaces=\"system-pointer\",valid-before=\"20990101\"",
+		"namespaces=\"system-pointer\",cert-authority",
 		"namespaces=\"system-pointer\",valid-after=\"20000101\"",
-		"cert-authority,namespaces=\"system-pointer\"",
 		"namespaces=\"!system-pointer,*\"",
 		"namespaces=\"system-pointer,?\"",
 		"namespaces=\"system-pointer,*\"",

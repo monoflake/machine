@@ -57,6 +57,11 @@ fn signer(line: &str) -> Option<Signer> {
 		return None;
 	}
 	let (principal, rest) = word(line)?;
+	let principal = if let Some(quoted) = principal.strip_prefix('"') {
+		quoted.strip_suffix('"')?.to_owned()
+	} else {
+		principal
+	};
 	let (second, after) = word(rest)?;
 	let (namespaces, key_type, after) = if is_key_type(&second) {
 		(None, second, after)
@@ -103,12 +108,8 @@ fn options(mut field: &str) -> Option<Option<Vec<String>>> {
 		if namespaces.is_some() {
 			return None;
 		}
-		let (list, rest) = if let Some(quoted) = rest.strip_prefix('"') {
-			let (list, rest) = quoted.split_once('"')?;
-			(list, rest)
-		} else {
-			rest.find(',').map_or((rest, ""), |index| rest.split_at(index))
-		};
+		let quoted = rest.strip_prefix('"')?;
+		let (list, rest) = quoted.split_once('"')?;
 		if list.is_empty() || list.contains(['*', '?', '!', '"', '\\']) {
 			return None;
 		}

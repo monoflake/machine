@@ -12,7 +12,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use futures_util::{Stream, StreamExt};
 use harmonia_store_path::{StoreDir, StorePath};
-use rustix::fs::{FlockOperation, flock};
+use rustix::fs::{FlockOperation, flock, fstat};
 use zbus::OwnedObjectPath;
 use zbus::{Connection, Proxy};
 
@@ -363,12 +363,19 @@ impl Drop for Lock {
 
 /// Takes an exclusive lock on a file, creating it, waiting while another holds it.
 pub fn lock(file: &Path) -> io::Result<Lock> {
-	let file = OpenOptions::new().create(true).truncate(false).write(true).open(file)?;
 	loop {
-		match flock(&file, FlockOperation::LockExclusive) {
-			Ok(()) => return Ok(Lock { file }),
-			Err(rustix::io::Errno::INTR) => {}
-			Err(errno) => return Err(errno.into()),
+		let file = OpenOptions::new().create(true).truncate(false).write(true).open(file)?;
+		loop {
+			match flock(&file, FlockOperation::LockExclusive) {
+				Ok(()) => break,
+				Err(rustix::io::Errno::INTR) => {}
+				Err(errno) => return Err(errno.into()),
+			}
+		}
+		// A previous holder may have retired this inode while the lock was waiting.
+		let stat = fstat(&file)?;
+		if stat.st_size == 0 && stat.st_nlink != 0 {
+			return Ok(Lock { file });
 		}
 	}
 }
