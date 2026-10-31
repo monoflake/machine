@@ -1,4 +1,5 @@
 # What verify runs, the flake evaluated for every system and never built, woken by update.
+# The Rust is linted and tested.
 name: check
 
 on:
@@ -28,6 +29,28 @@ jobs:
         run: |
           pnpm install --frozen-lockfile
           mise run channel daemon
+
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: repos/monoflake/machine -> target
+
+      - name: cargo fmt
+        run: mise exec -- cargo fmt --check
+
+      - name: clippy
+        run: mise exec -- cargo clippy --all-targets -- -D warnings
+
+      - name: clippy with ring
+        run: mise exec -- cargo clippy --all-targets --no-default-features --features ring -- -D warnings
+
+      - name: test
+        run: mise exec -- cargo test
+
+      - name: test with ring
+        run: mise exec -- cargo test --no-default-features --features ring
+
+      - name: cargo deny
+        run: mise exec -- cargo deny check
 
       - name: nixfmt
         run: mise run nixfmt --check
