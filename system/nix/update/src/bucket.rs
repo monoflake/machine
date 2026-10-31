@@ -1,5 +1,5 @@
-//! The bucket over S3 with the systems credentials, or a directory for a test, and a driver archive
-//! over HTTPS, as `fetch.sh` and `driver.sh` read them. Written by the store lane.
+//! The bucket over S3 with the systems credentials, or a directory for a test, and driver archives
+//! over HTTPS, RFC cbtjl.
 
 use std::path::PathBuf;
 use std::pin::Pin;
@@ -33,8 +33,7 @@ impl fmt::Debug for Credentials {
 	}
 }
 
-/// Reads the `[systems]` profile from a shared credentials file, each key once, as `credential`
-/// read it, refusing anything else as malformed.
+/// Reads the `[systems]` profile from a shared credentials file, requiring each key exactly once.
 pub fn credentials(text: &str) -> Result<Credentials, Refusal> {
 	let key = credential(text, "aws_access_key_id").ok_or(Refusal::Credentials)?;
 	let secret = credential(text, "aws_secret_access_key").ok_or(Refusal::Credentials)?;
@@ -44,7 +43,7 @@ pub fn credentials(text: &str) -> Result<Credentials, Refusal> {
 	if key_ok && secret_ok { Ok(Credentials { key, secret }) } else { Err(Refusal::Credentials) }
 }
 
-/// One key's value in `[systems]`, `None` unless it appears exactly once, as the awk in `fetch.sh`.
+/// One key's value in `[systems]`, `None` unless it appears exactly once.
 fn credential(text: &str, wanted: &str) -> Option<String> {
 	let blank = |c: char| c == ' ' || c == '\t';
 	let mut active = false;
@@ -108,7 +107,6 @@ impl Remote {
 		if !bucket_name(bucket) {
 			return Err(Refusal::Bucket);
 		}
-		// The file's trailing newlines go, as the shell's command substitution dropped them.
 		let endpoint = endpoint.trim_end_matches('\n');
 		let host = endpoint.strip_prefix("https://").ok_or(Refusal::EndpointMalformed)?;
 		let host = host.strip_suffix('/').unwrap_or(host);
@@ -218,7 +216,7 @@ async fn request(
 	}
 }
 
-/// The client bucket requests share, following no redirect, as `curl` did without `--location`.
+/// The shared bucket client refuses redirects.
 fn s3_client() -> Result<reqwest::Client, BucketError> {
 	static CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
 	if let Some(client) = CLIENT.get() {
@@ -286,7 +284,7 @@ impl Download for Https {
 	}
 }
 
-/// A client following up to ten redirects, each to HTTPS alone, as `curl --proto-redir =https`.
+/// A download client follows up to ten redirects, each to HTTPS alone.
 fn download_client(https_only: bool) -> Result<reqwest::Client, BucketError> {
 	crate::tls::install();
 	let policy = Policy::custom(|attempt| {

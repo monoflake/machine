@@ -98,3 +98,7 @@ EUPL-1.2 and snix's GPL-3.0.
    shell's curl had none, decided by the author on 2026-10-31. **Every line it prints is the
    shell's word for word**, read by cloud's nudge, but for the detail lines before a failed realise
    or restart, which were the tool's own output and are now the error's.
+
+The update path's final step is done on 2026-10-31, after the fleet's test machines took both
+pointers and the driver through Rust. Its replaced shell and shell tests are removed, with the
+eval tests and recorded behavior transcripts retained.

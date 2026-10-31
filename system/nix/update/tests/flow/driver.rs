@@ -1,4 +1,4 @@
-//! Every driver shell run with real archives, signatures, links and accepted state.
+//! Recorded driver behavior with real archives, signatures, links and accepted state.
 
 use std::fs;
 use std::os::unix::fs::{PermissionsExt, symlink};
@@ -32,7 +32,7 @@ async fn absent(f: &mut Fixture) {
 }
 
 #[tokio::test(start_paused = true)]
-async fn shell_driver_transcript_and_invariants() {
+async fn driver_update_transcript_and_invariants() {
 	let mut f = Fixture::new(true);
 	let good = archive_file("driver-machine", 0o755, tar::EntryType::Regular);
 	*f.download.bytes.borrow_mut() = good.clone();
@@ -304,7 +304,7 @@ async fn lock_failures_exit_without_update_messages() {
 	assert_eq!(code, 1);
 	assert_eq!(
 		text, "update: reading runtime access files\n",
-		"a driver lock failure has no shell refusal line"
+		"a driver lock failure has no refusal line"
 	);
 	let mut stdout = Vec::new();
 	let mut stderr = Vec::new();
@@ -313,7 +313,7 @@ async fn lock_failures_exit_without_update_messages() {
 		1
 	);
 	assert!(stdout.is_empty());
-	assert!(stderr.is_empty(), "a rollback lock failure has no shell refusal line");
+	assert!(stderr.is_empty(), "a rollback lock failure has no refusal line");
 	assert!(f.units.calls.borrow().is_empty());
 	assert!(f.bucket.calls.borrow().is_empty());
 }
@@ -357,7 +357,7 @@ async fn inactive_after_completed_jobs_has_no_restart_detail() {
 		text.contains(
 			"update: restarting driver services\nupdate: restart failed, restoring previous driver\n"
 		),
-		"completed jobs leave an empty shell restart log\n{text}"
+		"completed jobs leave an empty restart log\n{text}"
 	);
 	assert!(text.ends_with("update: refused, driver restart failed\n"));
 	assert_eq!(f.current().as_deref(), Some("1.0"));

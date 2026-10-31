@@ -1,4 +1,4 @@
-//! The pointer protocols give the reason the shell gave for every sample.
+//! The pointer protocols give the recorded refusal reason for every sample.
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use machine_update::output::Refusal;
@@ -21,7 +21,7 @@ fn samples() -> Vec<Value> {
 }
 
 #[test]
-fn every_sample_gets_the_reason_the_shell_gave() {
+fn every_sample_gets_its_recorded_refusal_reason() {
 	let samples = samples();
 	assert_eq!(samples.len(), 70);
 	for sample in &samples {
@@ -97,7 +97,7 @@ fn unicode_whitespace_in_archive_urls_is_refused() {
 		assert_eq!(
 			driver(&driver_pointer(&url, &"a".repeat(64)), "c1", NOW, true),
 			Err(Refusal::DriverFields),
-			"jq refused Unicode spaces too"
+			"archive URLs refuse Unicode whitespace"
 		);
 	}
 }

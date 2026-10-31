@@ -1,4 +1,4 @@
-//! A driver archive is hashed, checked and unpacked as `driver.sh` did.
+//! Driver archives require matching hashes, safe member paths and an executable driver.
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use std::os::unix::fs::PermissionsExt;

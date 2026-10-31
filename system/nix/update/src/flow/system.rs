@@ -6,7 +6,7 @@ use super::*;
 use crate::effects::{Store, Switch};
 use crate::pointer;
 
-/// Fetches and takes a system pointer, printing each shell step and returning its exit code.
+/// Fetches and takes a system pointer, printing each stage and returning its exit code.
 #[allow(clippy::too_many_arguments)]
 pub async fn fetch_system(
 	bucket: &impl Bucket,

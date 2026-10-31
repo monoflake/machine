@@ -40,7 +40,7 @@ impl<B: Bucket> Daemon<B> {
 			.connect_unix(socket)
 			.await
 			.map_err(|error| failed_with(format!("daemon at {}", socket.display()), error))?;
-		// The shell's `max-jobs 0`, so the daemon substitutes and never builds.
+		// The daemon substitutes and never builds.
 		let mut options = ClientOptions::default();
 		options.max_build_jobs = 0;
 		client.set_options(&options).await.map_err(|error| failed_with("SetOptions", error))?;

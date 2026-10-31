@@ -1,6 +1,7 @@
 # Signed updates
 
 `machine.update.enable` makes a machine take its system from CI's signed pointer, RFC oej2a.
+The `machine-update` Rust crate implements the update path, RFC cbtjl.
 Set its bucket, UTC `at` time, `pointerPublicKey`, `nixPublicKey`, `credentialsFile` and
 `endpointFile`. The last two are runtime paths outside the store, rendered root only by sops-nix.
 The credentials file is an AWS shared credentials file whose `[systems]` profile holds
@@ -97,8 +98,10 @@ the passwordless system user `nudge`, whose restricted SSH key and shell run onl
 command. This adds no firewall port and changes no sshd setting.
 
 `ssh nudge@<machine> system` starts `update-now@system.service` and waits for its result. It prints
-the unit's `Result` and the current system path, returning the start's exit status even on failure.
+the unit's `Result` and the current system path, returning 0 when the start succeeds and 1 when it
+fails.
 Exactly `system` and `driver` are accepted; an empty command, arguments, whitespace variants and
 all other commands are refused. The account has no terminal or forwarding and may only start
 those two units through polkit, with no sudo permission. It reads no journal or update state.
-`driver` prints its unit's `Result` followed by `readlink /var/lib/driver/current`.
+`driver` prints its unit's `Result` followed by the target of `/var/lib/driver/current`, read through
+Rust's `std::fs::read_link`.

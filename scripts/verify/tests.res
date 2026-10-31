@@ -70,14 +70,9 @@ let tests = [
     shell(~cwd=cache, "build/self-test.sh", ~args=[mode])
   ),
   shell(~cwd=cache, "fetch/gc-test.sh", ~args=["valid"]),
-  ...[
-    "fetch-test.sh",
-    "driver-test.sh",
-    "driver-eval-test.sh",
-    "eval-test.sh",
-    "nudge-eval-test.sh",
-    "nudge-test.sh",
-  ]->Array.map(path => shell(`${update}/${path}`)),
+  ...["driver-eval-test.sh", "eval-test.sh", "nudge-eval-test.sh"]->Array.map(path =>
+    shell(`${update}/${path}`)
+  ),
   shell("system/base/seed/tests.sh"),
   shell("system/network/tests.sh"),
   shell("system/network/addresses/tests.sh"),

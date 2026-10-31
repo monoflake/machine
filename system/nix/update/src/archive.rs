@@ -1,5 +1,4 @@
-//! A driver archive's check and unpacking, the binary and its two licenses alone, as `driver.sh`
-//! did. Written by the pointer lane.
+//! A driver archive's validation and unpacking, limited to the binary and its two licenses.
 
 use std::fs::{self, OpenOptions};
 use std::io::{self, Read};

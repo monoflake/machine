@@ -1,5 +1,5 @@
-//! A machine's signed updates, its system and its driver taken from the bucket's pointers, the
-//! shell of `system/nix/update/` rewritten in Rust, RFC cbtjl.
+//! A machine's signed updates, its system and its driver taken from the bucket's pointers,
+//! RFC cbtjl.
 
 pub mod archive;
 pub mod bucket;

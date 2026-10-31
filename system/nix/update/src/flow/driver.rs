@@ -4,7 +4,7 @@ use super::*;
 use crate::effects::Download;
 use crate::{archive, pointer};
 
-/// Fetches and installs a driver pointer, returning the shell's success or refusal code.
+/// Fetches and installs a driver pointer, returning its success or refusal code.
 #[allow(clippy::too_many_arguments)]
 pub async fn fetch_driver(
 	bucket: &impl Bucket,

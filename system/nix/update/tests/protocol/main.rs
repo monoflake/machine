@@ -1,4 +1,4 @@
-//! The pointer protocol and the parts it rests on, each answering as the shell did.
+//! The pointer protocol and its dependencies match the recorded behavior.
 
 mod archive;
 mod bucket;

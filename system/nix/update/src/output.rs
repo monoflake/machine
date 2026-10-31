@@ -1,5 +1,4 @@
-//! Every line the update path prints, word for word what its shell printed, RFC cbtjl, as cloud's
-//! nudge and the tests read them.
+//! The update path's recorded output contract, read by cloud's nudge and the tests, RFC cbtjl.
 
 use std::fmt;
 use std::io::Write;
@@ -255,8 +254,8 @@ pub struct Secrets {
 	pub secret: String,
 }
 
-/// A failed tool's last five lines on standard error, each `update: <line>`, the host, key and
-/// secret masked as literal text, as the shell's `masked` printed them.
+/// Prints the last five diagnostic lines on standard error with the update prefix.
+/// The host, key and secret are masked as literal text.
 pub fn masked(lines: &str, secrets: &Secrets) {
 	Output::new(&mut std::io::stdout(), &mut std::io::stderr()).masked(lines, secrets);
 }

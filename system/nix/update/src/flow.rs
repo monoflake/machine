@@ -25,7 +25,7 @@ pub use system::fetch_system;
 
 const SERVICES: &[&str] = &["driver-machine.service", "driver-machine-entry.service"];
 
-/// Parses the fetch arguments in the order the shell accepted them.
+/// Parses an optional instance followed by an optional dry run flag.
 pub fn arguments(args: &[String]) -> Result<(Instance, bool), Refusal> {
 	let mut args = args.iter().map(String::as_str).peekable();
 	let instance = match args.peek() {

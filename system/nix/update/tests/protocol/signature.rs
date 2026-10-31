@@ -1,4 +1,4 @@
-//! A pointer's signature verifies for the namespace and the principal the shell allowed.
+//! Pointer signatures verify only for the allowed namespace and principal.
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use machine_update::signature::{Namespace, verify};

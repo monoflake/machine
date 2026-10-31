@@ -1,5 +1,4 @@
-//! The two pointers' protocols, a system's and a driver's, as `protocol.sh` and
-//! `driver-protocol.sh` held them. Written by the pointer lane.
+//! The system and driver pointer protocols, RFC cbtjl.
 
 use serde_json::{Map, Value};
 use time::{Date, Month, PrimitiveDateTime, Time};
@@ -130,7 +129,7 @@ pub fn driver(
 	})
 }
 
-/// The object a value is when its keys are exactly `keys`, as jq's `keys == [...]` held.
+/// An object with exactly the required keys.
 fn exact_keys<'a>(value: &'a Value, keys: &[&str]) -> Option<&'a Map<String, Value>> {
 	let object = value.as_object()?;
 	(object.len() == keys.len() && keys.iter().all(|key| object.contains_key(*key))).then_some(object)

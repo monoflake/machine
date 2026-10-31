@@ -12,9 +12,60 @@ use std::sync::Mutex;
 use std::time::Duration;
 
 use daemon::{LEAF, MIDDLE, SYSTEM, TestDaemon, bucket, path, trusted};
+use harmonia_protocol::ProtocolVersion;
+use harmonia_protocol::daemon_wire::logger::STDERR_LAST;
+use harmonia_protocol::daemon_wire::types::Operation;
+use harmonia_protocol::daemon_wire::{CLIENT_MAGIC, SERVER_MAGIC};
+use harmonia_protocol::de::{NixRead, NixReader};
+use harmonia_protocol::ser::{NixWrite, NixWriter};
+use harmonia_protocol::types::{ClientOptions, TrustLevel};
 use machine_update::bucket::Remote;
 use machine_update::effects::{Bucket, BucketError, Object, Store, StoreError};
 use machine_update::store::Daemon;
+use tokio::io::AsyncWriteExt;
+use tokio::net::UnixListener;
+
+#[tokio::test]
+async fn connection_disallows_build_jobs_and_keeps_substitution_enabled() {
+	within_a_minute(async {
+		let (_directory, root) = daemon::directory();
+		let socket = root.join("socket");
+		let listener = UnixListener::bind(&socket).unwrap();
+		let server = tokio::spawn(async move {
+			let (stream, _) = listener.accept().await.unwrap();
+			let (read, write) = stream.into_split();
+			let mut reader = NixReader::new(read);
+			let mut writer = NixWriter::new(write);
+			assert_eq!(reader.read_number().await.unwrap(), CLIENT_MAGIC);
+			let version = ProtocolVersion::from_parts(1, 37);
+			writer.write_number(SERVER_MAGIC).await.unwrap();
+			writer.write_value(&version).await.unwrap();
+			writer.flush().await.unwrap();
+			assert_eq!(reader.read_value::<ProtocolVersion>().await.unwrap(), version);
+			reader.set_version(version);
+			writer.set_version(version);
+			assert!(!reader.read_value::<bool>().await.unwrap());
+			assert!(!reader.read_value::<bool>().await.unwrap());
+			writer.write_value("test daemon").await.unwrap();
+			writer.write_value(&Some(TrustLevel::Trusted)).await.unwrap();
+			writer.write_number(STDERR_LAST).await.unwrap();
+			writer.flush().await.unwrap();
+			assert_eq!(reader.read_value::<Operation>().await.unwrap(), Operation::SetOptions);
+			let options = reader.read_value::<ClientOptions>().await.unwrap();
+			writer.write_number(STDERR_LAST).await.unwrap();
+			writer.flush().await.unwrap();
+			options
+		});
+		let _store =
+			Daemon::connect(&socket, Remote::Directory(root.clone()), &trusted()).await.unwrap();
+		let options = server.await.unwrap();
+		assert_eq!(options.max_build_jobs, 0, "realization must never start a build job");
+		assert!(options.use_substitutes, "missing paths must come from substitutes");
+		// The connection leaves builders at the daemon's setting rather than overriding them.
+		assert!(!options.other_settings.contains_key("builders"));
+	})
+	.await;
+}
 
 /// Fails a test that runs past a minute rather than letting it hang.
 async fn within_a_minute<F: Future<Output = ()>>(test: F) {

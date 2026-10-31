@@ -1,4 +1,4 @@
-//! Every fetch shell run in its original order, with state and effects checked.
+//! Recorded system update behavior in its original order, with state and effects checked.
 
 use std::fs;
 
@@ -21,7 +21,7 @@ async fn refused(f: &mut Fixture, reason: &str, accepted: &[u8]) {
 }
 
 #[tokio::test(start_paused = true)]
-async fn shell_fetch_transcript_and_invariants() {
+async fn system_update_transcript_and_invariants() {
 	let mut f = Fixture::new(false);
 	f.signed(&f.system_pointer(0, "1"));
 	assert_eq!(f.fetch(true).await.0, 0);

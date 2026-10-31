@@ -278,8 +278,8 @@ impl Clock for SystemClock {
 	}
 }
 
-/// Where a link points, `None` where there is no link. A path that exists and is not a link also
-/// gives `None`, as the shell's `readlink x || current=` did; any other failure is an error.
+/// Returns a link's target, or `None` for a missing path or a path that is not a link.
+/// Other failures return an error.
 pub fn read_link(link: &Path) -> io::Result<Option<String>> {
 	match std::fs::read_link(link) {
 		Ok(target) => target

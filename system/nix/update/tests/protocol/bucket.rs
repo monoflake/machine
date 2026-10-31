@@ -1,5 +1,4 @@
-//! The `[systems]` profile read as `fetch.sh`'s awk read it, and a bucket's name and endpoint
-//! checked as its patterns checked them.
+//! The credentials profile, bucket name and endpoint follow the recorded validation rules.
 
 use machine_update::bucket::{Credentials, Remote, credentials};
 use machine_update::output::Refusal;

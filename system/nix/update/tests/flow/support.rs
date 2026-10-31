@@ -16,7 +16,7 @@ use machine_update::output::Output;
 use machine_update::{archive, flow, host};
 use serde_json::{Value, json};
 
-/// The incoming system used by the shell scenarios.
+/// The incoming system used by the recorded scenarios.
 pub const NEW: &str = "/nix/store/0123456789abcdfghijklmnpqrsvwxyz-system";
 /// The system running before the first take.
 pub const OLD: &str = "/nix/store/1123456789abcdfghijklmnpqrsvwxyz-system";
@@ -181,7 +181,7 @@ impl Units for UnitsFake {
 	}
 }
 
-/// The shell scenarios' fixed current time.
+/// The recorded scenarios' fixed current time.
 pub struct ClockFake;
 impl Clock for ClockFake {
 	fn now(&self) -> i64 {
@@ -415,7 +415,7 @@ impl Fixture {
 		)
 		.unwrap();
 	}
-	/// Compares every run with the recorded shell transcript.
+	/// Compares every run with the recorded behavior the Rust flow must match.
 	pub fn compare(&self, sample: &str) {
 		let mut expected = Vec::<(i32, String)>::new();
 		for line in sample.lines() {
