@@ -425,7 +425,7 @@ shows for an S3-compatible store, https://nix.dev/manual/nix/2.34/store/types/s3
 A builder holds three more keys, each a file: `signingKey`, the Nix secret key; `pointerKey`, the
 SSH key signing pointers; and `accessKey`, the SSH key reaching the wrapper.
 
-**Verify runs the cache's tests**, `tests.sh`: the endpoint's forms, the protocol of slots, claims
+**Verify runs the cache's tests**, listed in `scripts/verify/tests.res` beside the rest: the endpoint's forms, the protocol of slots, claims
 and pointers, delivery with a bucket under the cap uploading and one past it uploading nothing, the
 lock, the own system publishing nothing, the inventory's derivation and the module's units against
 a directory with `rclone` and `ssh` faked, the directory's size summed over its files as `rclone

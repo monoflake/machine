@@ -81,7 +81,7 @@ run = "node {{env.WORKSPACE}}/scripts/clean.res.mjs"
 
 [tasks.verify]
 description = "What a commit has to pass: everything formatted, the scripts compiled, the Nix linted, the flake evaluated for every system, the Rust formatted, linted and tested on each HTTPS provider with its licenses checked, the cache's and the seed's tests run; the workflows are the workspace's check"
-run = "mise run verify:format && mise run verify:nix && mise run verify:rust && mise run verify:tests"
+run = "mise run verify:format ::: verify:nix ::: verify:rust ::: verify:tests"
 
 [tasks."verify:format"]
 description = "Check formatting and compile the scripts"
@@ -96,8 +96,8 @@ description = "Format, lint and test the Rust and check its licenses"
 run = ["cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test && cargo clippy --all-targets --no-default-features --features ring -- -D warnings && cargo test --no-default-features --features ring && cargo deny check"]
 
 [tasks."verify:tests"]
-description = "Run the shell and eval tests"
-run = ["bash system/nix/cache/tests/tests.sh && bash system/nix/update/tests/fetch-test.sh && bash system/nix/update/tests/driver-test.sh && bash system/nix/update/tests/driver-eval-test.sh && bash system/nix/update/tests/eval-test.sh && bash system/nix/update/tests/nudge-eval-test.sh && bash system/nix/update/tests/nudge-test.sh && bash system/base/seed/tests.sh && bash system/network/tests.sh && nix eval --impure --json --file system/names-test.nix --apply 'f: f {}' && nix eval --impure --json --file system/base/time/eval-test.nix --apply 'f: f {}' && nix eval --impure --json --file system/nix/collect-test.nix --apply 'f: f {}' && bash .github/update/driver-test.sh"]
+description = "Run the shell and eval tests at once, one per core"
+run = "rescript build > /dev/null && node scripts/verify/tests.res.mjs"
 
 [tasks.channel]
 description = "Use the lock's Nix and align the daemon with it"

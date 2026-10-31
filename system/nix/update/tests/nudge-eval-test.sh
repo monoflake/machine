@@ -3,7 +3,7 @@ set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 t=$(realpath "$(mktemp -d)")
 trap 'rm -rf "$t"' EXIT
-rsync -a --exclude=.jj --exclude=.git --exclude=node_modules "$here/../../../../" "$t/"
+rsync -a --exclude=.jj --exclude=.git --exclude=node_modules --exclude=target "$here/../../../../" "$t/"
 ssh-keygen -q -t ed25519 -N '' -C '' -f "$t/key"
 openssl rand -base64 32 >"$t/nix-key"
 nix eval --impure --json --expr "
