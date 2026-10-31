@@ -34,8 +34,7 @@ let
       c = configured system { inherit key expiry; } true;
       disabled = configured system { } true;
       off = configured system { } false;
-      pkgs = import flake.inputs.nixpkgs { inherit system; };
-      package = pkgs.callPackage (flake.outPath + "/system/nix/update/package.nix") { };
+      package = c.machine.update.package;
       user = c.users.users.nudge;
       rule =
         lib.replaceStrings [ disabled.security.polkit.extraConfig ] [ "" ]

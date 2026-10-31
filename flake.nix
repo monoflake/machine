@@ -2,6 +2,7 @@
   description = "NixOS module and template for a Linux container host";
 
   inputs = {
+    crane.url = "github:ipetkov/crane";
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
     unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
     latest.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
@@ -18,6 +19,7 @@
       unstable,
       latest,
       disko,
+      crane,
       ...
     }:
     let
@@ -43,13 +45,16 @@
       };
 
       # A fleet machine, the base layer and the driver, containers and updates above it.
-      nixosModules.machine = {
-        imports = [
-          disko.nixosModules.disko
-          self.nixosModules.base
-          system
-        ];
-      };
+      nixosModules.machine =
+        { pkgs, ... }:
+        {
+          imports = [
+            disko.nixosModules.disko
+            self.nixosModules.base
+            system
+          ];
+          machine.update.package = self.packages.${pkgs.stdenv.hostPlatform.system}.machine-update;
+        };
 
       lib = {
         swap = import ./system/base/swap.nix;
@@ -147,7 +152,9 @@
 
       # The update path's programs, for each machine's system and the Mac its tests run on.
       packages = each (pkgs: {
-        machine-update = pkgs.callPackage ./system/nix/update/package.nix { };
+        machine-update = pkgs.callPackage ./system/nix/update/package.nix {
+          craneLib = crane.mkLib pkgs;
+        };
       });
 
       formatter = each (pkgs: pkgs.nixfmt);

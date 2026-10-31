@@ -97,6 +97,12 @@ in
         };
       };
       update = {
+        package = mkOption {
+          type = types.package;
+          readOnly = true;
+          internal = true;
+          description = "The update path's programs, the flake's build.";
+        };
         enable = lib.mkEnableOption "signed system pointer updates";
         bucket = mkOption {
           type = types.nullOr types.nonEmptyStr;
