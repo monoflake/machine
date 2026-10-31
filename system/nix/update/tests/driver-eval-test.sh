@@ -15,4 +15,4 @@ in import $here/driver-eval-test.nix {
 }
 " >"$t/result"
 jq -e 'all(.[]; .passed)' "$t/result" >/dev/null
-echo 'driver eval: exclusive sources, update requirement, binary paths, hardening, timer, build guard configuration and whole system passed on both Linux architectures'
+echo 'driver eval: exclusive sources, update requirement, binary paths, updater binary, isolated rollback PATH, hardening, timer, build guard configuration and whole system passed on both Linux architectures'

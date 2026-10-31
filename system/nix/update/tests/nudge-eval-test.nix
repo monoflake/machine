@@ -34,6 +34,8 @@ let
       c = configured system { inherit key expiry; } true;
       disabled = configured system { } true;
       off = configured system { } false;
+      pkgs = import flake.inputs.nixpkgs { inherit system; };
+      package = pkgs.callPackage (flake.outPath + "/system/nix/update/package.nix") { };
       user = c.users.users.nudge;
       rule =
         lib.replaceStrings [ disabled.security.polkit.extraConfig ] [ "" ]
@@ -65,8 +67,8 @@ let
     assert user.password == null;
     assert user.openssh.authorizedKeys.keyFiles == [ ];
     assert keys == [ (prefix + command + suffix) ];
-    assert lib.hasPrefix "/nix/store/" command;
-    assert lib.hasSuffix "/bin/machine-update-nudge" command;
+    assert command == lib.getExe' package "machine-update-nudge";
+    assert !(builtins.elem package c.environment.systemPackages);
     assert
       builtins.filter (line: line != "" && !lib.hasPrefix "#!" line) (
         lib.splitString "\n" user.shell.text

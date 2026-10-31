@@ -15,4 +15,4 @@ in import $here/eval-test.nix {
 }
 " >"$t/result"
 jq -e 'all(.[]; .passed)' "$t/result" >/dev/null
-echo 'update eval: required options, cache exclusion, runtime access paths, trust, service and timer passed on both Linux architectures'
+echo 'update eval: required options, cache exclusion, updater binary, dry run wrapper, isolated PATH, daemon credential exclusion, runtime access paths, trust, service and timer passed on both Linux architectures'

@@ -30,29 +30,7 @@ let
       trusted = lib.concatStringsSep " " config.nix.settings.trusted-public-keys;
     }
   );
-  fetch = pkgs.writeShellApplication {
-    name = "machine-update-fetch";
-    runtimeInputs = [
-      config.nix.package
-      pkgs.coreutils
-      pkgs.curl
-      pkgs.diffutils
-      pkgs.gawk
-      pkgs.jq
-      pkgs.openssh
-      pkgs.gnutar
-      pkgs.gzip
-      pkgs.util-linux
-      pkgs.systemd
-    ];
-    text = lib.concatMapStrings builtins.readFile [
-      ./protocol.sh
-      ./driver-protocol.sh
-      ./driver-links.sh
-      ./driver.sh
-      ./fetch.sh
-    ];
-  };
+  package = pkgs.callPackage ./package.nix { };
   # The service's own check by hand, run over ssh, which realises nothing and writes no state.
   check = pkgs.writeShellScriptBin "machine-update-check" ''
     export MACHINE_UPDATE_CONFIG=${given}
@@ -60,17 +38,14 @@ let
     instance=''${1:-system}
     case $instance in system | driver) ;; *) echo 'update: unsupported instance' >&2; exit 1 ;; esac
     export STATE_DIRECTORY=/var/lib/machine-update/$instance
-    exec ${lib.getExe fetch} "$instance" --dry-run
+    exec ${lib.getExe' package "machine-update-fetch"} "$instance" --dry-run
   '';
-  rollback = pkgs.writeShellApplication {
-    name = "machine-driver-rollback";
-    runtimeInputs = [
-      pkgs.coreutils
-      pkgs.util-linux
-      pkgs.systemd
-    ];
-    text = builtins.readFile ./driver-links.sh + builtins.readFile ./rollback.sh;
-  };
+  rollback = pkgs.linkFarm "machine-driver-rollback" [
+    {
+      name = "bin/machine-driver-rollback";
+      path = lib.getExe' package "machine-driver-rollback";
+    }
+  ];
 in
 {
   imports = [ ./nudge.nix ];
@@ -107,8 +82,6 @@ in
       ]
       ++ lib.optional (config.machine.driver.enable && config.machine.driver.channel) rollback;
       systemd = {
-        # A path alone, so a realise through the daemon reads the same root only file.
-        services.nix-daemon.environment.AWS_SHARED_CREDENTIALS_FILE = cfg.credentialsFile;
         services."update-now@" = {
           description = "Take the signed update pointer for %i";
           wants = [ "network-online.target" ];
@@ -122,7 +95,7 @@ in
           };
           serviceConfig = {
             Type = "oneshot";
-            ExecStart = "${lib.getExe fetch} %i";
+            ExecStart = "${lib.getExe' package "machine-update-fetch"} %i";
             StateDirectory = "machine-update/%i";
             StateDirectoryMode = "0700";
             UMask = "0077";

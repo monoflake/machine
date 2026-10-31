@@ -38,4 +38,4 @@ for (const { rule } of Object.values(JSON.parse(fs.readFileSync(process.argv[2],
 	}
 }
 JS
-echo 'nudge eval: pairing, account, exact key, polkit permissions, unchanged SSH and firewall, and disabled defaults passed on both Linux architectures'
+echo 'nudge eval: pairing, account, exact key, package forced command and shell, isolated PATH, polkit permissions, unchanged SSH and firewall, and disabled defaults passed on both Linux architectures'
