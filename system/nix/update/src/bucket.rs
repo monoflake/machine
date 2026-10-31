@@ -199,7 +199,7 @@ async fn request(
 	}
 }
 
-/// The client every bucket request shares, following no redirect, as `curl` did without `--location`.
+/// The client bucket requests share, following no redirect, as `curl` did without `--location`.
 fn s3_client() -> Result<reqwest::Client, BucketError> {
 	static CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
 	if let Some(client) = CLIENT.get() {

@@ -1,6 +1,5 @@
 //! A closure taken into a temporary store under a trusted daemon, from the sample bucket in
-//! references' order and from the daemon's upstream, and refused where a narinfo is not the one
-//! signed.
+//! references' order or the daemon's upstream, refused where a narinfo is not the one signed.
 
 #![cfg(test)]
 
