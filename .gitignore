@@ -4,3 +4,4 @@ result-*
 node_modules/
 lib/
 *.res.mjs
+/target

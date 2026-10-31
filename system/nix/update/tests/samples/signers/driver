@@ -1,0 +1,2 @@
+ci namespaces="driver-pointer" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHTk9f4eGgSipQUCyyP0Qauq1ocBE0dv2UilQqNPc6wM ci
+mac namespaces="driver-pointer" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMvTMyrbwVjxt22UBuDX5nTGGA8KfTg5UDa0pX+5+tWS mac

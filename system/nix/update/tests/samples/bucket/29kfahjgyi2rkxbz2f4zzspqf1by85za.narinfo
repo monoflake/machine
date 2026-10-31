@@ -1,0 +1,10 @@
+StorePath: /nix/store/29kfahjgyi2rkxbz2f4zzspqf1by85za-update-sample-leaf
+URL: nar/1dc326fmk3kb0m22lfp61x8zzri6fy35z8ahavfbq27i6mxkayf8.nar.zst
+Compression: zstd
+FileHash: sha256:1dc326fmk3kb0m22lfp61x8zzri6fy35z8ahavfbq27i6mxkayf8
+FileSize: 122
+NarHash: sha256:10f6lxb7j9cii6ffzl5agc6hla2r38myzn9vqv72ry3iyblv0ka9
+NarSize: 160
+References: 
+Sig: update-test-1:kyxS30ziWkGYWjZHOY3mJh4l33sajwPy9v5TH030dMDe36Os17jSYzqRk+S644lF/mA+JxfCPcB5lY00elcQBA==
+CA: text:sha256:1civ0a0cq1y0gjdbcn5jkiwff5hw0vs26wx88gp8ic1pn69hrnla

@@ -1,0 +1,393 @@
+### run 1: --dry-run, exit 0
+update: reading runtime access files
+update: fetching driver pointer
+update: fetching pointer signature
+update: verifying driver pointer signature
+update: validating driver pointer
+update: reading the running driver
+update: dry run would install pointer driver
+### run 2: (no arguments), exit 1
+update: reading runtime access files
+update: fetching driver pointer
+update: fetching pointer signature
+update: verifying driver pointer signature
+update: validating driver pointer
+update: reading the running driver
+update: downloading driver archive
+update: checking driver archive SHA-256
+update: unpacking driver archive
+update: switching driver links
+update: restarting driver services
+update: https://<endpoint>
+update: [systems]
+update: aws_access_key_id = <key>
+update: aws_secret_access_key = <secret>
+update: restart failed, restoring previous driver
+update: refused, driver restart failed
+### run 3: (no arguments), exit 0
+update: reading runtime access files
+update: fetching driver pointer
+update: fetching pointer signature
+update: verifying driver pointer signature
+update: validating driver pointer
+update: reading the running driver
+update: downloading driver archive
+update: checking driver archive SHA-256
+update: unpacking driver archive
+update: switching driver links
+update: restarting driver services
+update: accepted pointer recorded
+update: removing older driver versions
+update: driver install succeeded
+### run 4: (no arguments), exit 0
+update: reading runtime access files
+update: fetching driver pointer
+update: fetching pointer signature
+update: verifying driver pointer signature
+update: validating driver pointer
+update: pointer already taken
+### run 5: (no arguments), exit 0
+update: reading runtime access files
+update: fetching driver pointer
+update: fetching pointer signature
+update: verifying driver pointer signature
+update: validating driver pointer
+update: reading the running driver
+update: pointer is the running driver
+update: accepted pointer recorded
+### run 6: (no arguments), exit 0
+update: reading runtime access files
+update: fetching driver pointer
+update: no driver pointer, nothing to do
+### run 7: (no arguments), exit 0
+update: reading runtime access files
+update: fetching driver pointer
+update: fetching pointer signature
+update: no driver pointer, nothing to do
+### run 8: (no arguments), exit 0
+update: reading runtime access files
+update: fetching driver pointer
+update: no driver pointer, nothing to do
+### run 9: (no arguments), exit 1
+update: reading runtime access files
+update: fetching driver pointer
+update: refused, pointer fetch failed
+### run 10: (no arguments), exit 1
+update: reading runtime access files
+update: fetching driver pointer
+update: refused, pointer fetch failed
+### run 11: (no arguments), exit 1
+update: reading runtime access files
+update: fetching driver pointer
+update: refused, pointer fetch failed
+### run 12: (no arguments), exit 0
+update: reading runtime access files
+update: fetching driver pointer
+update: fetching pointer signature
+update: no driver pointer, nothing to do
+### run 13: (no arguments), exit 1
+update: reading runtime access files
+update: fetching driver pointer
+update: fetching pointer signature
+update: refused, signature fetch failed
+### run 14: (no arguments), exit 1
+update: reading runtime access files
+update: fetching driver pointer
+update: fetching pointer signature
+update: refused, signature fetch failed
+### run 15: (no arguments), exit 1
+update: reading runtime access files
+update: fetching driver pointer
+update: fetching pointer signature
+update: refused, signature fetch failed
+### run 16: (no arguments), exit 0
+update: reading runtime access files
+update: fetching driver pointer
+update: fetching pointer signature
+update: verifying driver pointer signature
+update: validating driver pointer
+update: pointer already taken
+### run 17: (no arguments), exit 1
+update: reading runtime access files
+update: fetching driver pointer
+update: fetching pointer signature
+update: verifying driver pointer signature
+update: refused, invalid driver-pointer signature
+### run 18: (no arguments), exit 1
+update: reading runtime access files
+update: fetching driver pointer
+update: fetching pointer signature
+update: verifying driver pointer signature
+update: refused, invalid driver-pointer signature
+### run 19: (no arguments), exit 1
+update: reading runtime access files
+update: fetching driver pointer
+update: fetching pointer signature
+update: verifying driver pointer signature
+update: refused, invalid driver-pointer signature
+### run 20: (no arguments), exit 0
+update: reading runtime access files
+update: fetching driver pointer
+update: fetching pointer signature
+update: verifying driver pointer signature
+update: validating driver pointer
+update: pointer already taken
+### run 21: (no arguments), exit 1
+update: reading runtime access files
+update: fetching driver pointer
+update: fetching pointer signature
+update: verifying driver pointer signature
+update: validating driver pointer
+update: refused, build archives not allowed on this machine
+### run 22: (no arguments), exit 1
+update: reading runtime access files
+update: fetching driver pointer
+update: fetching pointer signature
+update: verifying driver pointer signature
+update: validating driver pointer
+update: refused, written for another machine
+### run 23: (no arguments), exit 1
+update: reading runtime access files
+update: fetching driver pointer
+update: fetching pointer signature
+update: verifying driver pointer signature
+update: validating driver pointer
+update: reading the running driver
+update: downloading driver archive
+update: checking driver archive SHA-256
+update: refused, archive SHA-256 differs
+### run 24: (no arguments), exit 1
+update: reading runtime access files
+update: fetching driver pointer
+update: fetching pointer signature
+update: verifying driver pointer signature
+update: validating driver pointer
+update: refused, build archives not allowed on this machine
+### run 25: (no arguments), exit 1
+update: reading runtime access files
+update: fetching driver pointer
+update: fetching pointer signature
+update: verifying driver pointer signature
+update: validating driver pointer
+update: refused, malformed version
+### run 26: (no arguments), exit 1
+update: reading runtime access files
+update: fetching driver pointer
+update: fetching pointer signature
+update: verifying driver pointer signature
+update: validating driver pointer
+update: refused, malformed time
+### run 27: (no arguments), exit 1
+update: reading runtime access files
+update: fetching driver pointer
+update: fetching pointer signature
+update: verifying driver pointer signature
+update: validating driver pointer
+update: refused, more than one hour ahead of its clock
+### run 28: (no arguments), exit 1
+update: reading runtime access files
+update: fetching driver pointer
+update: fetching pointer signature
+update: verifying driver pointer signature
+update: validating driver pointer
+update: refused, malformed run
+### run 29: (no arguments), exit 1
+update: reading runtime access files
+update: fetching driver pointer
+update: fetching pointer signature
+update: verifying driver pointer signature
+update: validating driver pointer
+update: refused, malformed driver pointer fields or archive
+### run 30: (no arguments), exit 1
+update: reading runtime access files
+update: fetching driver pointer
+update: fetching pointer signature
+update: verifying driver pointer signature
+update: validating driver pointer
+update: refused, malformed driver pointer fields or archive
+### run 31: (no arguments), exit 1
+update: reading runtime access files
+update: fetching driver pointer
+update: fetching pointer signature
+update: verifying driver pointer signature
+update: validating driver pointer
+update: refused, malformed driver pointer fields or archive
+### run 32: (no arguments), exit 1
+update: reading runtime access files
+update: fetching driver pointer
+update: fetching pointer signature
+update: verifying driver pointer signature
+update: validating driver pointer
+update: refused, older at than accepted pointer
+### run 33: (no arguments), exit 1
+update: reading runtime access files
+update: fetching driver pointer
+update: fetching pointer signature
+update: verifying driver pointer signature
+update: validating driver pointer
+update: refused, accepted run changed pointer
+### run 34: (no arguments), exit 1
+update: reading runtime access files
+update: fetching driver pointer
+update: fetching pointer signature
+update: verifying driver pointer signature
+update: validating driver pointer
+update: refused, equal at from another run
+### run 35: (no arguments), exit 1
+update: reading runtime access files
+update: fetching driver pointer
+update: fetching pointer signature
+update: verifying driver pointer signature
+update: validating driver pointer
+update: reading the running driver
+update: downloading driver archive
+update: checking driver archive SHA-256
+update: unpacking driver archive
+update: refused, archive lacks executable driver-machine
+### run 36: (no arguments), exit 1
+update: reading runtime access files
+update: fetching driver pointer
+update: fetching pointer signature
+update: verifying driver pointer signature
+update: validating driver pointer
+update: reading the running driver
+update: downloading driver archive
+update: checking driver archive SHA-256
+update: unpacking driver archive
+update: switching driver links
+update: restarting driver services
+update: https://<endpoint>
+update: [systems]
+update: aws_access_key_id = <key>
+update: aws_secret_access_key = <secret>
+update: restart failed, restoring previous driver
+update: refused, driver restart failed
+### run 37: --dry-run, exit 0
+update: reading runtime access files
+update: fetching driver pointer
+update: fetching pointer signature
+update: verifying driver pointer signature
+update: validating driver pointer
+update: reading the running driver
+update: dry run would install pointer driver
+### run 38: (no arguments), exit 0
+update: reading runtime access files
+update: fetching driver pointer
+update: fetching pointer signature
+update: verifying driver pointer signature
+update: validating driver pointer
+update: reading the running driver
+update: downloading driver archive
+update: checking driver archive SHA-256
+update: unpacking driver archive
+update: switching driver links
+update: restarting driver services
+update: accepted pointer recorded
+update: removing older driver versions
+update: driver install succeeded
+### run 39: (no arguments), exit 1
+update: reading runtime access files
+update: fetching driver pointer
+update: fetching pointer signature
+update: verifying driver pointer signature
+update: validating driver pointer
+update: refused, build archives not allowed on this machine
+### run 40: (no arguments), exit 1
+update: reading runtime access files
+update: fetching driver pointer
+update: fetching pointer signature
+update: verifying driver pointer signature
+update: validating driver pointer
+update: refused, build archives not allowed on this machine
+### run 41: (no arguments), exit 1
+update: reading runtime access files
+update: fetching driver pointer
+update: fetching pointer signature
+update: verifying driver pointer signature
+update: validating driver pointer
+update: reading the running driver
+update: downloading driver archive
+update: refused, archive download failed
+### run 42: (no arguments), exit 0
+update: reading runtime access files
+update: fetching driver pointer
+update: fetching pointer signature
+update: verifying driver pointer signature
+update: validating driver pointer
+update: reading the running driver
+update: downloading driver archive
+update: checking driver archive SHA-256
+update: unpacking driver archive
+update: switching driver links
+update: restarting driver services
+update: accepted pointer recorded
+update: removing older driver versions
+update: driver install succeeded
+### run 43: (no arguments), exit 0
+update: reading runtime access files
+update: fetching driver pointer
+update: fetching pointer signature
+update: verifying driver pointer signature
+update: validating driver pointer
+update: pointer already taken
+### run 44: (no arguments), exit 0
+update: reading runtime access files
+update: fetching driver pointer
+update: no driver pointer, nothing to do
+### run 45: (no arguments), exit 0
+update: reading runtime access files
+update: fetching driver pointer
+update: fetching pointer signature
+update: no driver pointer, nothing to do
+### run 46: (no arguments), exit 0
+update: reading runtime access files
+update: fetching driver pointer
+update: fetching pointer signature
+update: verifying driver pointer signature
+update: validating driver pointer
+update: pointer already taken
+### run 47: (no arguments), exit 0
+update: reading runtime access files
+update: fetching driver pointer
+update: fetching pointer signature
+update: verifying driver pointer signature
+update: validating driver pointer
+update: reading the running driver
+update: downloading driver archive
+update: checking driver archive SHA-256
+update: unpacking driver archive
+update: switching driver links
+update: restarting driver services
+update: accepted pointer recorded
+update: removing older driver versions
+update: driver install succeeded
+### run 48: (no arguments), exit 0
+update: reading runtime access files
+update: fetching driver pointer
+update: fetching pointer signature
+update: verifying driver pointer signature
+update: validating driver pointer
+update: reading the running driver
+update: downloading driver archive
+update: checking driver archive SHA-256
+update: unpacking driver archive
+update: switching driver links
+update: restarting driver services
+update: accepted pointer recorded
+update: removing older driver versions
+update: driver install succeeded
+### run 49: (no arguments), exit 0
+update: reading runtime access files
+update: fetching driver pointer
+update: fetching pointer signature
+update: verifying driver pointer signature
+update: validating driver pointer
+update: reading the running driver
+update: downloading driver archive
+update: checking driver archive SHA-256
+update: unpacking driver archive
+update: switching driver links
+update: restarting driver services
+update: accepted pointer recorded
+update: removing older driver versions
+update: driver install succeeded

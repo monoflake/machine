@@ -1,0 +1,59 @@
+[package]
+name = "machine-update"
+description = "A machine's signed updates, its system and its driver taken from the bucket's pointers"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "machine-update-fetch"
+path = "src/bin/fetch.rs"
+
+[[bin]]
+name = "machine-driver-rollback"
+path = "src/bin/rollback.rs"
+
+[[bin]]
+name = "machine-update-nudge"
+path = "src/bin/nudge.rs"
+
+# HTTPS's crypto provider, aws-lc-rs unless only ring is asked for, decided by the author on
+# 2026-10-31, RFC cbtjl; with both on, aws-lc-rs is the one installed.
+[features]
+default = ["aws-lc-rs"]
+aws-lc-rs = ["rustls/aws_lc_rs"]
+ring = ["rustls/ring"]
+
+[dependencies]
+async-compression = { version = "0.4.51", features = ["tokio", "zstd"] }
+flate2 = "1.1.10"
+futures-util = "0.3.34"
+harmonia-protocol.workspace = true
+harmonia-store-nar-info.workspace = true
+harmonia-store-path.workspace = true
+harmonia-store-remote.workspace = true
+harmonia-utils-signature.workspace = true
+hex = "0.4.3"
+reqwest = { version = "0.13.5", default-features = false, features = ["rustls-no-provider", "stream", "http2"] }
+rustls = { version = "0.23.46", default-features = false, features = ["std", "tls12"] }
+rustix = { version = "1.1.6", features = ["fs"] }
+rusty-s3 = "0.11.0"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+sha2 = "0.10"
+ssh-key = { version = "0.6.7", features = ["ed25519", "std"] }
+tar = "0.4.46"
+thiserror = "2.0.21"
+time = { version = "0.3.55", features = ["parsing", "formatting", "macros"] }
+tokio = { version = "1.54.1", features = ["rt", "macros", "net", "io-util", "fs", "process", "time", "sync"] }
+tokio-util = "0.7.20"
+url = "2.5.8"
+zbus = { version = "6.2.0", default-features = false, features = ["tokio"] }
+
+[dev-dependencies]
+tempfile = "3.27.0"

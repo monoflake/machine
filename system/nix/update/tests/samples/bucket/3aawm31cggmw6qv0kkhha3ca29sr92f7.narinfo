@@ -1,0 +1,10 @@
+StorePath: /nix/store/3aawm31cggmw6qv0kkhha3ca29sr92f7-update-sample-system
+URL: nar/1xcw3k66x225bq0zxpjbjyflkjib9ns7bc27isgsg2yx9pfjf14s.nar.zst
+Compression: zstd
+FileHash: sha256:1xcw3k66x225bq0zxpjbjyflkjib9ns7bc27isgsg2yx9pfjf14s
+FileSize: 179
+NarHash: sha256:0h2b6a0r2ya4ngnypnr2v4bmya0z62y6432c97f7ammbj5b3qc2s
+NarSize: 240
+References: 29kfahjgyi2rkxbz2f4zzspqf1by85za-update-sample-leaf hzm4hmqjl2qmpm3qm1dciwj34rpfml14-update-sample-middle
+Deriver: kk6s0x2kcnsh1rfnwl7dhd01cvs0dj4q-update-sample-system.drv
+Sig: update-test-1:M7Mbd8kPeASm4EnQMnD1Eomjwj829zsUEJe44HaCQgBiQLiXrz/ZeCsiuVDZ5hWe8UJAHwHgnxwfH2aRHabZBw==

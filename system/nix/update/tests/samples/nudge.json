@@ -1,0 +1,43 @@
+{
+	"accepted": [
+		{
+			"command": "system",
+			"unit": "update-now@system.service",
+			"stdout": ["success", "/nix/store/0123456789abcdfghijklmnpqrsvwxyz-system"],
+			"exit": 0
+		},
+		{
+			"command": "driver",
+			"unit": "update-now@driver.service",
+			"stdout": ["success", "1.0"],
+			"exit": 0
+		},
+		{
+			"command": "system",
+			"unit": "update-now@system.service",
+			"failed": true,
+			"stdout": ["exit-code", "/nix/store/0123456789abcdfghijklmnpqrsvwxyz-system"],
+			"exit": 1
+		}
+	],
+	"refused": [
+		{ "command": "", "stderr": "nudge: refused ''" },
+		{ "command": "system; reboot", "stderr": "nudge: refused system\\;\\ reboot" },
+		{ "command": "system extra", "stderr": "nudge: refused system\\ extra" },
+		{ "command": " system", "stderr": "nudge: refused \\ system" },
+		{ "command": "restart", "stderr": "nudge: refused restart" },
+		{ "command": "system ", "stderr": "nudge: refused system\\ " },
+		{ "command": "system\nreboot", "stderr": "nudge: refused $'system\\nreboot'" },
+		{ "command": "tab\there", "stderr": "nudge: refused $'tab\\there'" },
+		{ "command": "it's", "stderr": "nudge: refused it\\'s" },
+		{ "command": "a$b", "stderr": "nudge: refused a\\$b" },
+		{ "command": "\"quoted\"", "stderr": "nudge: refused \\\"quoted\\\"" },
+		{ "command": "ünicode", "stderr": "nudge: refused ünicode" },
+		{ "command": "driver;", "stderr": "nudge: refused driver\\;" },
+		{ "command": "SYSTEM", "stderr": "nudge: refused SYSTEM" },
+		{ "command": "a*b", "stderr": "nudge: refused a\\*b" },
+		{ "command": "~home", "stderr": "nudge: refused \\~home" },
+		{ "command": "#comment", "stderr": "nudge: refused \\#comment" }
+	],
+	"unset": "nudge: refused ''"
+}

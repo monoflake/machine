@@ -145,6 +145,11 @@
         }
       );
 
+      # The update path's programs, for each machine's system and the Mac its tests run on.
+      packages = each (pkgs: {
+        machine-update = pkgs.callPackage ./system/nix/update/package.nix { };
+      });
+
       formatter = each (pkgs: pkgs.nixfmt);
     };
 }

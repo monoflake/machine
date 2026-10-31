@@ -1,0 +1,209 @@
+### run 1: --dry-run, exit 0
+update: reading runtime access files
+update: fetching system pointer
+update: fetching pointer signature
+update: verifying system pointer signature
+update: validating system pointer
+update: reading the running system
+update: pointer differs from the running system
+update: dry run would switch to pointer system
+### run 2: (no arguments), exit 0
+update: reading runtime access files
+update: fetching system pointer
+update: fetching pointer signature
+update: verifying system pointer signature
+update: validating system pointer
+update: reading the running system
+update: pointer differs from the running system
+update: realising system without builds
+update: setting system profile
+update: switching system
+update: accepted pointer recorded
+update: system switch succeeded
+### run 3: (no arguments), exit 0
+update: reading runtime access files
+update: fetching system pointer
+update: fetching pointer signature
+update: verifying system pointer signature
+update: validating system pointer
+update: pointer already taken
+update: reading the running system
+update: pointer is the running system
+### run 4: --dry-run, exit 0
+update: reading runtime access files
+update: fetching system pointer
+update: fetching pointer signature
+update: verifying system pointer signature
+update: validating system pointer
+update: pointer already taken
+update: reading the running system
+update: pointer is the running system
+### run 5: (no arguments), exit 0
+update: reading runtime access files
+update: fetching system pointer
+update: fetching pointer signature
+update: verifying system pointer signature
+update: validating system pointer
+update: reading the running system
+update: pointer is the running system
+update: accepted pointer recorded
+### run 6: (no arguments), exit 0
+update: reading runtime access files
+update: fetching system pointer
+update: fetching pointer signature
+update: verifying system pointer signature
+update: validating system pointer
+update: pointer already taken
+update: reading the running system
+update: pointer differs from the running system
+update: accepted pointer would not switch again
+### run 7: (no arguments), exit 1
+update: reading runtime access files
+update: fetching system pointer
+update: fetching pointer signature
+update: verifying system pointer signature
+update: refused, invalid system-pointer signature
+### run 8: (no arguments), exit 1
+update: reading runtime access files
+update: fetching system pointer
+update: fetching pointer signature
+update: verifying system pointer signature
+update: refused, invalid system-pointer signature
+### run 9: (no arguments), exit 1
+update: reading runtime access files
+update: fetching system pointer
+update: fetching pointer signature
+update: verifying system pointer signature
+update: refused, invalid system-pointer signature
+### run 10: (no arguments), exit 1
+update: reading runtime access files
+update: fetching system pointer
+update: fetching pointer signature
+update: verifying system pointer signature
+update: validating system pointer
+update: refused, written for another machine
+### run 11: (no arguments), exit 1
+update: reading runtime access files
+update: fetching system pointer
+update: fetching pointer signature
+update: verifying system pointer signature
+update: validating system pointer
+update: refused, malformed path
+### run 12: (no arguments), exit 1
+update: reading runtime access files
+update: fetching system pointer
+update: fetching pointer signature
+update: verifying system pointer signature
+update: validating system pointer
+update: refused, malformed time
+### run 13: (no arguments), exit 1
+update: reading runtime access files
+update: fetching system pointer
+update: fetching pointer signature
+update: verifying system pointer signature
+update: validating system pointer
+update: refused, malformed time
+### run 14: (no arguments), exit 1
+update: reading runtime access files
+update: fetching system pointer
+update: fetching pointer signature
+update: verifying system pointer signature
+update: validating system pointer
+update: refused, more than one hour ahead of its clock
+### run 15: (no arguments), exit 1
+update: reading runtime access files
+update: fetching system pointer
+update: fetching pointer signature
+update: verifying system pointer signature
+update: validating system pointer
+update: refused, malformed run
+### run 16: (no arguments), exit 1
+update: reading runtime access files
+update: fetching system pointer
+update: fetching pointer signature
+update: verifying system pointer signature
+update: validating system pointer
+update: refused, malformed run
+### run 17: (no arguments), exit 1
+update: reading runtime access files
+update: fetching system pointer
+update: fetching pointer signature
+update: verifying system pointer signature
+update: validating system pointer
+update: refused, malformed pointer fields
+### run 18: (no arguments), exit 1
+update: reading runtime access files
+update: fetching system pointer
+update: fetching pointer signature
+update: verifying system pointer signature
+update: validating system pointer
+update: refused, older at than accepted pointer
+### run 19: (no arguments), exit 1
+update: reading runtime access files
+update: fetching system pointer
+update: fetching pointer signature
+update: verifying system pointer signature
+update: validating system pointer
+update: refused, equal at from another run
+### run 20: (no arguments), exit 1
+update: reading runtime access files
+update: fetching system pointer
+update: fetching pointer signature
+update: verifying system pointer signature
+update: validating system pointer
+update: reading the running system
+update: pointer differs from the running system
+update: realising system without builds
+update: [other]
+update: aws_access_key_id = ignored
+update: [systems]
+update: aws_access_key_id = <key>
+update: aws_secret_access_key = <secret>
+update: refused, realise failed
+### run 21: (no arguments), exit 1
+update: reading runtime access files
+update: fetching system pointer
+update: fetching pointer signature
+update: verifying system pointer signature
+update: validating system pointer
+update: reading the running system
+update: pointer differs from the running system
+update: realising system without builds
+update: setting system profile
+update: refused, profile update failed
+### run 22: (no arguments), exit 1
+update: reading runtime access files
+update: fetching system pointer
+update: fetching pointer signature
+update: verifying system pointer signature
+update: validating system pointer
+update: reading the running system
+update: pointer differs from the running system
+update: realising system without builds
+update: setting system profile
+update: switching system
+update: [other]
+update: aws_access_key_id = ignored
+update: [systems]
+update: aws_access_key_id = <key>
+update: aws_secret_access_key = <secret>
+update: switch failed, restoring previous system
+update: refused, switch failed
+### run 23: --dry-run, exit 0
+update: reading runtime access files
+update: fetching system pointer
+update: fetching pointer signature
+update: verifying system pointer signature
+update: validating system pointer
+update: reading the running system
+update: pointer differs from the running system
+update: dry run would switch to pointer system
+### run 24: (no arguments), exit 1
+update: reading runtime access files
+update: fetching system pointer
+update: fetching pointer signature
+update: refused, signature fetch failed
+### run 25: (no arguments), exit 1
+update: reading runtime access files
+update: fetching system pointer
+update: refused, pointer fetch failed

@@ -3,6 +3,9 @@
 [env]
 _.path = ['''{{exec(command="if [ -f '" ~ config_root ~ "/scripts/channel/channel.res.mjs' ]; then node '" ~ config_root ~ "/scripts/channel/channel.res.mjs' path --lock '" ~ config_root ~ "'; else echo 'channel: compiled resolver missing; using /nix/var/nix/profiles/default' >&2; echo /nix/var/nix/profiles/default; fi")}}/bin''', "{{config_root}}/node_modules/.bin", "/nix/var/nix/profiles/default/bin"]
 
+[tools]
+cargo-deny = "0.20"
+
 # What oxfmt formats here.
 [vars]
 formatted = "README.md 'docs/**/*.md'"
@@ -28,7 +31,7 @@ nix run --inputs-from "path:$t" nixpkgs#nixfmt -- ${usage_check:+--check} $(find
 [tasks.nixed]
 description = "Lint the Nix with statix and deadnix and evaluate the flake for every system"
 run = """
-t=$(realpath "$(mktemp -d)") && rsync -a --exclude=.jj --exclude=.git --exclude=node_modules --include='*/' --include='*.nix' --include='*.lock' --exclude='*' --prune-empty-dirs ./ "$t/" || exit 1
+t=$(realpath "$(mktemp -d)") && rsync -a --exclude=.jj --exclude=.git --exclude=node_modules --exclude=target --include='*/' --include='*.nix' --include='*.lock' --include='*.toml' --include='*.rs' --exclude='*' --prune-empty-dirs ./ "$t/" || exit 1
 n() { p=$1; shift; nix run --inputs-from "path:$t" "nixpkgs#$p" -- "$@"; }
 n statix check "$t" && n deadnix --fail "$t" && nix flake check --all-systems --no-build "path:$t"
 """
@@ -77,8 +80,8 @@ depends = ["//:build"]
 run = "node {{env.WORKSPACE}}/scripts/clean.res.mjs"
 
 [tasks.verify]
-description = "What a commit has to pass: everything formatted, the scripts compiled, the Nix linted, the flake evaluated for every system, the cache's and the seed's tests run; the workflows are the workspace's check"
-run = ["oxfmt --check {{vars.formatted}}", "rescript format --check && rescript build", "mise run nixfmt --check", "mise run nixed", "bash system/nix/cache/tests/tests.sh && bash system/nix/update/tests/fetch-test.sh && bash system/nix/update/tests/driver-test.sh && bash system/nix/update/tests/driver-eval-test.sh && bash system/nix/update/tests/eval-test.sh && bash system/nix/update/tests/nudge-eval-test.sh && bash system/nix/update/tests/nudge-test.sh && bash system/base/seed/tests.sh && bash system/network/tests.sh && nix eval --impure --json --file system/names-test.nix --apply 'f: f {}' && nix eval --impure --json --file system/base/time/eval-test.nix --apply 'f: f {}' && nix eval --impure --json --file system/nix/collect-test.nix --apply 'f: f {}' && bash .github/update/driver-test.sh"]
+description = "What a commit has to pass: everything formatted, the scripts compiled, the Nix linted, the flake evaluated for every system, the Rust formatted, linted and tested on each HTTPS provider with its licenses checked, the cache's and the seed's tests run; the workflows are the workspace's check"
+run = ["oxfmt --check {{vars.formatted}}", "rescript format --check && rescript build", "mise run nixfmt --check && mise run nixed", "cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test && cargo clippy --all-targets --no-default-features --features ring -- -D warnings && cargo test --no-default-features --features ring && cargo deny check", "bash system/nix/cache/tests/tests.sh && bash system/nix/update/tests/fetch-test.sh && bash system/nix/update/tests/driver-test.sh && bash system/nix/update/tests/driver-eval-test.sh && bash system/nix/update/tests/eval-test.sh && bash system/nix/update/tests/nudge-eval-test.sh && bash system/nix/update/tests/nudge-test.sh && bash system/base/seed/tests.sh && bash system/network/tests.sh && nix eval --impure --json --file system/names-test.nix --apply 'f: f {}' && nix eval --impure --json --file system/base/time/eval-test.nix --apply 'f: f {}' && nix eval --impure --json --file system/nix/collect-test.nix --apply 'f: f {}' && bash .github/update/driver-test.sh"]
 
 [tasks.channel]
 description = "Use the lock's Nix and align the daemon with it"

@@ -1,0 +1,1322 @@
+[
+	{
+		"protocol": "system",
+		"builds": false,
+		"mutation": ".",
+		"pointer": {
+			"machine": "c1",
+			"path": "/nix/store/0123456789abcdfghijklmnpqrsvwxyz-system",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "1"
+		},
+		"reason": null
+	},
+	{
+		"protocol": "system",
+		"builds": false,
+		"mutation": ".machine=\"c2\"",
+		"pointer": {
+			"machine": "c2",
+			"path": "/nix/store/0123456789abcdfghijklmnpqrsvwxyz-system",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "1"
+		},
+		"reason": "written for another machine"
+	},
+	{
+		"protocol": "system",
+		"builds": false,
+		"mutation": ".path=\"/tmp/system\"",
+		"pointer": {
+			"machine": "c1",
+			"path": "/tmp/system",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "1"
+		},
+		"reason": "malformed path"
+	},
+	{
+		"protocol": "system",
+		"builds": false,
+		"mutation": ".path=\"/nix/store/short-system\"",
+		"pointer": {
+			"machine": "c1",
+			"path": "/nix/store/short-system",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "1"
+		},
+		"reason": "malformed path"
+	},
+	{
+		"protocol": "system",
+		"builds": false,
+		"mutation": ".path=\"/nix/store/0123456789abcdfghijklmnpqrsvwxyz-\"",
+		"pointer": {
+			"machine": "c1",
+			"path": "/nix/store/0123456789abcdfghijklmnpqrsvwxyz-",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "1"
+		},
+		"reason": "malformed path"
+	},
+	{
+		"protocol": "system",
+		"builds": false,
+		"mutation": ".path=\"/nix/store/0123456789abcdfghijklmnpqrsvwxyz-sys tem\"",
+		"pointer": {
+			"machine": "c1",
+			"path": "/nix/store/0123456789abcdfghijklmnpqrsvwxyz-sys tem",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "1"
+		},
+		"reason": "malformed path"
+	},
+	{
+		"protocol": "system",
+		"builds": false,
+		"mutation": ".at=\"tomorrow\"",
+		"pointer": {
+			"machine": "c1",
+			"path": "/nix/store/0123456789abcdfghijklmnpqrsvwxyz-system",
+			"at": "tomorrow",
+			"run": "1"
+		},
+		"reason": "malformed time"
+	},
+	{
+		"protocol": "system",
+		"builds": false,
+		"mutation": ".at=\"2026-02-30T12:00:00Z\"",
+		"pointer": {
+			"machine": "c1",
+			"path": "/nix/store/0123456789abcdfghijklmnpqrsvwxyz-system",
+			"at": "2026-02-30T12:00:00Z",
+			"run": "1"
+		},
+		"reason": "malformed time"
+	},
+	{
+		"protocol": "system",
+		"builds": false,
+		"mutation": ".at=\"2026-10-29T25:00:00Z\"",
+		"pointer": {
+			"machine": "c1",
+			"path": "/nix/store/0123456789abcdfghijklmnpqrsvwxyz-system",
+			"at": "2026-10-29T25:00:00Z",
+			"run": "1"
+		},
+		"reason": "malformed time"
+	},
+	{
+		"protocol": "system",
+		"builds": false,
+		"mutation": ".at=\"2026-10-29T15:00:00Z\"",
+		"pointer": {
+			"machine": "c1",
+			"path": "/nix/store/0123456789abcdfghijklmnpqrsvwxyz-system",
+			"at": "2026-10-29T15:00:00Z",
+			"run": "1"
+		},
+		"reason": null
+	},
+	{
+		"protocol": "system",
+		"builds": false,
+		"mutation": ".at=\"2026-10-29T15:00:01Z\"",
+		"pointer": {
+			"machine": "c1",
+			"path": "/nix/store/0123456789abcdfghijklmnpqrsvwxyz-system",
+			"at": "2026-10-29T15:00:01Z",
+			"run": "1"
+		},
+		"reason": "more than one hour ahead of its clock"
+	},
+	{
+		"protocol": "system",
+		"builds": false,
+		"mutation": ".at=\"2026-10-29 13:00:00Z\"",
+		"pointer": {
+			"machine": "c1",
+			"path": "/nix/store/0123456789abcdfghijklmnpqrsvwxyz-system",
+			"at": "2026-10-29 13:00:00Z",
+			"run": "1"
+		},
+		"reason": "malformed time"
+	},
+	{
+		"protocol": "system",
+		"builds": false,
+		"mutation": ".run=\"\"",
+		"pointer": {
+			"machine": "c1",
+			"path": "/nix/store/0123456789abcdfghijklmnpqrsvwxyz-system",
+			"at": "2026-10-29T13:00:00Z",
+			"run": ""
+		},
+		"reason": "malformed run"
+	},
+	{
+		"protocol": "system",
+		"builds": false,
+		"mutation": ".run=\"line\\nfeed\"",
+		"pointer": {
+			"machine": "c1",
+			"path": "/nix/store/0123456789abcdfghijklmnpqrsvwxyz-system",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "line\nfeed"
+		},
+		"reason": "malformed run"
+	},
+	{
+		"protocol": "system",
+		"builds": false,
+		"mutation": ".run=\"tab\\there\"",
+		"pointer": {
+			"machine": "c1",
+			"path": "/nix/store/0123456789abcdfghijklmnpqrsvwxyz-system",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "tab\there"
+		},
+		"reason": "malformed run"
+	},
+	{
+		"protocol": "system",
+		"builds": false,
+		"mutation": ".run=\"del\\u007f\"",
+		"pointer": {
+			"machine": "c1",
+			"path": "/nix/store/0123456789abcdfghijklmnpqrsvwxyz-system",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "del\u007f"
+		},
+		"reason": "malformed run"
+	},
+	{
+		"protocol": "system",
+		"builds": false,
+		"mutation": ".run=\"ok run\"",
+		"pointer": {
+			"machine": "c1",
+			"path": "/nix/store/0123456789abcdfghijklmnpqrsvwxyz-system",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "ok run"
+		},
+		"reason": null
+	},
+	{
+		"protocol": "system",
+		"builds": false,
+		"mutation": ".extra=\"value\"",
+		"pointer": {
+			"machine": "c1",
+			"path": "/nix/store/0123456789abcdfghijklmnpqrsvwxyz-system",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "1",
+			"extra": "value"
+		},
+		"reason": "malformed pointer fields"
+	},
+	{
+		"protocol": "system",
+		"builds": false,
+		"mutation": "del(.run)",
+		"pointer": {
+			"machine": "c1",
+			"path": "/nix/store/0123456789abcdfghijklmnpqrsvwxyz-system",
+			"at": "2026-10-29T13:00:00Z"
+		},
+		"reason": "malformed pointer fields"
+	},
+	{
+		"protocol": "system",
+		"builds": false,
+		"mutation": ".run=1",
+		"pointer": {
+			"machine": "c1",
+			"path": "/nix/store/0123456789abcdfghijklmnpqrsvwxyz-system",
+			"at": "2026-10-29T13:00:00Z",
+			"run": 1
+		},
+		"reason": "malformed pointer fields"
+	},
+	{
+		"protocol": "system",
+		"builds": false,
+		"mutation": ".machine=null",
+		"pointer": {
+			"machine": null,
+			"path": "/nix/store/0123456789abcdfghijklmnpqrsvwxyz-system",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "1"
+		},
+		"reason": "malformed pointer fields"
+	},
+	{
+		"protocol": "system",
+		"builds": false,
+		"mutation": "[.]",
+		"pointer": [
+			{
+				"machine": "c1",
+				"path": "/nix/store/0123456789abcdfghijklmnpqrsvwxyz-system",
+				"at": "2026-10-29T13:00:00Z",
+				"run": "1"
+			}
+		],
+		"reason": "malformed pointer fields"
+	},
+	{
+		"protocol": "driver",
+		"builds": false,
+		"mutation": ".",
+		"pointer": {
+			"machine": "c1",
+			"version": "1.0",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "1",
+			"archives": {
+				"x86_64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				},
+				"aarch64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				}
+			}
+		},
+		"reason": null
+	},
+	{
+		"protocol": "driver",
+		"builds": false,
+		"mutation": ".archives[\"x86_64-linux\"].url=(\"build/driver/\"+.archives[\"x86_64-linux\"].sha256+\".tar.gz\")",
+		"pointer": {
+			"machine": "c1",
+			"version": "1.0",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "1",
+			"archives": {
+				"x86_64-linux": {
+					"url": "build/driver/0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3.tar.gz",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				},
+				"aarch64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				}
+			}
+		},
+		"reason": "build archives not allowed on this machine"
+	},
+	{
+		"protocol": "driver",
+		"builds": false,
+		"mutation": ".archives |= map_values(.url=(\"build/driver/\"+.sha256+\".tar.gz\"))",
+		"pointer": {
+			"machine": "c1",
+			"version": "1.0",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "1",
+			"archives": {
+				"x86_64-linux": {
+					"url": "build/driver/0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3.tar.gz",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				},
+				"aarch64-linux": {
+					"url": "build/driver/0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3.tar.gz",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				}
+			}
+		},
+		"reason": "build archives not allowed on this machine"
+	},
+	{
+		"protocol": "driver",
+		"builds": false,
+		"mutation": ".archives[\"x86_64-linux\"].url=(\"build/driver/\"+(\"0\"*64)+\".tar.gz\")",
+		"pointer": {
+			"machine": "c1",
+			"version": "1.0",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "1",
+			"archives": {
+				"x86_64-linux": {
+					"url": "build/driver/0000000000000000000000000000000000000000000000000000000000000000.tar.gz",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				},
+				"aarch64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				}
+			}
+		},
+		"reason": "build archives not allowed on this machine"
+	},
+	{
+		"protocol": "driver",
+		"builds": false,
+		"mutation": ".machine=\"c2\"",
+		"pointer": {
+			"machine": "c2",
+			"version": "1.0",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "1",
+			"archives": {
+				"x86_64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				},
+				"aarch64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				}
+			}
+		},
+		"reason": "written for another machine"
+	},
+	{
+		"protocol": "driver",
+		"builds": false,
+		"mutation": ".archives[\"x86_64-linux\"].sha256=(\"0\"*63)",
+		"pointer": {
+			"machine": "c1",
+			"version": "1.0",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "1",
+			"archives": {
+				"x86_64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "000000000000000000000000000000000000000000000000000000000000000"
+				},
+				"aarch64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				}
+			}
+		},
+		"reason": "malformed driver pointer fields or archive"
+	},
+	{
+		"protocol": "driver",
+		"builds": false,
+		"mutation": ".archives[\"x86_64-linux\"].sha256=(.archives[\"x86_64-linux\"].sha256|ascii_upcase)",
+		"pointer": {
+			"machine": "c1",
+			"version": "1.0",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "1",
+			"archives": {
+				"x86_64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0EB3E36BFB24DCD9BB1D1BECE1531216B59539A8FDE17EE80224AF0653C92AA3"
+				},
+				"aarch64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				}
+			}
+		},
+		"reason": null
+	},
+	{
+		"protocol": "driver",
+		"builds": false,
+		"mutation": ".archives[\"x86_64-linux\"].url=\"file:///archive\"",
+		"pointer": {
+			"machine": "c1",
+			"version": "1.0",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "1",
+			"archives": {
+				"x86_64-linux": {
+					"url": "file:///archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				},
+				"aarch64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				}
+			}
+		},
+		"reason": "build archives not allowed on this machine"
+	},
+	{
+		"protocol": "driver",
+		"builds": false,
+		"mutation": ".archives[\"x86_64-linux\"].url=\"http://example.invalid/archive\"",
+		"pointer": {
+			"machine": "c1",
+			"version": "1.0",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "1",
+			"archives": {
+				"x86_64-linux": {
+					"url": "http://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				},
+				"aarch64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				}
+			}
+		},
+		"reason": "build archives not allowed on this machine"
+	},
+	{
+		"protocol": "driver",
+		"builds": false,
+		"mutation": ".archives[\"x86_64-linux\"].url=\"https://example.invalid/a b\"",
+		"pointer": {
+			"machine": "c1",
+			"version": "1.0",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "1",
+			"archives": {
+				"x86_64-linux": {
+					"url": "https://example.invalid/a b",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				},
+				"aarch64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				}
+			}
+		},
+		"reason": "malformed driver pointer fields or archive"
+	},
+	{
+		"protocol": "driver",
+		"builds": false,
+		"mutation": ".version=\"..\"",
+		"pointer": {
+			"machine": "c1",
+			"version": "..",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "1",
+			"archives": {
+				"x86_64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				},
+				"aarch64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				}
+			}
+		},
+		"reason": "malformed version"
+	},
+	{
+		"protocol": "driver",
+		"builds": false,
+		"mutation": ".version=\".\"",
+		"pointer": {
+			"machine": "c1",
+			"version": ".",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "1",
+			"archives": {
+				"x86_64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				},
+				"aarch64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				}
+			}
+		},
+		"reason": "malformed version"
+	},
+	{
+		"protocol": "driver",
+		"builds": false,
+		"mutation": ".version=\"current\"",
+		"pointer": {
+			"machine": "c1",
+			"version": "current",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "1",
+			"archives": {
+				"x86_64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				},
+				"aarch64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				}
+			}
+		},
+		"reason": "malformed version"
+	},
+	{
+		"protocol": "driver",
+		"builds": false,
+		"mutation": ".version=\"previous\"",
+		"pointer": {
+			"machine": "c1",
+			"version": "previous",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "1",
+			"archives": {
+				"x86_64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				},
+				"aarch64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				}
+			}
+		},
+		"reason": "malformed version"
+	},
+	{
+		"protocol": "driver",
+		"builds": false,
+		"mutation": ".version=\"1.0/2\"",
+		"pointer": {
+			"machine": "c1",
+			"version": "1.0/2",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "1",
+			"archives": {
+				"x86_64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				},
+				"aarch64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				}
+			}
+		},
+		"reason": "malformed version"
+	},
+	{
+		"protocol": "driver",
+		"builds": false,
+		"mutation": ".version=\".1.0\"",
+		"pointer": {
+			"machine": "c1",
+			"version": ".1.0",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "1",
+			"archives": {
+				"x86_64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				},
+				"aarch64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				}
+			}
+		},
+		"reason": null
+	},
+	{
+		"protocol": "driver",
+		"builds": false,
+		"mutation": ".at=\"2026-02-30T12:00:00Z\"",
+		"pointer": {
+			"machine": "c1",
+			"version": "1.0",
+			"at": "2026-02-30T12:00:00Z",
+			"run": "1",
+			"archives": {
+				"x86_64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				},
+				"aarch64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				}
+			}
+		},
+		"reason": "malformed time"
+	},
+	{
+		"protocol": "driver",
+		"builds": false,
+		"mutation": ".at=\"2099-01-01T00:00:00Z\"",
+		"pointer": {
+			"machine": "c1",
+			"version": "1.0",
+			"at": "2099-01-01T00:00:00Z",
+			"run": "1",
+			"archives": {
+				"x86_64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				},
+				"aarch64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				}
+			}
+		},
+		"reason": "more than one hour ahead of its clock"
+	},
+	{
+		"protocol": "driver",
+		"builds": false,
+		"mutation": ".run=\"\"",
+		"pointer": {
+			"machine": "c1",
+			"version": "1.0",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "",
+			"archives": {
+				"x86_64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				},
+				"aarch64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				}
+			}
+		},
+		"reason": "malformed run"
+	},
+	{
+		"protocol": "driver",
+		"builds": false,
+		"mutation": ".extra=true",
+		"pointer": {
+			"machine": "c1",
+			"version": "1.0",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "1",
+			"archives": {
+				"x86_64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				},
+				"aarch64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				}
+			},
+			"extra": true
+		},
+		"reason": "malformed driver pointer fields or archive"
+	},
+	{
+		"protocol": "driver",
+		"builds": false,
+		"mutation": ".archives.extra={}",
+		"pointer": {
+			"machine": "c1",
+			"version": "1.0",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "1",
+			"archives": {
+				"x86_64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				},
+				"aarch64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				},
+				"extra": {}
+			}
+		},
+		"reason": "malformed driver pointer fields or archive"
+	},
+	{
+		"protocol": "driver",
+		"builds": false,
+		"mutation": ".archives[\"aarch64-linux\"].extra=true",
+		"pointer": {
+			"machine": "c1",
+			"version": "1.0",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "1",
+			"archives": {
+				"x86_64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				},
+				"aarch64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3",
+					"extra": true
+				}
+			}
+		},
+		"reason": "malformed driver pointer fields or archive"
+	},
+	{
+		"protocol": "driver",
+		"builds": false,
+		"mutation": "del(.archives[\"aarch64-linux\"])",
+		"pointer": {
+			"machine": "c1",
+			"version": "1.0",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "1",
+			"archives": {
+				"x86_64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				}
+			}
+		},
+		"reason": "malformed driver pointer fields or archive"
+	},
+	{
+		"protocol": "driver",
+		"builds": false,
+		"mutation": ".version=1",
+		"pointer": {
+			"machine": "c1",
+			"version": 1,
+			"at": "2026-10-29T13:00:00Z",
+			"run": "1",
+			"archives": {
+				"x86_64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				},
+				"aarch64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				}
+			}
+		},
+		"reason": "malformed driver pointer fields or archive"
+	},
+	{
+		"protocol": "driver",
+		"builds": true,
+		"mutation": ".",
+		"pointer": {
+			"machine": "c1",
+			"version": "1.0",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "1",
+			"archives": {
+				"x86_64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				},
+				"aarch64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				}
+			}
+		},
+		"reason": null
+	},
+	{
+		"protocol": "driver",
+		"builds": true,
+		"mutation": ".archives[\"x86_64-linux\"].url=(\"build/driver/\"+.archives[\"x86_64-linux\"].sha256+\".tar.gz\")",
+		"pointer": {
+			"machine": "c1",
+			"version": "1.0",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "1",
+			"archives": {
+				"x86_64-linux": {
+					"url": "build/driver/0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3.tar.gz",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				},
+				"aarch64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				}
+			}
+		},
+		"reason": null
+	},
+	{
+		"protocol": "driver",
+		"builds": true,
+		"mutation": ".archives |= map_values(.url=(\"build/driver/\"+.sha256+\".tar.gz\"))",
+		"pointer": {
+			"machine": "c1",
+			"version": "1.0",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "1",
+			"archives": {
+				"x86_64-linux": {
+					"url": "build/driver/0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3.tar.gz",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				},
+				"aarch64-linux": {
+					"url": "build/driver/0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3.tar.gz",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				}
+			}
+		},
+		"reason": null
+	},
+	{
+		"protocol": "driver",
+		"builds": true,
+		"mutation": ".archives[\"x86_64-linux\"].url=(\"build/driver/\"+(\"0\"*64)+\".tar.gz\")",
+		"pointer": {
+			"machine": "c1",
+			"version": "1.0",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "1",
+			"archives": {
+				"x86_64-linux": {
+					"url": "build/driver/0000000000000000000000000000000000000000000000000000000000000000.tar.gz",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				},
+				"aarch64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				}
+			}
+		},
+		"reason": "malformed driver pointer fields or archive"
+	},
+	{
+		"protocol": "driver",
+		"builds": true,
+		"mutation": ".machine=\"c2\"",
+		"pointer": {
+			"machine": "c2",
+			"version": "1.0",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "1",
+			"archives": {
+				"x86_64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				},
+				"aarch64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				}
+			}
+		},
+		"reason": "written for another machine"
+	},
+	{
+		"protocol": "driver",
+		"builds": true,
+		"mutation": ".archives[\"x86_64-linux\"].sha256=(\"0\"*63)",
+		"pointer": {
+			"machine": "c1",
+			"version": "1.0",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "1",
+			"archives": {
+				"x86_64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "000000000000000000000000000000000000000000000000000000000000000"
+				},
+				"aarch64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				}
+			}
+		},
+		"reason": "malformed driver pointer fields or archive"
+	},
+	{
+		"protocol": "driver",
+		"builds": true,
+		"mutation": ".archives[\"x86_64-linux\"].sha256=(.archives[\"x86_64-linux\"].sha256|ascii_upcase)",
+		"pointer": {
+			"machine": "c1",
+			"version": "1.0",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "1",
+			"archives": {
+				"x86_64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0EB3E36BFB24DCD9BB1D1BECE1531216B59539A8FDE17EE80224AF0653C92AA3"
+				},
+				"aarch64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				}
+			}
+		},
+		"reason": null
+	},
+	{
+		"protocol": "driver",
+		"builds": true,
+		"mutation": ".archives[\"x86_64-linux\"].url=\"file:///archive\"",
+		"pointer": {
+			"machine": "c1",
+			"version": "1.0",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "1",
+			"archives": {
+				"x86_64-linux": {
+					"url": "file:///archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				},
+				"aarch64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				}
+			}
+		},
+		"reason": "malformed driver pointer fields or archive"
+	},
+	{
+		"protocol": "driver",
+		"builds": true,
+		"mutation": ".archives[\"x86_64-linux\"].url=\"http://example.invalid/archive\"",
+		"pointer": {
+			"machine": "c1",
+			"version": "1.0",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "1",
+			"archives": {
+				"x86_64-linux": {
+					"url": "http://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				},
+				"aarch64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				}
+			}
+		},
+		"reason": "malformed driver pointer fields or archive"
+	},
+	{
+		"protocol": "driver",
+		"builds": true,
+		"mutation": ".archives[\"x86_64-linux\"].url=\"https://example.invalid/a b\"",
+		"pointer": {
+			"machine": "c1",
+			"version": "1.0",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "1",
+			"archives": {
+				"x86_64-linux": {
+					"url": "https://example.invalid/a b",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				},
+				"aarch64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				}
+			}
+		},
+		"reason": "malformed driver pointer fields or archive"
+	},
+	{
+		"protocol": "driver",
+		"builds": true,
+		"mutation": ".version=\"..\"",
+		"pointer": {
+			"machine": "c1",
+			"version": "..",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "1",
+			"archives": {
+				"x86_64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				},
+				"aarch64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				}
+			}
+		},
+		"reason": "malformed version"
+	},
+	{
+		"protocol": "driver",
+		"builds": true,
+		"mutation": ".version=\".\"",
+		"pointer": {
+			"machine": "c1",
+			"version": ".",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "1",
+			"archives": {
+				"x86_64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				},
+				"aarch64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				}
+			}
+		},
+		"reason": "malformed version"
+	},
+	{
+		"protocol": "driver",
+		"builds": true,
+		"mutation": ".version=\"current\"",
+		"pointer": {
+			"machine": "c1",
+			"version": "current",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "1",
+			"archives": {
+				"x86_64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				},
+				"aarch64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				}
+			}
+		},
+		"reason": "malformed version"
+	},
+	{
+		"protocol": "driver",
+		"builds": true,
+		"mutation": ".version=\"previous\"",
+		"pointer": {
+			"machine": "c1",
+			"version": "previous",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "1",
+			"archives": {
+				"x86_64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				},
+				"aarch64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				}
+			}
+		},
+		"reason": "malformed version"
+	},
+	{
+		"protocol": "driver",
+		"builds": true,
+		"mutation": ".version=\"1.0/2\"",
+		"pointer": {
+			"machine": "c1",
+			"version": "1.0/2",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "1",
+			"archives": {
+				"x86_64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				},
+				"aarch64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				}
+			}
+		},
+		"reason": "malformed version"
+	},
+	{
+		"protocol": "driver",
+		"builds": true,
+		"mutation": ".version=\".1.0\"",
+		"pointer": {
+			"machine": "c1",
+			"version": ".1.0",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "1",
+			"archives": {
+				"x86_64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				},
+				"aarch64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				}
+			}
+		},
+		"reason": null
+	},
+	{
+		"protocol": "driver",
+		"builds": true,
+		"mutation": ".at=\"2026-02-30T12:00:00Z\"",
+		"pointer": {
+			"machine": "c1",
+			"version": "1.0",
+			"at": "2026-02-30T12:00:00Z",
+			"run": "1",
+			"archives": {
+				"x86_64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				},
+				"aarch64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				}
+			}
+		},
+		"reason": "malformed time"
+	},
+	{
+		"protocol": "driver",
+		"builds": true,
+		"mutation": ".at=\"2099-01-01T00:00:00Z\"",
+		"pointer": {
+			"machine": "c1",
+			"version": "1.0",
+			"at": "2099-01-01T00:00:00Z",
+			"run": "1",
+			"archives": {
+				"x86_64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				},
+				"aarch64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				}
+			}
+		},
+		"reason": "more than one hour ahead of its clock"
+	},
+	{
+		"protocol": "driver",
+		"builds": true,
+		"mutation": ".run=\"\"",
+		"pointer": {
+			"machine": "c1",
+			"version": "1.0",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "",
+			"archives": {
+				"x86_64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				},
+				"aarch64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				}
+			}
+		},
+		"reason": "malformed run"
+	},
+	{
+		"protocol": "driver",
+		"builds": true,
+		"mutation": ".extra=true",
+		"pointer": {
+			"machine": "c1",
+			"version": "1.0",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "1",
+			"archives": {
+				"x86_64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				},
+				"aarch64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				}
+			},
+			"extra": true
+		},
+		"reason": "malformed driver pointer fields or archive"
+	},
+	{
+		"protocol": "driver",
+		"builds": true,
+		"mutation": ".archives.extra={}",
+		"pointer": {
+			"machine": "c1",
+			"version": "1.0",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "1",
+			"archives": {
+				"x86_64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				},
+				"aarch64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				},
+				"extra": {}
+			}
+		},
+		"reason": "malformed driver pointer fields or archive"
+	},
+	{
+		"protocol": "driver",
+		"builds": true,
+		"mutation": ".archives[\"aarch64-linux\"].extra=true",
+		"pointer": {
+			"machine": "c1",
+			"version": "1.0",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "1",
+			"archives": {
+				"x86_64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				},
+				"aarch64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3",
+					"extra": true
+				}
+			}
+		},
+		"reason": "malformed driver pointer fields or archive"
+	},
+	{
+		"protocol": "driver",
+		"builds": true,
+		"mutation": "del(.archives[\"aarch64-linux\"])",
+		"pointer": {
+			"machine": "c1",
+			"version": "1.0",
+			"at": "2026-10-29T13:00:00Z",
+			"run": "1",
+			"archives": {
+				"x86_64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				}
+			}
+		},
+		"reason": "malformed driver pointer fields or archive"
+	},
+	{
+		"protocol": "driver",
+		"builds": true,
+		"mutation": ".version=1",
+		"pointer": {
+			"machine": "c1",
+			"version": 1,
+			"at": "2026-10-29T13:00:00Z",
+			"run": "1",
+			"archives": {
+				"x86_64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				},
+				"aarch64-linux": {
+					"url": "https://example.invalid/archive",
+					"sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3"
+				}
+			}
+		},
+		"reason": "malformed driver pointer fields or archive"
+	}
+]

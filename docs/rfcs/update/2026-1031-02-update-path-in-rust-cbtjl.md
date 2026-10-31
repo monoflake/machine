@@ -86,3 +86,13 @@ EUPL-1.2 and snix's GPL-3.0.
 7. **The shell tests' cases are carried over** as Rust tests, run on the Mac against a fake bucket
    and the Mac's own daemon. The shell of a part is removed once its Rust has taken a pointer on
    okra, sora and oak.
+8. **Settled at its first wave, with the advisor on 2026-10-31.** `cargo deny check` runs in
+   verify with monoflake/driver's allowed licenses, harmonia's repository the one git source, so a
+   copyleft dependency is refused. `rust-version` is the release's rustc, 1.95, which builds it on
+   a machine. HTTPS is rustls on aws-lc-rs by default, ring behind a feature, the OpenSSL license
+   allowed for aws-lc-sys in this repository alone, decided by the author on 2026-10-31; verify
+   lints and tests both. Its tests take a temporary store under `nix daemon --force-trusted`, and
+   `AddToStoreNar` keeps the daemon's own signature check, so the program and the daemon both
+   verify each path. **Every line it prints is the shell's word for
+   word**, read by cloud's nudge, but for the detail lines before a failed realise or restart,
+   which were the tool's own output and are now the error's.

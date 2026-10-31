@@ -1,0 +1,34 @@
+# The machine's Rust, a virtual manifest listing each crate where the shell it replaces lived, RFC
+# cbtjl; built for a machine by Nix, whose rustc is the release's, so `rust-version` follows it.
+[workspace]
+resolver = "3"
+members = ["system/nix/update"]
+
+[workspace.package]
+edition = "2024"
+rust-version = "1.95"
+publish = false
+license = "MIT"
+
+# Every crate takes these by `[lints] workspace = true`, as monoflake/driver's do.
+[workspace.lints.rust]
+unsafe_code = "forbid"
+missing_docs = "deny"
+
+[workspace.lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+indexing_slicing = "deny"
+as_conversions = "deny"
+unimplemented = "deny"
+wildcard_enum_match_arm = "deny"
+dbg_macro = "deny"
+
+# harmonia is published nowhere but its repository, so each crate is taken from its release tag.
+[workspace.dependencies]
+harmonia-protocol = { git = "https://github.com/nix-community/harmonia", tag = "harmonia-v3.3.0" }
+harmonia-store-nar-info = { git = "https://github.com/nix-community/harmonia", tag = "harmonia-v3.3.0" }
+harmonia-store-path = { git = "https://github.com/nix-community/harmonia", tag = "harmonia-v3.3.0" }
+harmonia-store-remote = { git = "https://github.com/nix-community/harmonia", tag = "harmonia-v3.3.0" }
+harmonia-utils-signature = { git = "https://github.com/nix-community/harmonia", tag = "harmonia-v3.3.0" }
