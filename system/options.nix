@@ -46,69 +46,10 @@ in
         description = "Block device to partition and install the system onto.";
         example = "/dev/vda";
       };
-      keys = mkOption {
-        type = types.listOf types.str;
-        description = "SSH public keys authorized to log in as root.";
-      };
-      memory = mkOption {
-        type = types.ints.positive;
-        description = "Memory installed, in MiB, from which the swap file's size is derived.";
-        example = 4096;
-      };
-      maintenance.enable = mkOption {
-        type = types.bool;
-        default = true;
-        description = "Whether to install the tools and shell aliases for maintaining the machine by hand.";
-      };
-      swap.compressor = mkOption {
-        type = types.enum [
-          "zstd"
-          "lz4"
-        ];
-        default = "zstd";
-        description = "Compressor zswap uses for swapped pages; lz4 for a weak processor.";
-      };
       addresses.enable = mkOption {
         type = types.bool;
         default = false;
         description = "Whether the machine learns its public IPv4 and IPv6 addresses at boot and every hour from Tailscale's netcheck and Cloudflare's trace, agreeing, into /var/lib/machine/addresses.json, RFC co32d.";
-      };
-      network = {
-        resolvers = mkOption {
-          type = types.enum [
-            "global"
-            "china"
-          ];
-          default = "global";
-          description = "Fixed nameservers written to the plain resolv.conf file, Cloudflare and Google for global or AliDNS for china.";
-        };
-        buffer = mkOption {
-          type = types.ints.positive;
-          default = 33554432;
-          example = 134217728;
-          description = "Largest socket buffer in bytes, the cap a TCP connection's receive and send windows grow to, 32 MiB by default.";
-        };
-        seed = mkOption {
-          type = types.bool;
-          default = false;
-          description = "Whether the machine reads its static addresses at every boot from its provider's cloud-init NoCloud seed, the iso9660 disk labeled cidata, and runs systemd-networkd in place of DHCP, for a provider giving no DHCP and no router advertisement, docs/network.md.";
-        };
-      };
-      time = {
-        enable = mkOption {
-          type = types.bool;
-          default = false;
-          description = "Whether chrony synchronizes the clock with provider and regional sources and Cloudflare over NTS.";
-        };
-        provider = mkOption {
-          type = types.enum [
-            "oracle"
-            "azure"
-            "none"
-          ];
-          default = "none";
-          description = "Provider time source preferred by chrony, or none for regional sources and Cloudflare alone.";
-        };
       };
       ssh.public = mkOption {
         type = types.enum [
@@ -485,10 +426,6 @@ in
   };
 
   config.assertions = [
-    {
-      assertion = config.machine.keys != [ ];
-      message = "machine.keys must not be empty, or no SSH key could log in as root.";
-    }
     {
       assertion = config.machine.conform.enable -> config.machine.driver.enable;
       message = "machine.conform needs machine.driver.enable, as conform runs beside the live driver.";

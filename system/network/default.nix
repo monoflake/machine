@@ -1,42 +1,19 @@
-# A machine's network and host firewall, docs/network.md.
+# A fleet machine's ports kept for the driver, its tunnel, fence and public SSH, docs/network.md.
 { config, lib, ... }:
 let
-  tailnet = config.services.tailscale.interfaceName;
   # The machine driver's port, DRIVE on a keypad, monoflake/driver's RFC 8c0rg.
   driver = 37483;
   entry = lib.toInt (lib.last (lib.splitString ":" config.machine.driver.entry));
   inherit (config.machine) conform;
-  dhcp = !config.machine.network.seed;
 in
 {
   imports = [
     ./addresses
     ./fence.nix
-    ./seed
     ./ssh.nix
     ./tailnet.nix
-    ./tcp.nix
     ./tunnel.nix
   ];
-
-  networking = {
-    useDHCP = lib.mkIf dhcp true;
-    dhcpcd.extraConfig = lib.mkIf dhcp "nohook resolv.conf";
-    nameservers =
-      {
-        global = [
-          "1.1.1.1"
-          "8.8.8.8"
-        ];
-        china = [
-          "223.5.5.5"
-          "223.6.6.6"
-        ];
-      }
-      .${config.machine.network.resolvers};
-    nftables.enable = true;
-    firewall.interfaces.${tailnet}.allowedTCPPorts = [ 22 ];
-  };
 
   # Ports no connection is given as its own, so the entry, the driver, conform's and any the machine
   # names find theirs free, monoflake/driver's RFC p95sv.

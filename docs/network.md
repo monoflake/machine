@@ -13,7 +13,7 @@ of them, not even encrypted. `machine.network.seed` turns it on, and no machine 
 On, the machine runs systemd-networkd in place of dhcpcd, and before networkd starts
 `machine-seed-network.service` mounts the seed, the iso9660 disk labeled `cidata`, read-only,
 renders its `network-config` into `/run/systemd/network/10-seed.network` matched by the ethernet's
-MAC address, and unmounts it, `system/network/seed/`. The seed's nameservers are passed over, as
+MAC address, and unmounts it, `system/base/seed/`. The seed's nameservers are passed over, as
 the module's fixed ones stand.
 
 - **The seed read is netplan's version 2 with one ethernet**: its MAC address, its addresses with
@@ -37,7 +37,7 @@ AliDNS's 223.5.5.5 and 223.6.6.6, for a machine where the global ones are blocke
 ## Its TCP
 
 **Every machine runs BBR over fq, and caps every socket buffer at `machine.network.buffer`, 32 MiB
-by default**, decided by the author on 2026-10-29, `system/network/tcp.nix`: the cap is the largest
+by default**, decided by the author on 2026-10-29, `system/base/tcp.nix`: the cap is the largest
 `net.core.rmem_max` and `wmem_max`, and the most `net.ipv4.tcp_rmem` and `tcp_wmem` grow to from
 4 KiB and their 128 KiB and 16 KiB defaults. A machine of several Gbit/s on long paths raises it
 in its own configuration, to 128 MiB. Measured by the advisor the same day with iperf3 over public
@@ -110,8 +110,9 @@ and changes a name is still RFC co32d's open question, and nothing reads it yet.
 
 **A machine can keep its clock by chrony, `machine.time.enable`, off by default**, provisional,
 chosen by the advisor on 2026-10-26 at the author's request that a cloud's own time source come
-first and a third party serve otherwise, `system/time/`: `machine.time.provider` prefers Oracle's
-own NTP service or Azure's host clock, the region's resolvers add Alibaba Cloud's and Tencent's
-servers in China, and every machine falls back to Cloudflare's over NTS. Google's servers are never
-among them, since they smear a leap second and must not mix with sources that do not. Clocks matter
-to the cache, whose fetch refuses a pointer more than an hour ahead of its own, docs/cache.md.
+first and a third party serve otherwise, `system/base/time/`: `machine.time.provider` prefers
+Oracle's own NTP service or Azure's host clock, the region's resolvers add Alibaba Cloud's and
+Tencent's servers in China, and every machine falls back to Cloudflare's over NTS. Google's servers
+are never among them, since they smear a leap second and must not mix with sources that do not.
+Clocks matter to the cache, whose fetch refuses a pointer more than an hour ahead of its own,
+docs/cache.md.

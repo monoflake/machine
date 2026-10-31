@@ -1,5 +1,5 @@
-# A machine's SSH, root by the machine's keys and never by a password, and on a fetched machine
-# its builders as the user machine-cache, nix/cache/fetch.nix.
+# A fleet machine's SSH open to the internet until the tailnet is healthy, the rest in base/ssh.nix,
+# and on a fetched machine its builders as the user machine-cache, nix/cache/fetch.nix.
 {
   config,
   lib,
@@ -26,19 +26,7 @@ let
   again = "${config.systemd.package}/bin/systemctl --no-block restart machine-ssh-close.service";
 in
 {
-  services.openssh = {
-    enable = true;
-    openFirewall = true;
-    settings = {
-      PasswordAuthentication = false;
-      KbdInteractiveAuthentication = false;
-      PermitRootLogin = "prohibit-password";
-    };
-  };
-  users = {
-    mutableUsers = false;
-    users.root.openssh.authorizedKeys.keys = config.machine.keys;
-  };
+  services.openssh.openFirewall = true;
 
   # Remove our table on a firewall reload, including a switch to the repair setting.
   networking.nftables.extraDeletions = ''

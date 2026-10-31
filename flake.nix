@@ -30,13 +30,10 @@
       each = f: nixpkgs.lib.genAttrs systems (s: f nixpkgs.legacyPackages.${s});
     in
     {
-      # Unstable beside the release, RFC vr5lw, as `pkgs.unstable`, and the named exceptions newer
-      # still as `pkgs.latest`, docs/releases.md.
-      nixosModules.machine = {
-        imports = [
-          disko.nixosModules.disko
-          system
-        ];
+      # What every machine is, docs/layers.md, with unstable as `pkgs.unstable` and the named
+      # exceptions newer still as `pkgs.latest`, RFC vr5lw and docs/releases.md.
+      nixosModules.base = {
+        imports = [ (system + "/base") ];
         nixpkgs.overlays = [
           (final: _: {
             unstable = import unstable { inherit (final.stdenv.hostPlatform) system; };
@@ -45,7 +42,17 @@
         ];
       };
 
+      # A fleet machine, the base layer and the driver, containers and updates above it.
+      nixosModules.machine = {
+        imports = [
+          disko.nixosModules.disko
+          self.nixosModules.base
+          system
+        ];
+      };
+
       lib = {
+        swap = import ./system/base/swap.nix;
         labels = import ./system/labels.nix;
         fleet = import ./system/nix/cache/fleet.nix { inherit (nixpkgs) lib; };
 
@@ -70,8 +77,8 @@
         description = "NixOS configuration for a Linux container host";
       };
 
-      # The template as it stands, with the driver on and with a tunnel, both with the bound host's
-      # units, as an exit node, as a peer relay, and the local machine, built for each system.
+      # The template as it stands, with the driver, with a tunnel, as an exit node and a peer relay,
+      # the base layer alone, and the local machine, built for each system.
       checks = nixpkgs.lib.genAttrs linux (
         s:
         let
@@ -106,6 +113,28 @@
               host = "0a1b2c3d.b1";
             };
           };
+          # The base layer alone, as a deployment's runner takes it, with no option of the fleet's.
+          base =
+            (nixpkgs.lib.nixosSystem {
+              modules = [
+                self.nixosModules.base
+                {
+                  nixpkgs.hostPlatform = s;
+                  machine = {
+                    keys = [ "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPlaceholderReplaceWithYourOwnPublicKey0000" ];
+                    memory = 12288;
+                    swap.zram = true;
+                    time.enable = true;
+                  };
+                  boot.loader.systemd-boot.enable = true;
+                  fileSystems."/" = {
+                    device = "/dev/disk/by-partlabel/root";
+                    fsType = "ext4";
+                  };
+                  system.stateVersion = "26.05";
+                }
+              ];
+            }).config.system.build.toplevel;
           exitNode = template { machine.tailnet.exitNode = true; };
           relay = template { machine.tailnet.relayPort = 40000; };
           local =

@@ -1,4 +1,4 @@
-# A machine's memory, zswap in front of a swap file sized by the memory installed.
+# A fleet machine's memory, zswap in front of a swap file on the data disk, sized by base/swap.nix.
 {
   config,
   lib,
@@ -7,16 +7,6 @@
   ...
 }:
 let
-  # The swap file in MiB by the memory, RFC vr5lw, 2 GiB up to 2, the memory up to 8 and half
-  # beyond, 8 to 16.
-  memory = config.machine.memory;
-  swap =
-    if memory <= 2048 then
-      2048
-    else if memory <= 8192 then
-      memory
-    else
-      lib.min 16384 (lib.max 8192 (memory / 2));
   device = "/data/swap/swapfile";
   # The swap unit's name, as systemd names it from the file's path.
   unit = utils.escapeSystemdPath device;
@@ -36,7 +26,7 @@ in
     swapDevices = [
       {
         inherit device;
-        size = swap;
+        size = config.machine.swap.size;
         # Out of swap.target, which sysinit.target waits for, so a missing /data holds up no boot.
         # Kept in fstab, since switch-to-configuration-ng swaps off a device gone from it, main.rs.
         options = [ "noauto" ];

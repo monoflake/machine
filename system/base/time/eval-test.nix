@@ -1,6 +1,6 @@
 # Render each source policy without building chrony or reaching a time server.
 {
-  root ? ../..,
+  root ? ../../..,
   base ? builtins.getEnv "MACHINE_TIME_BASE",
 }:
 let

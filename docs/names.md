@@ -20,7 +20,7 @@ It is nonempty and has no additional length or first character restriction.
 `PRETTY_HOSTNAME` in `/etc/machine-info`. Where dhcpcd runs, it adds `hostname` with the pretty
 name to its configuration beside the network module's `nohook resolv.conf`.
 If systemd-networkd ran DHCP, its equivalent would be `[DHCPv4] Hostname=`.
-The seed path, `system/network/seed`, uses static addresses and no DHCP, so it sends no DHCP
+The seed path, `system/base/seed`, uses static addresses and no DHCP, so it sends no DHCP
 host name. No live DHCP test is required; the author accepts this as feasible in theory.
 
 **The cache keys machines by `machine.name`, never by the static hostname**, including its
