@@ -4,6 +4,12 @@
 @module("node:os") external availableParallelism: unit => int = "availableParallelism"
 @module("node:url") external fileURLToPath: string => string = "fileURLToPath"
 @val external metaUrl: string = "import.meta.url"
+@module("node:fs") external mkdtempSync: string => string = "mkdtempSync"
+@module("node:fs") external realpathSync: string => string = "realpathSync"
+@module("node:fs") external rmSync: (string, {"recursive": bool, "force": bool}) => unit = "rmSync"
+@module("node:fs")
+external cpSync: (string, string, {"recursive": bool, "filter": string => bool}) => unit = "cpSync"
+@module("node:os") external tmpdir: unit => string = "tmpdir"
 @module("node:path") external dirname: string => string = "dirname"
 @module("node:child_process")
 external execFile: (
@@ -83,13 +89,13 @@ let tests = [
 
 type outcome = {test: test, output: string, passed: bool, seconds: float}
 
-let run = test =>
+let run = (~source, test) =>
   Promise.make((resolve, _) => {
     let started = Date.now()
     execFile(
       test.program,
       test.args,
-      {"cwd": `${root}/${test.cwd}`, "encoding": "utf8", "maxBuffer": 268435456},
+      {"cwd": `${source}/${test.cwd}`, "encoding": "utf8", "maxBuffer": 268435456},
       (error, out, err) =>
         resolve({
           test,
@@ -133,7 +139,26 @@ let pooled = (items: array<'a>, ~limit, start: 'a => promise<'b>): promise<array
 
 let main = async () => {
   let started = Date.now()
-  let outcomes = await pooled(tests, ~limit=availableParallelism(), run)
+  // The snapshot excludes build artifacts that other verify tasks can change.
+  let source = mkdtempSync(`${tmpdir()}/machine-tests-`)->realpathSync
+  cpSync(
+    root,
+    source,
+    {
+      "recursive": true,
+      "filter": path => {
+        let relative = path->String.slice(~start=root->String.length, ~end=path->String.length)
+        relative != "/lib" &&
+          !(
+            relative
+            ->String.split("/")
+            ->Array.some(part => [".git", ".jj", "node_modules", "target"]->Array.includes(part))
+          )
+      },
+    },
+  )
+  let outcomes = await pooled(tests, ~limit=availableParallelism(), test => run(~source, test))
+  rmSync(source, {"recursive": true, "force": true})
   outcomes->Array.forEach(({test, output, passed, seconds}) => {
     if output->String.trim != "" {
       Console.log(output->String.trimEnd)

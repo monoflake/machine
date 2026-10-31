@@ -3,7 +3,23 @@
   root ? ../..,
 }:
 let
-  flake = builtins.getFlake ("path:" + toString root);
+  source = builtins.path {
+    path = root;
+    name = "machine-network-test";
+    filter =
+      path: type:
+      !(
+        type == "directory"
+        && builtins.elem (baseNameOf path) [
+          "target"
+          "node_modules"
+          ".git"
+          ".jj"
+        ]
+      )
+      && path != toString root + "/lib";
+  };
+  flake = builtins.getFlake ("path:" + builtins.unsafeDiscardStringContext (toString source));
   inherit (flake.inputs.nixpkgs) lib;
   template =
     extra:

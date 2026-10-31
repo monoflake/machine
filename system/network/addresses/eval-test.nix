@@ -4,7 +4,27 @@
   base ? null,
 }:
 let
-  flake = builtins.getFlake ("path:" + toString root);
+  clean =
+    root:
+    builtins.path {
+      path = root;
+      name = "machine-addresses-test";
+      filter =
+        path: type:
+        !(
+          type == "directory"
+          && builtins.elem (baseNameOf path) [
+            "target"
+            "node_modules"
+            ".git"
+            ".jj"
+          ]
+        )
+        && path != toString root + "/lib";
+    };
+  load =
+    root: builtins.getFlake ("path:" + builtins.unsafeDiscardStringContext (toString (clean root)));
+  flake = load root;
   inherit (flake.inputs.nixpkgs) lib;
   template =
     source: extra:
@@ -71,8 +91,7 @@ let
   }
   // lib.optionalAttrs (base != null) {
     unchangedBase =
-      off.system.build.toplevel.drvPath == (template (builtins.getFlake ("path:" + toString base)) { })
-      .system.build.toplevel.drvPath;
+      off.system.build.toplevel.drvPath == (template (load base) { }).system.build.toplevel.drvPath;
   };
 in
 assert lib.assertMsg (lib.all (v: v) (builtins.attrValues tests))

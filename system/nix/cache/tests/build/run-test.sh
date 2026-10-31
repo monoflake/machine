@@ -25,7 +25,7 @@ export TMPDIR=$t/tmp XDG_CACHE_HOME=$t/cache
 export TEST_STORE="local?root=$t/root" TEST_MAIN="local?root=$t/main"
 echo previous >"$t/previous"
 previous=$("$CACHE_TEST_NIX" --store "$TEST_STORE" store add --mode text --name system "$t/previous")
-export TEST_KEPT=$previous TEST_MODE=success TEST_OUTPUT=$previous
+export TEST_MODE=success
 printf '%s\n' "$previous" >"$t/current"
 printf '%s\n' "$previous" >"$t/hosts/c1/current"
 jq --arg store "$TEST_STORE" '.data=true | .store=$store' "$t/build.json" >"$t/config"
@@ -40,7 +40,7 @@ build_root() {
 		if [ "$1" = --out-link ]; then link=(--out-link "$2"); shift; fi
 		shift
 	done
-	"$CACHE_TEST_NIX" build --store "$TEST_STORE" "${link[@]}" "$TEST_KEPT"
+	"$CACHE_TEST_NIX" build --store "$TEST_STORE" "${link[@]}" "$(cat "$TEST_ROOT/current")"
 	printf '%s\n' "${link[1]-}" >"$TEST_ROOT/out-link"
 }
 if [[ $* == 'store gc '* ]]; then
@@ -76,16 +76,20 @@ chmod +x "$t/bin/nix"
 assert_root() {
 	local root
 	root=$t/state/cache-systems/${2:-c1}
-	if [ ! -L "$root" ] \
-		|| [ "$("$real_readlink" "$root")" != "$1" ] || [ ! -e "$t/root$1" ]; then
+	if [ ! -L "$root" ] ||
+		[ "$("$real_readlink" "$root")" != "$1" ] || [ ! -e "$t/root$1" ]; then
 		echo 'build-store: new system is not rooted by the expected run out-link' >&2
 		exit 1
 	fi
 }
-run_test --now >"$t/log" 2>&1 || { cat "$t/log"; exit 1; }
+run_test --now >"$t/log" 2>&1 || {
+	cat "$t/log"
+	exit 1
+}
 assert_root "$previous"
 clock_at 2026-10-27T14:00:00Z
-echo kept >"$t/kept"; echo discard >"$t/discard"
+echo kept >"$t/kept"
+echo discard >"$t/discard"
 kept=$("$CACHE_TEST_NIX" --store "$TEST_STORE" store add --mode text --name system "$t/kept")
 unrooted=$("$CACHE_TEST_NIX" --store "$TEST_STORE" store add --mode text --name intermediate "$t/discard")
 if [ "$mode" = self-gc ]; then
@@ -96,8 +100,8 @@ if [ "$mode" = self-gc ]; then
 	kept=$("$CACHE_TEST_NIX" store add --name system "$t/toplevel")
 	dependency=$("$CACHE_TEST_NIX" --store "$TEST_STORE" store add --mode text --name dependency "$t/kept")
 	cp -R "$t/toplevel" "$t/root$kept"
-	printf '%s\n\n1\n%s\n' "$kept" "$dependency" \
-		| NIX_REMOTE=$TEST_STORE "${CACHE_TEST_NIX%/*}/nix-store" --register-validity
+	printf '%s\n\n1\n%s\n' "$kept" "$dependency" |
+		NIX_REMOTE=$TEST_STORE "${CACHE_TEST_NIX%/*}/nix-store" --register-validity
 	# A real main store collected right before and right after the profile command.
 	cat >"$t/bin/nix-env" <<'SH'
 #!/usr/bin/env bash
@@ -120,56 +124,86 @@ printf '%s\n' "$*" >"$TEST_ROOT/failed-copy"
 exit 80
 SH
 fi
-export TEST_KEPT=$kept TEST_MODE=$mode TEST_OUTPUT=$kept
+# Linux GC treats store paths in process environments as runtime roots.
+export TEST_MODE=$mode
 printf '%s\n' "$kept" >"$t/current"
 printf '%s\n' "$kept" >"$t/hosts/c1/current"
 status=0
 if [[ $mode == self* ]]; then
 	jq '.self="build" | .machines.a1=.machines.c1' "$t/build.json" >"$t/self.json"
 	MACHINE_CACHE_CONFIG=$t/self.json bash -euo pipefail "$t/run.sh" a1 --self >"$t/log" 2>&1 || status=$?
-else run_test --now >"$t/log" 2>&1 || status=$?
+else
+	run_test --now >"$t/log" 2>&1 || status=$?
 fi
 case $mode in
-success|self-gc) [ "$status" = 0 ] || { cat "$t/log" "$t/main-gc" 2>/dev/null; exit 1; } ;;
-failure|term|self|self-copy-failure) [ "$status" != 0 ] ;;
+success | self-gc) [ "$status" = 0 ] || {
+	cat "$t/log" "$t/main-gc" 2>/dev/null
+	exit 1
+} ;;
+failure | term | self | self-copy-failure) [ "$status" != 0 ] ;;
 gc-error)
-	[ "$status" != 0 ] || { echo 'build-store: collector failure was ignored' >&2; exit 1; } ;;
+	[ "$status" != 0 ] || {
+		echo 'build-store: collector failure was ignored' >&2
+		exit 1
+	}
+	;;
 esac
 case $mode in
-success|gc-error) assert_root "$kept" ;;
-failure|term|self)
+success | gc-error) assert_root "$kept" ;;
+failure | term | self)
 	assert_root "$previous"
-	[ ! -e "$t/root$kept" ] || { echo 'build-store: failed build left its unrooted system' >&2; exit 1; } ;;
+	[ ! -e "$t/root$kept" ] || {
+		echo 'build-store: failed build left its unrooted system' >&2
+		exit 1
+	}
+	;;
 self-copy-failure)
 	assert_root "$previous"
 	assert_root "$kept" a1
 	grep -qxF -- "--option substituters $TEST_STORE&trusted=true -p /nix/var/nix/profiles/system --set $kept" \
 		"$t/failed-copy" 2>/dev/null || {
-		echo 'build-store: self copy failure was not exercised' >&2; exit 1;
-	} ;;
+		echo 'build-store: self copy failure was not exercised' >&2
+		exit 1
+	}
+	;;
 self-gc)
 	assert_root "$kept" a1
 	"$CACHE_TEST_NIX" store gc --store "$TEST_MAIN" >>"$t/main-gc" 2>&1
 	"$CACHE_TEST_NIX" path-info --store "$TEST_MAIN" "$kept" "$dependency" >/dev/null || {
-		cat "$t/main-gc"; echo 'build-store: collection removed the self system from the main store' >&2; exit 1;
+		cat "$t/main-gc"
+		echo 'build-store: collection removed the self system from the main store' >&2
+		exit 1
 	}
 	[ "$("$real_readlink" "$t/profiles/$("$real_readlink" "$t/profiles/system")")" = "$kept" ]
-	[ -f "$t/self-switched" ] ;;
+	[ -f "$t/self-switched" ]
+	;;
 esac
 if [[ $mode == self || $mode == self-copy-failure ]]; then
-	[ ! -f "$t/switched" ] || { echo 'build-store: failed self build or copy switched the system' >&2; exit 1; }
+	[ ! -f "$t/switched" ] || {
+		echo 'build-store: failed self build or copy switched the system' >&2
+		exit 1
+	}
 fi
 if [ "$mode" = gc-error ]; then
 	grep -q 'outcome=confirmed' "$t/log" || {
-		cat "$t/log"; echo 'build-store: GC failure did not preserve the outcome' >&2; exit 1;
+		cat "$t/log"
+		echo 'build-store: GC failure did not preserve the outcome' >&2
+		exit 1
 	}
 	[ -e "$t/root$unrooted" ]
 else
-	[ ! -e "$t/root$unrooted" ] || { cat "$t/log"; echo 'build-store: unrooted intermediate was not collected' >&2; exit 1; }
+	[ ! -e "$t/root$unrooted" ] || {
+		cat "$t/log"
+		echo 'build-store: unrooted intermediate was not collected' >&2
+		exit 1
+	}
 fi
 [ -z "$(find "$TMPDIR" -mindepth 1 -print -quit)" ]
 [ -d "$t/root/nix/store" ]
-[ ! -f "$t/flag-errors" ] || { cat "$t/flag-errors" >&2; exit 1; }
+[ ! -f "$t/flag-errors" ] || {
+	cat "$t/flag-errors" >&2
+	exit 1
+}
 flock -n "$t/lock" true
 if [ "$mode" = gc-error ]; then
 	echo 'build-store: GC failure fails the run, preserves its outcome and releases the lock'
