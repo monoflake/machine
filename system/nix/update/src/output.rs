@@ -44,6 +44,8 @@ pub enum Step {
 	FetchingDriverPointer,
 	/// The bucket holds no driver pointer or no signature for it.
 	NoDriverPointer,
+	/// The bucket holds no system pointer or no signature for it, as after either expired.
+	NoSystemPointer,
 	/// The driver pointer's signature being checked.
 	VerifyingDriverSignature,
 	/// The driver pointer's fields being checked.
@@ -113,6 +115,7 @@ impl Step {
 			Self::SwitchSucceeded => &"system switch succeeded",
 			Self::FetchingDriverPointer => &"fetching driver pointer",
 			Self::NoDriverPointer => &"no driver pointer, nothing to do",
+			Self::NoSystemPointer => &"no system pointer, nothing to do",
 			Self::VerifyingDriverSignature => &"verifying driver pointer signature",
 			Self::ValidatingDriverPointer => &"validating driver pointer",
 			Self::ReadingRunningDriver => &"reading the running driver",

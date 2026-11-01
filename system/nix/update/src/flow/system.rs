@@ -35,7 +35,9 @@ async fn run(
 	dry: bool,
 	out: &mut Output<'_>,
 ) -> Result<(), Refusal> {
-	let bytes = incoming(bucket, config, false, out).await?.ok_or(Refusal::PointerFetch)?;
+	let Some(bytes) = incoming(bucket, config, false, out).await? else {
+		return Ok(());
+	};
 	let pointer = pointer::system(&bytes, &config.machine, clock.now())?;
 	let mut taken = false;
 	if let Some(accepted) = state::read(&paths.accepted()).map_err(|_| Refusal::State)? {

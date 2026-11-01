@@ -84,21 +84,19 @@ async fn incoming(
 	let key = format!("pointer/{}/{}", if driver { "driver" } else { "system" }, config.machine);
 	let bytes = match bucket.get(&key).await.map_err(|_| Refusal::PointerFetch)? {
 		Some(bytes) => bytes,
-		None if driver => {
-			out.say(Step::NoDriverPointer);
+		None => {
+			out.say(if driver { Step::NoDriverPointer } else { Step::NoSystemPointer });
 			return Ok(None);
 		}
-		None => return Err(Refusal::PointerFetch),
 	};
 	out.say(Step::FetchingSignature);
 	let signature =
 		match bucket.get(&format!("{key}.sig")).await.map_err(|_| Refusal::SignatureFetch)? {
 			Some(bytes) => bytes,
-			None if driver => {
-				out.say(Step::NoDriverPointer);
+			None => {
+				out.say(if driver { Step::NoDriverPointer } else { Step::NoSystemPointer });
 				return Ok(None);
 			}
-			None => return Err(Refusal::SignatureFetch),
 		};
 	out.say(if driver { Step::VerifyingDriverSignature } else { Step::VerifyingSystemSignature });
 	let signers = if driver { &config.driver_signers } else { &config.signers };

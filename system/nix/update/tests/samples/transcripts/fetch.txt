@@ -198,12 +198,12 @@ update: validating system pointer
 update: reading the running system
 update: pointer differs from the running system
 update: dry run would switch to pointer system
-### run 24: (no arguments), exit 1
+### run 24: (no arguments), exit 0
 update: reading runtime access files
 update: fetching system pointer
 update: fetching pointer signature
-update: refused, signature fetch failed
-### run 25: (no arguments), exit 1
+update: no system pointer, nothing to do
+### run 25: (no arguments), exit 0
 update: reading runtime access files
 update: fetching system pointer
-update: refused, pointer fetch failed
+update: no system pointer, nothing to do

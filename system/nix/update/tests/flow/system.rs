@@ -91,10 +91,16 @@ async fn system_update_transcript_and_invariants() {
 	assert_eq!(f.fetch(true).await.0, 0);
 	assert_eq!(f.accepted(), accepted);
 	f.bucket.objects.borrow_mut().remove(&format!("{}.sig", f.key()));
-	refused(&mut f, "signature fetch failed", &accepted).await;
+	let (code, text) = f.fetch(false).await;
+	assert_eq!(code, 0, "{text}");
+	assert!(text.contains("no system pointer, nothing to do"));
+	assert_eq!(f.accepted(), accepted);
 	f.signed(&f.system_pointer(1, "2"));
 	f.bucket.objects.borrow_mut().remove(&f.key());
-	refused(&mut f, "pointer fetch failed", &accepted).await;
+	let (code, text) = f.fetch(false).await;
+	assert_eq!(code, 0, "{text}");
+	assert!(text.contains("no system pointer, nothing to do"));
+	assert_eq!(f.accepted(), accepted);
 	f.compare(include_str!("../samples/transcripts/fetch.txt"));
 }
 
@@ -183,4 +189,59 @@ async fn a_failed_profile_restoration_keeps_the_accepted_pointer() {
 	assert_eq!(code, 1);
 	assert!(text.ends_with("update: refused, switch failed and profile restoration failed\n"));
 	assert_eq!(f.accepted(), accepted);
+}
+
+#[tokio::test(start_paused = true)]
+async fn only_an_absent_system_pointer_is_nothing_to_do() {
+	let mut f = Fixture::new(false);
+	f.signed(&f.system_pointer(0, "1"));
+	assert_eq!(f.fetch(false).await.0, 0);
+	let accepted = f.accepted();
+	let key = f.key();
+	let bytes = f.bucket.objects.borrow().get(&key).unwrap().clone();
+	let switches = f.switch.calls.borrow().len();
+	let calls = f.store.calls.len();
+	f.bucket.objects.borrow_mut().remove(&key);
+	for dry in [false, true] {
+		let (code, text) = f.fetch(dry).await;
+		assert_eq!(code, 0, "{text}");
+		assert!(text.ends_with("update: no system pointer, nothing to do\n"), "{text}");
+	}
+	assert_eq!(f.accepted(), accepted);
+	assert_eq!(f.switch.calls.borrow().len(), switches);
+	assert_eq!(f.store.calls.len(), calls);
+	assert_eq!(host::read_link(&f.paths.current_system).unwrap().as_deref(), Some(NEW));
+	f.bucket.objects.borrow_mut().insert(key.clone(), bytes);
+	let sig = format!("{key}.sig");
+	let signature = f.bucket.objects.borrow_mut().remove(&sig).unwrap();
+	for dry in [false, true] {
+		let (code, text) = f.fetch(dry).await;
+		assert_eq!(code, 0, "{text}");
+		assert!(text.ends_with("update: no system pointer, nothing to do\n"), "{text}");
+	}
+	assert_eq!(f.accepted(), accepted);
+	assert_eq!(f.switch.calls.borrow().len(), switches);
+	assert_eq!(f.store.calls.len(), calls);
+	f.bucket.objects.borrow_mut().insert(sig.clone(), b"broken".to_vec());
+	let (code, text) = f.fetch(false).await;
+	assert_eq!(code, 1, "{text}");
+	assert!(text.contains("invalid system-pointer signature"), "{text}");
+	f.bucket.objects.borrow_mut().insert(sig.clone(), signature);
+	for status in [403, 500, 0] {
+		f.bucket.errors.borrow_mut().insert(sig.clone(), status);
+		let (code, text) = f.fetch(false).await;
+		assert_eq!(code, 1, "{text}");
+		assert!(text.contains("signature fetch failed"), "{text}");
+		assert_eq!(f.accepted(), accepted);
+		f.bucket.errors.borrow_mut().clear();
+	}
+	for status in [403, 500, 0] {
+		f.bucket.errors.borrow_mut().insert(key.clone(), status);
+		let (code, text) = f.fetch(false).await;
+		assert_eq!(code, 1, "{text}");
+		assert!(text.contains("pointer fetch failed"), "{text}");
+		assert!(!text.contains("nothing to do"), "{text}");
+		assert_eq!(f.accepted(), accepted);
+		f.bucket.errors.borrow_mut().clear();
+	}
 }
