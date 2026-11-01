@@ -5,7 +5,7 @@ let
   # What outlives the container, a volume of its own.
   state = "/var/lib";
   disk = "${state}/disk/data.img";
-  binding = "${state}/driver-machine/binding";
+  binding = "${state}/driver-machine/state/bound/binding";
 in
 {
   boot = {
@@ -43,6 +43,8 @@ in
       ipv4 = "none";
       ipv6 = "none";
     };
+    # No tailnet runs in a container, so nothing closes public SSH.
+    ssh.public = "open";
     # monoflake/platform's conform runs a second driver here beside the live one.
     conform.enable = true;
   };
