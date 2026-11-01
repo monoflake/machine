@@ -17,6 +17,16 @@ for each machine follows them, and no DNS credential is kept on any machine**; t
 API is chosen later. Who reads the addresses and holds the credential that changes the names is
 open, and nothing past a machine learning its addresses is built until the author chooses.
 
+**Each machine also declares which public families it has, decided by the author on 2026-11-01**:
+IPv4 and IPv6 each supported or not, whether the machine sits behind NAT, and where it does,
+whether its router forwards the ports it uses. A forwarded port counts as a public one, since the
+author opens a forward for whatever a machine needs. The declaration names which families a probe
+or a smoke check tests, and what the machine learns of its own addresses is checked against it, a
+difference reported as `machine.memory`'s is. Whether a machine serves a peer relay does not follow
+from it: a relay needs only its port reachable, by a public address or a forward, as the author's
+two machines in China are by their router's forward. The option's name and shape are open, and it
+is built after B's switch in place, monoflake/cloud's RFC oej2a item 8 step 6.
+
 ## Options
 
 Raised by the author and the advisor on 2026-10-26, for the second half of the question.
@@ -43,6 +53,9 @@ Raised by the author and the advisor on 2026-10-26, for the second half of the q
   asked apart, so two sources run by two vendors can be compared.
 - A machine without an address of a family, as one with no public IPv6, has nothing to report for
   it, which is no failure.
+- On 2026-11-01 the advisor probed the relay port of iris and lime, Azure machines whose only
+  public address is IPv6, at an IPv4 they do not hold, their default outbound one, and read the
+  silence as a closed port. A declaration of their families would have named the probe to run.
 
 ### Ledger
 
