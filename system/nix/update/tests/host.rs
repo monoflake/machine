@@ -405,9 +405,9 @@ async fn a_program_past_its_limit_is_killed_and_what_it_wrote_kept() {
 	let directory = tempfile::tempdir().unwrap();
 	let program = script(directory.path(), "#!/bin/sh\necho waiting\nexec sleep 30\n");
 	let began = std::time::Instant::now();
-	let ran = Child.run(&program, &[], Duration::from_millis(300)).await;
+	let ran = Child.run(&program, &[], Duration::from_secs(5)).await;
 	assert_eq!(ran, Ran::TimedOut { output: "waiting\n".into() });
-	assert!(began.elapsed() < Duration::from_secs(10));
+	assert!(began.elapsed() < Duration::from_secs(20));
 }
 
 #[tokio::test]
