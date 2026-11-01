@@ -1,10 +1,14 @@
 ---
 name: 'Room Before a Fetch'
 title: "A machine's system profile keeps a generation only while it is among the newest three and younger than three days, the booted and the current one always, as a store on a 5 GB root holds about two closures"
-status: accepted
+status: landed
 supersedes: []
 blocked-by: []
-commits: []
+commits:
+  - monoflake/machine@04b3a0da
+  - monoflake/cloud@54d3f914
+  - monoflake/cloud@cbaf60a9
+  - monoflake/cloud@4953f7b1
 references: []
 ---
 
