@@ -242,7 +242,7 @@ impl Switch for Process {
 	}
 }
 
-/// A file taking a child's standard output and error in write order, unlinked at once, and a reader.
+/// A file taking a child's output and error in write order, unlinked at once, and a reader.
 fn merged_output() -> io::Result<(File, File)> {
 	loop {
 		let path = std::env::temp_dir().join(format!(
