@@ -1,7 +1,11 @@
 # The tailnet
 
 Every machine runs nixpkgs-unstable's Tailscale, [releases.md](releases.md), and keeps the tailnet's resolver out of its nameservers,
-`system/network/tailnet.nix`. It joins the tailnet at boot with `machine.tailnet.authKeyFile` where
+`system/base/tailnet.nix`. **Only CI moves a machine's Tailscale**, by `--auto-update=false`, the
+author's wish of 2026-11-01, while the tailnet's default stays on for the author's own devices.
+**tailscaled starts once the machine holds an address**: it waits for `network-online.target`, and
+dhcpcd for an IPv4 lease, as on fog's reboot of 2026-11-01 it started on its cached state before
+the lease, failed its dials, backed off and registered only after 161 seconds. It joins the tailnet at boot with `machine.tailnet.authKeyFile` where
 one is set, or is logged in by hand. Its interface is not trusted by the host firewall,
 [network.md](network.md#public-ssh).
 

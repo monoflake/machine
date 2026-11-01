@@ -23,7 +23,16 @@ in
     package = pkgs.latest.tailscale;
     openFirewall = true;
     # The tailnet's resolver would replace the nameservers `network.nix` sets, which a container
-    # cannot reach. First among the flags, as a layer above adds its own.
-    extraSetFlags = lib.mkBefore [ "--accept-dns=false" ];
+    # cannot reach, and CI alone moves Tailscale, docs/tailnet.md. First, as a layer adds its own.
+    extraSetFlags = lib.mkBefore [
+      "--accept-dns=false"
+      "--auto-update=false"
+    ];
   };
+  # tailscaled dials its control once the machine holds an address, docs/tailnet.md.
+  systemd.services.tailscaled = {
+    wants = [ "network-online.target" ];
+    after = [ "network-online.target" ];
+  };
+  networking.dhcpcd.wait = lib.mkDefault "ipv4";
 }

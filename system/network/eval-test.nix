@@ -113,17 +113,20 @@ let
     defaultRoutes =
       defaults.services.tailscale.extraSetFlags == [
         "--accept-dns=false"
+        "--auto-update=false"
         "--hostname=alder"
       ];
     subnetRoutes =
       subnet.services.tailscale.extraSetFlags == [
         "--accept-dns=false"
+        "--auto-update=false"
         "--advertise-routes=192.0.2.0/24"
         "--hostname=alder"
       ];
     exitOnly =
       exit.services.tailscale.extraSetFlags == [
         "--accept-dns=false"
+        "--auto-update=false"
         "--advertise-exit-node"
         "--stateful-filtering=true"
         "--hostname=alder"
@@ -131,6 +134,7 @@ let
     connectorFlags =
       connector.services.tailscale.extraSetFlags == [
         "--accept-dns=false"
+        "--auto-update=false"
         "--advertise-connector"
         "--stateful-filtering=true"
         "--hostname=alder"
@@ -138,6 +142,7 @@ let
     exitRoutes =
       routed.services.tailscale.extraSetFlags == [
         "--accept-dns=false"
+        "--auto-update=false"
         "--advertise-routes=198.51.100.7/32,2001:db8::/32"
         "--advertise-exit-node"
         "--stateful-filtering=true"
@@ -149,6 +154,10 @@ let
       && defaults.services.tailscale.useRoutingFeatures == "none"
       && exit.services.tailscale.useRoutingFeatures == "server"
       && connector.services.tailscale.useRoutingFeatures == "server";
+    tailscaledAfterAddress =
+      lib.elem "network-online.target" defaults.systemd.services.tailscaled.after
+      && lib.elem "network-online.target" defaults.systemd.services.tailscaled.wants
+      && defaults.networking.dhcpcd.wait == "ipv4";
     connectorAlone = !(conflicting connector.assertions);
     connectorExitRefused = conflicting (assertionsFor {
       machine.tailnet = {
