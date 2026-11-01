@@ -119,3 +119,26 @@ eval tests and recorded behavior transcripts retained.
     handler and the calls a handler needs have no safe form. Its public API is safe,
     `machine-update` stays `forbid`, and its lint table is the workspace's but for `unsafe_code`,
     which its test holds.
+
+## State
+
+Written on 2026-11-01. The update path is built in Rust, and the address discovery is not.
+
+Built: the root `Cargo.toml` lists the `machine-update` crate at `system/nix/update/` and the
+`abort` crate under it. The crate builds `machine-update-fetch`, `machine-update-nudge` and
+`machine-driver-rollback`. `src/store.rs` calls `AddToStoreNar` through harmonia, `src/bucket.rs`
+reads the bucket, and `docs/update.md` states the rule. The update path's shell and shell tests
+are gone. `system/nix/cache/` is gone too.
+
+Not built: the address discovery. `system/network/addresses/default.nix` still wraps
+the discover script in `writeShellApplication` with `curl`, `jq` and `iproute2`, its shell tests and
+`parse.jq` remain, and the root `Cargo.toml` has no crate for it. Item 6's question about
+Tailscale's netcheck, LocalAPI or a STUN client is therefore still open.
+
+A claim in item 2 is wrong about the present. `builder/` is not removed code. `builder/entry.sh` is
+live: `scripts/builder.res` reads it, `mise.toml` has the `builder` task, and `docs/local.md`
+describes the container it starts on a developer's computer for building a system. What RFC oej2a
+retired is the fleet's builder cache, which was `system/nix/cache/`, and `builder/` stays.
+
+The seed's render and boot scripts under `system/base/seed/` are neither in item 2's scope nor scheduled:
+they still run at boot, `docs/network.md`, and no RFC here decides whether they are rewritten.

@@ -59,3 +59,19 @@ machine's modules and its generated configuration.
 run's own set is what upstream lacks, uploaded whole each day; a self run publishes nothing; the
 bucket's lifecycle rule alone deletes, with no marker kept; the two upload passes stay, every NAR
 before its narinfo.
+
+## State
+
+Written on 2026-11-01. The half that keeps public paths out of the bucket is built, and the half
+that chooses a mirror by region is not.
+
+Built: CI no longer uploads what upstream has. `scripts/systems/systems.res` in monoflake/cloud
+sets the NixOS cache and the owner's bucket as the substituters and asks upstream which paths it
+lacks before it uploads, under RFC oej2a, which replaced the builders, their keys, the self upload
+and the consumers-first rollout this ledger describes. Those parts of the ledger are history.
+
+Not built: the machine option that picks substituters by region. `machine.region` in
+`system/options.nix` is a label and selects nothing, and no module of this repository sets
+substituters. A mainland machine still carries its mirror by hand, as the ledger allowed: ivy and
+dusk in `organizations/canmi/machines/*/configuration.nix` of monoflake/cloud list SJTU's mirror
+first, then the NixOS cache, and say they do so until this option lands.
