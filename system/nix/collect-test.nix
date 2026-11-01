@@ -26,7 +26,7 @@ let
       persistent = timer.Persistent;
       minFree = (cfg.nix.settings.min-free or null) == 1073741824;
       maxFree = (cfg.nix.settings.max-free or null) == 2147483648;
-      lastThreeKept = lib.hasSuffix "--delete-generations +3" cfg.systemd.services.nix-gc.preStart;
+      newestYoungKept = lib.hasInfix "system-generations-pruned" cfg.systemd.services.nix-gc.preStart;
       newSystem = cfg.systemd.paths.nix-gc.pathConfig.PathChanged == "/nix/var/nix/profiles";
     };
   tests = lib.concatMapAttrs (

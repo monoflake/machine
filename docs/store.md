@@ -19,9 +19,10 @@ turns `dates` into the service's `startAt`, and
 [systemd.nix](https://github.com/NixOS/nixpkgs/blob/1f607aa79b6356ed45d3cd3c8079c196e79efa2c/nixos/modules/system/boot/systemd.nix#L777-L781)
 makes that the timer's `OnCalendar`.
 
-Two things stay as they were. Before each collection the system profile keeps its last three
-generations, `--delete-generations +3`, as the boot menu keeps them, RFC vr5lw. A path unit on
-`/nix/var/nix/profiles` starts the same collection whenever a new system lands there.
+**Before each collection the system profile keeps a generation only while it is among the newest
+three and younger than three days**, the booted and the current one always, decided by the author
+on 2026-11-01, RFC 79bz5; the boot menu still keeps three. A path unit on `/nix/var/nix/profiles`
+starts the same collection whenever a new system lands there.
 
 ## `min-free` and `max-free`
 
@@ -69,7 +70,7 @@ paths. A system the update path takes is rooted from its realization until its p
 ## Tests
 
 `system/nix/collect-test.nix` evaluates a machine for both Linux architectures and checks the
-timer's calendar, its persistence, the two settings in bytes, the three generations kept and the
+timer's calendar, its persistence, the two settings in bytes, the generations' pruning and the
 path unit:
 
 ```sh
