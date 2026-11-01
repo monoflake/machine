@@ -6,16 +6,18 @@ test machine, so the driver can be developed with no network beyond `localhost`.
 repository's, since neither carries a secret.
 
 ```sh
-mise run builder up     # reuses it, or makes it anew from another image or keys; or down
+mise run builder up     # reuses it, or makes it anew from another image, script or keys; or down
 mise run local up       # starts it, or switches it to this checkout's local/; or down
 ```
 
 **The builder is made by one caller at a time and reused by every other**, decided by the author on
 2026-10-25: two installs once copied through it at once and each made it again under the other.
-Making or removing it holds a lock, `machine-builder.lock` in the user's temporary directory, with
-the holder's process id inside; another caller waits up to five minutes, and takes over a lock whose
-holder is gone. A switch or an install reuses a builder made from another image or other keys and
-says so; `builder up` alone makes it anew then.
+Making, removing or reusing it holds a lock, an exclusive SQLite transaction on
+`~/.local/state/machine-builder/lock`, provisional, chosen by the implementer on 2026-11-01,
+so a killed holder's lock goes with its process. A reuser keeps it to its process's end, through its
+build and copy, so callers run one at a time; another waits up to five minutes, saying so every five
+seconds. A switch or an install reuses a builder made from another image, entry script or keys and
+says so; `builder up` alone makes it anew then. A key only the agent shows does not make it stale.
 
 |               | Builder                     | Local machine                                             |
 | ------------- | --------------------------- | --------------------------------------------------------- |
@@ -47,7 +49,7 @@ public keys, `ssh-add -L` and `~/.ssh/id_*.pub`, read when it is made.
 
 Nix reaches each container through an ssh configuration written to a temporary directory for the
 run, naming the container's port and the host key read from it, and including the computer's own
-`~/.ssh/config` after it; nothing under the home is written.
+`~/.ssh/config` after it; under the home only the lock is written.
 
 ## The local machine
 

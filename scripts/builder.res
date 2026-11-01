@@ -25,8 +25,6 @@ external with_: (@as(json`{}`) _, Dict.t<string>, Dict.t<string>) => Dict.t<stri
   "Object.assign"
 type process
 @val external process: process = "process"
-@val external pid: int = "process.pid"
-@val external signal: (int, int) => unit = "process.kill"
 @set external setExitCode: (process, int) => unit = "exitCode"
 
 /** This repository, monoflake/machine, wherever the script is compiled from. */
@@ -139,28 +137,40 @@ let timedAsync = async (
   }
 }
 
-/** The SSH public keys this computer logs in with, its agent's and its own files', each once. */
-let keys = () => {
-  let directory = join([homedir(), ".ssh"])
-  let files = existsSync(directory)
-    ? readdirSync(directory)
-      ->Array.filter(name => name->String.startsWith("id_") && name->String.endsWith(".pub"))
-      ->Array.map(name => readFileSync(join([directory, name])))
-    : []
-  let agent = quiet("ssh-add", ["-L"])->Option.getOr("")
+let normalizedKeys = texts => {
   let seen = Set.make()
-  [agent, ...files]
+  texts
   ->Array.flatMap(text => text->String.split("\n"))
-  ->Array.map(String.trim)
-  ->Array.filter(line => {
-    let key = line->String.split(" ")->Array.slice(~start=0, ~end=2)->Array.join(" ")
+  ->Array.map(line =>
+    line
+    ->String.trim
+    ->String.replaceRegExp(/\s+/g, " ")
+    ->String.split(" ")
+    ->Array.slice(~start=0, ~end=2)
+    ->Array.join(" ")
+  )
+  ->Array.filter(key => {
     let fresh =
-      (line->String.startsWith("ssh-") || line->String.startsWith("ecdsa-")) &&
-        !(seen->Set.has(key))
+      (key->String.startsWith("ssh-") || key->String.startsWith("ecdsa-")) && !(seen->Set.has(key))
     seen->Set.add(key)
     fresh
   })
+  ->Array.toSorted((a, b) => compare(a, b)->Int.toFloat)
 }
+
+let fileKeys = (~directory=join([homedir(), ".ssh"]), ()) =>
+  (
+    existsSync(directory)
+      ? readdirSync(directory)
+        ->Array.filter(name => name->String.startsWith("id_") && name->String.endsWith(".pub"))
+        ->Array.map(name => readFileSync(join([directory, name])))
+      : []
+  )->normalizedKeys
+
+let keys = () => normalizedKeys([quiet("ssh-add", ["-L"])->Option.getOr(""), ...fileKeys()])
+let entry = () => readFileSync(join([root, "builder", "entry.sh"]))
+let fileKeysLabel = "machine-builder.file-keys"
+let keyRecord = keys => keys->Array.join("\n")
 
 let exists = name => quiet("docker", ["inspect", "--format", "{{.Id}}", name])->Option.isSome
 let running = name =>
@@ -295,10 +305,12 @@ let made = () => {
         `${volume}:/nix`,
         "--env",
         `KEYS=${given->Array.join("\n")}`,
+        "--label",
+        `${fileKeysLabel}=${keyRecord(fileKeys())}`,
         image,
         "sh",
         "-c",
-        readFileSync(join([root, "builder", "entry.sh"])),
+        entry(),
       ],
     )->Option.isNone
   ) {
@@ -314,87 +326,137 @@ let made = () => {
 /** The builder running and answering, its ssh configuration, or none. */
 let reused = () => running(container) ? configured([builder])->Option.filter(answering) : None
 
-/** Whether the running builder was made from this image and with these keys. */
-let current = given =>
-  quiet("docker", ["inspect", "--format", "{{.Config.Image}}", container]) == Some(image) &&
-    quiet("docker", ["inspect", "--format", "{{json .Config.Env}}", container])
-    ->Option.flatMap(text =>
-      try JSON.parseOrThrow(text)->JSON.Decode.array catch {
-      | _ => None
-      }
-    )
-    ->Option.mapOr(false, env =>
-      env->Array.some(v => v == JSON.String(`KEYS=${given->Array.join("\n")}`))
-    )
-
-/** The lock held while one caller makes or removes the builder, a directory `mkdir` makes at once,
- * its holder's process id inside. */
-let lock = join([tmpdir(), `${container}.lock`])
-let holder = join([lock, "pid"])
-
-/** Whether a process of this id still runs. */
-let alive = id =>
-  try {
-    signal(id, 0)
-    true
-  } catch {
-  | _ => false
+let parsed = text =>
+  try Some(JSON.parseOrThrow(text)) catch {
+  | _ => None
   }
 
-let released = () => {
-  quiet("rm", ["-f", holder])->ignore
-  quiet("rmdir", [lock])->ignore
+let matching = (~given, ~files, ~script, config) => {
+  let field = name => config->JSON.Decode.object->Option.flatMap(o => o->Dict.get(name))
+  let text = name => field(name)->Option.flatMap(JSON.Decode.string)
+  let authorized =
+    field("Env")
+    ->Option.flatMap(JSON.Decode.array)
+    ->Option.getOr([])
+    ->Array.filterMap(JSON.Decode.string)
+    ->Array.find(v => v->String.startsWith("KEYS="))
+    ->Option.map(v => normalizedKeys([v->String.replaceRegExp(/^KEYS=/, "")]))
+    ->Option.getOr([])
+  let recorded =
+    field("Labels")
+    ->Option.flatMap(JSON.Decode.object)
+    ->Option.flatMap(o => o->Dict.get(fileKeysLabel))
+    ->Option.flatMap(JSON.Decode.string)
+  text("Image") == Some(image) &&
+  field("Cmd") == Some(JSON.Array([JSON.String("sh"), JSON.String("-c"), JSON.String(script)])) &&
+  recorded == Some(keyRecord(files)) &&
+  given->Array.every(key => authorized->Array.includes(key))
 }
 
-/** The lock taken, or a lock whose holder is gone cleared for the next try. */
-let taken = () =>
-  if quiet("mkdir", [lock])->Option.isSome {
-    writeFileSync(holder, Int.toString(pid))
+let current = given =>
+  quiet("docker", ["inspect", "--format", "{{json .Config}}", container])
+  ->Option.flatMap(parsed)
+  ->Option.mapOr(false, config => matching(~given, ~files=fileKeys(), ~script=entry(), config))
+
+type database
+@module("node:sqlite") @new external database: string => database = "DatabaseSync"
+@send external exec: (database, string) => unit = "exec"
+@send external close: database => unit = "close"
+@module("node:fs")
+external mkdirSync: (string, {"recursive": bool, "mode": int}) => unit = "mkdirSync"
+
+let lockPath = home => join([home, ".local", "state", container, "lock"])
+let lock = lockPath(homedir())
+let lease: ref<option<database>> = ref(None)
+
+let opened = path => {
+  mkdirSync(join([path, ".."]), {"recursive": true, "mode": 0o700})
+  database(path)
+}
+
+let taken = db =>
+  try {
+    db->exec("BEGIN EXCLUSIVE")
     Some()
-  } else {
-    let id = try readFileSync(holder)->String.trim->Int.fromString catch {
-    | _ => None
-    }
-    id->Option.mapOr(false, id => !alive(id)) ? released() : ()
-    None
+  } catch {
+  | JsExn(e) if JsExn.message(e) == Some("database is locked") => None
   }
 
-/** What `make` gives, run while this caller alone holds the lock, waited for up to five minutes. */
-let held = make =>
-  switch waited(300, taken) {
-  | None => Error(`a running caller held ${lock} past five minutes`)
-  | Some() =>
-    let result = try make() catch {
-    | _ => Error(`what ran holding ${lock} threw`)
+let acquired = (~seconds=300, ~say=Console.error, path, db) => {
+  let attempts = ref(0)
+  waited(seconds, () => {
+    switch taken(db) {
+    | Some() => Some()
+    | None =>
+      if mod(attempts.contents, 25) == 0 {
+        say(
+          `builder: waiting for ${path}, ${duration(
+              Int.toFloat(attempts.contents) *. 200.,
+            )} elapsed`,
+        )
+      }
+      attempts := attempts.contents + 1
+      None
     }
-    released()
-    result
+  })->Option.mapOr(
+    Error(`a running caller held ${path} past ${Int.toString(seconds)} seconds`),
+    _ => Ok(),
+  )
+}
+
+let released = db => {
+  db->exec("ROLLBACK")
+  db->close
+}
+
+// A reuse lease lasts through its caller's build and copy and is released by process exit.
+let held = (~retain=false, ~path=lock, make) =>
+  switch lease.contents {
+  | Some(_) => make()
+  | None =>
+    let db = opened(path)
+    switch acquired(path, db) {
+    | Error(why) =>
+      db->close
+      Error(why)
+    | Ok() =>
+      lease := Some(db)
+      try {
+        let result = make()
+        if !retain || result->Result.isError {
+          lease := None
+          released(db)
+        }
+        result
+      } catch {
+      | e =>
+        lease := None
+        released(db)
+        throw(e)
+      }
+    }
   }
 
 /** How a builder came to answer, reused as it ran or made anew. */
 type answered = Reused(string) | Made(string)
 
 /** The builder reused where it runs and answers, and otherwise made by one caller at a time; with
- * `fresh`, one from another image or keys is made anew too. */
-let up = (~fresh) => {
-  let usable = config => !fresh || current(keys()) ? Some(config) : None
-  switch reused()->Option.flatMap(usable) {
-  | Some(config) => Ok(Reused(config))
-  | None =>
-    held(() =>
-      switch reused()->Option.flatMap(usable) {
-      | Some(config) => Ok(Reused(config))
-      | None => made()->Result.map(config => Made(config))
-      }
-    )
-  }
-}
+ * `fresh`, one from another image, entry script or keys is made anew too. */
+let up = (~fresh, ~path=lock, ~reuse=reused, ~make=made, ~isCurrent=() => current(keys())) =>
+  held(~path, ~retain=!fresh, () => {
+    switch reuse()->Option.filter(_ => !fresh || isCurrent()) {
+    | Some(config) => Ok(Reused(config))
+    | None => make()->Result.map(config => Made(config))
+    }
+  })
 
 /** The builder reused or made, and the ssh configuration reaching it and `others`. */
 let started = others =>
   up(~fresh=false)->Result.flatMap(_ => {
     if !current(keys()) {
-      Console.error(`${container} runs another image or other keys; \`builder up\` makes it anew`)
+      Console.error(
+        `${container} runs another image, entry script or other keys; \`builder up\` makes it anew`,
+      )
     }
     configured([builder, ...others])->Option.mapOr(Error("a host key not read"), c => Ok(c))
   })
@@ -467,7 +529,9 @@ if isMain {
   let dry = args->Array.includes("--dry-run")
   switch args->Array.find(a => !(a->String.startsWith("--"))) {
   | Some("up") if dry =>
-    Console.log(`would reuse ${container} where it runs and answers from this image and keys,`)
+    Console.log(
+      `would reuse ${container} where it runs and answers from this image, entry script and keys,`,
+    )
     Console.log(
       `  and otherwise, holding ${lock}, stop and remove it, keeping the volume ${volume},`,
     )
