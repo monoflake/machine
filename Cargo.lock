@@ -1545,6 +1545,7 @@ dependencies = [
  "harmonia-store-remote",
  "harmonia-utils-signature",
  "hex",
+ "machine-update-abort",
  "reqwest",
  "rustix",
  "rustls",
@@ -1561,6 +1562,13 @@ dependencies = [
  "tokio-util",
  "url",
  "zbus",
+]
+
+[[package]]
+name = "machine-update-abort"
+version = "0.1.0"
+dependencies = [
+ "libc",
 ]
 
 [[package]]

@@ -40,7 +40,9 @@ paths. It fetches and verifies the pointer, applies the rollback checks and repo
 system is already running or would switch. It realizes nothing and writes no accepted state.
 Each stage is logged with `update:`; a failed realise or switch shows its tool's last lines with
 the endpoint's host and the key pair masked. `machine-update-check` runs this dry run by hand with the service's
-paths.
+paths. A SIGABRT, which passes every Rust panic hook, writes
+`update: aborted by SIGABRT, last step <step>` on standard error before the process dies by that
+signal with its core dump, RFC cbtjl item 10.
 
 **Every machine asks a substituter again soon**, `narinfo-cache-positive-ttl = 3600` and
 `narinfo-cache-negative-ttl = 60` in `system/nix/default.nix`, provisional, chosen by the advisor on

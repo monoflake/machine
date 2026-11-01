@@ -2,7 +2,7 @@
 # cbtjl; built for a machine by Nix, whose rustc is the release's, so `rust-version` follows it.
 [workspace]
 resolver = "3"
-members = ["system/nix/update"]
+members = ["system/nix/update", "system/nix/update/abort"]
 
 [workspace.package]
 edition = "2024"
@@ -10,7 +10,8 @@ rust-version = "1.95"
 publish = false
 license = "MIT"
 
-# Every crate takes these by `[lints] workspace = true`, as monoflake/driver's do.
+# Every crate takes these by `[lints] workspace = true`, as monoflake/driver's do, but
+# system/nix/update/abort, whose copy allows `unsafe_code`, RFC cbtjl item 10.
 [workspace.lints.rust]
 unsafe_code = "forbid"
 missing_docs = "deny"

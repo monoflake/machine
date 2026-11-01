@@ -43,6 +43,7 @@ impl Store for Connection<'_> {
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> std::process::ExitCode {
+	machine_update_abort::install();
 	tls::install();
 	rustix::process::umask(rustix::fs::Mode::from_raw_mode(0o077));
 	let mut stdout = std::io::stdout();

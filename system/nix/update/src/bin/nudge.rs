@@ -6,6 +6,7 @@ use machine_update::{flow, tls};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> std::process::ExitCode {
+	machine_update_abort::install();
 	tls::install();
 	let mut stdout = std::io::stdout();
 	let mut stderr = std::io::stderr();

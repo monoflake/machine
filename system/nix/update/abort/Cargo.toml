@@ -1,0 +1,26 @@
+[package]
+name = "machine-update-abort"
+description = "The line a machine's update programs write as SIGABRT kills them, naming their last step"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+license.workspace = true
+
+# The workspace's table but for `unsafe_code`, RFC cbtjl item 10, which tests/lints.rs holds.
+[lints.rust]
+unsafe_code = "allow"
+missing_docs = "deny"
+
+[lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+indexing_slicing = "deny"
+as_conversions = "deny"
+unimplemented = "deny"
+wildcard_enum_match_arm = "deny"
+dbg_macro = "deny"
+
+[dependencies]
+libc = "0.2.191"

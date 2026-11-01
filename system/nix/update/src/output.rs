@@ -72,42 +72,49 @@ pub enum Step {
 	InstallSucceeded,
 }
 
+impl Step {
+	/// The step's words, behind a second reference so one atomic pointer can hold them.
+	fn text(self) -> &'static &'static str {
+		match self {
+			Self::ReadingAccess => &"reading runtime access files",
+			Self::Recorded => &"accepted pointer recorded",
+			Self::FetchingSystemPointer => &"fetching system pointer",
+			Self::FetchingSignature => &"fetching pointer signature",
+			Self::VerifyingSystemSignature => &"verifying system pointer signature",
+			Self::ValidatingSystemPointer => &"validating system pointer",
+			Self::AlreadyTaken => &"pointer already taken",
+			Self::ReadingRunningSystem => &"reading the running system",
+			Self::RunningSystem => &"pointer is the running system",
+			Self::DiffersFromRunning => &"pointer differs from the running system",
+			Self::WouldNotSwitchAgain => &"accepted pointer would not switch again",
+			Self::WouldSwitch => &"dry run would switch to pointer system",
+			Self::Realising => &"realising system without builds",
+			Self::SettingProfile => &"setting system profile",
+			Self::Switching => &"switching system",
+			Self::RestoringSystem => &"switch failed, restoring previous system",
+			Self::SwitchSucceeded => &"system switch succeeded",
+			Self::FetchingDriverPointer => &"fetching driver pointer",
+			Self::NoDriverPointer => &"no driver pointer, nothing to do",
+			Self::VerifyingDriverSignature => &"verifying driver pointer signature",
+			Self::ValidatingDriverPointer => &"validating driver pointer",
+			Self::ReadingRunningDriver => &"reading the running driver",
+			Self::RunningDriver => &"pointer is the running driver",
+			Self::WouldInstall => &"dry run would install pointer driver",
+			Self::DownloadingArchive => &"downloading driver archive",
+			Self::CheckingArchive => &"checking driver archive SHA-256",
+			Self::UnpackingArchive => &"unpacking driver archive",
+			Self::SwitchingLinks => &"switching driver links",
+			Self::RestartingDriver => &"restarting driver services",
+			Self::RestoringDriver => &"restart failed, restoring previous driver",
+			Self::RemovingOlder => &"removing older driver versions",
+			Self::InstallSucceeded => &"driver install succeeded",
+		}
+	}
+}
+
 impl fmt::Display for Step {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-		f.write_str(match self {
-			Self::ReadingAccess => "reading runtime access files",
-			Self::Recorded => "accepted pointer recorded",
-			Self::FetchingSystemPointer => "fetching system pointer",
-			Self::FetchingSignature => "fetching pointer signature",
-			Self::VerifyingSystemSignature => "verifying system pointer signature",
-			Self::ValidatingSystemPointer => "validating system pointer",
-			Self::AlreadyTaken => "pointer already taken",
-			Self::ReadingRunningSystem => "reading the running system",
-			Self::RunningSystem => "pointer is the running system",
-			Self::DiffersFromRunning => "pointer differs from the running system",
-			Self::WouldNotSwitchAgain => "accepted pointer would not switch again",
-			Self::WouldSwitch => "dry run would switch to pointer system",
-			Self::Realising => "realising system without builds",
-			Self::SettingProfile => "setting system profile",
-			Self::Switching => "switching system",
-			Self::RestoringSystem => "switch failed, restoring previous system",
-			Self::SwitchSucceeded => "system switch succeeded",
-			Self::FetchingDriverPointer => "fetching driver pointer",
-			Self::NoDriverPointer => "no driver pointer, nothing to do",
-			Self::VerifyingDriverSignature => "verifying driver pointer signature",
-			Self::ValidatingDriverPointer => "validating driver pointer",
-			Self::ReadingRunningDriver => "reading the running driver",
-			Self::RunningDriver => "pointer is the running driver",
-			Self::WouldInstall => "dry run would install pointer driver",
-			Self::DownloadingArchive => "downloading driver archive",
-			Self::CheckingArchive => "checking driver archive SHA-256",
-			Self::UnpackingArchive => "unpacking driver archive",
-			Self::SwitchingLinks => "switching driver links",
-			Self::RestartingDriver => "restarting driver services",
-			Self::RestoringDriver => "restart failed, restoring previous driver",
-			Self::RemovingOlder => "removing older driver versions",
-			Self::InstallSucceeded => "driver install succeeded",
-		})
+		f.write_str(self.text())
 	}
 }
 
@@ -274,6 +281,7 @@ impl<'a> Output<'a> {
 
 	/// Prints a step on standard output.
 	pub fn say(&mut self, step: Step) {
+		machine_update_abort::note(step.text());
 		let _ = writeln!(self.out, "update: {step}");
 	}
 

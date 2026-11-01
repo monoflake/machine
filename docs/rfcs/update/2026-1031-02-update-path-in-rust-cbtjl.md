@@ -108,6 +108,14 @@ eval tests and recorded behavior transcripts retained.
    source, whose one-time initialization called `abort()`, so `machine-update-fetch` died with
    SIGABRT after "update: fetching system pointer" and no line of its own. `machine.update.tls`
    picks the build, aws-lc-rs by default and ring where set, pine alone.
-10. **Open: the update path says which step it was in when it is aborted.** A C dependency's
-    `abort()` passes every Rust panic hook, so the journal held only the core dump; a SIGABRT
-    handler writing one line naming the step is the likely shape, not built yet.
+10. **The update path says which step it was in when it is aborted**, built on 2026-11-01. A C
+    dependency's `abort()` passes every Rust panic hook, so the journal held only the core dump.
+    `machine-update-fetch`, `machine-update-nudge` and `machine-driver-rollback` each install a
+    SIGABRT handler that writes `update: aborted by SIGABRT, last step <step>` on standard error,
+    the last step `Output::say` printed or `none`, restores the default action and raises the signal
+    again, so the core dump and the exit status stay. **The crate holding it,
+    `system/nix/update/abort`, is the fleet repositories' one deliberate allowance of `unsafe`**,
+    chosen by the author on 2026-11-01, because a C abort reaches nothing of Rust's but a signal
+    handler and the calls a handler needs have no safe form. Its public API is safe,
+    `machine-update` stays `forbid`, and its lint table is the workspace's but for `unsafe_code`,
+    which its test holds.

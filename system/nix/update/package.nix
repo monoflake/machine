@@ -15,6 +15,8 @@ let
       (root + "/Cargo.lock")
       ./Cargo.toml
       ./src
+      ./abort/Cargo.toml
+      ./abort/src
     ];
   };
   commonArgs = {
