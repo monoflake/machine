@@ -31,7 +31,9 @@ their trusted Nix keys. The global substituters stay unchanged. This command set
 and clears `builders`, so the machine never builds, locally or remotely. Missing substitutes fail
 the update. The realization roots the system until its system profile holds it. Only a successful
 switch records the pointer, by an atomic rename. Fetch, verification and realization failures leave
-the running system and accepted state untouched. A failed switch keeps the accepted state and
+the running system and accepted state untouched. An absent system pointer or signature, a not found
+answer alone, is nothing to do and exits successfully, as the bucket expires what a roll wrote a day
+or two later. A failed switch keeps the accepted state and
 attempts to restore the previous profile and system; NixOS activation is not transactional, so
 restoration can itself fail or leave effects from partial activation.
 
