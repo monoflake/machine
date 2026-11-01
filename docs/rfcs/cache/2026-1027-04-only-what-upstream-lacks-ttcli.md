@@ -1,7 +1,7 @@
 ---
 name: 'Only What Upstream Lacks'
 title: 'A run uploads only the paths of its closure upstream lacks, all of them again each day, and the bucket deletes by its lifecycle rule alone'
-status: accepted
+status: declined
 supersedes: []
 blocked-by: []
 commits: []
@@ -66,6 +66,8 @@ is named with its directory there, `src/libstore`, `src/libcmd` or `src/nix`, at
   back.
 
 ## Decision
+
+**Superseded by monoflake/cloud's RFC oej2a**, the fleet built in CI; upstream filtering, the lifecycle and the cap carry into it, and the rest here no longer stands.
 
 Decided by the author on 2026-10-27, unless marked provisional. It supersedes the sweep of
 monoflake/cloud's RFC u9fxz, a run's first step deleting what no pending pointer references, and

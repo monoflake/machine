@@ -1,10 +1,12 @@
 ---
 name: "A Machine's Public Addresses"
 title: 'How a machine learns its own public addresses, and who reads them to keep its names pointing at it'
-status: accepted
+status: landed
 supersedes: []
 blocked-by: []
-commits: []
+commits:
+  - monoflake/machine@715afb14
+  - monoflake/cloud@3074c859
 references: []
 ---
 
