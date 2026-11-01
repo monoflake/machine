@@ -18,7 +18,6 @@ jobs:
       - uses: canmi21/canmi/.github/actions/workspace@main
         with:
           path: monoflake/machine
-          scripts: true
           nix: "true"
 
       - name: install the packages
