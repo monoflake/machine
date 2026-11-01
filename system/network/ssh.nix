@@ -1,5 +1,4 @@
-# A fleet machine's SSH open to the internet until the tailnet is healthy, the rest in base/ssh.nix,
-# and on a fetched machine its builders as the user machine-cache, nix/cache/fetch.nix.
+# A fleet machine's SSH open to the internet until the tailnet is healthy, the rest in base/ssh.nix.
 {
   config,
   lib,

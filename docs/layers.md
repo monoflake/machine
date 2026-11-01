@@ -9,8 +9,8 @@ key on the tailnet, Tailscale with its resolver and routes refused, chrony where
 flakes and no channels, the tools for hands, and a provider's seed where it gives no DHCP.
 `nixosModules.machine` imports it and adds the fleet's: the names and labels of a failure domain,
 GRUB and the data disk, zswap in front of a swap file there, public SSH until the tailnet is
-healthy, the tailnet's auth key and roles, the driver, its containers, fence and tunnel, the
-cache, collection, upgrade and signed updates. **No option of the base reads an option of the
+healthy, the tailnet's auth key and roles, the driver, its containers, fence and tunnel,
+collection, upgrade and signed updates. **No option of the base reads an option of the
 fleet's**, so a runner sets none of a machine's names, provider or account: it is in no failure
 domain.
 

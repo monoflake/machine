@@ -23,15 +23,14 @@ If systemd-networkd ran DHCP, its equivalent would be `[DHCPv4] Hostname=`.
 The seed path, `system/base/seed`, uses static addresses and no DHCP, so it sends no DHCP
 host name. No live DHCP test is required; the author accepts this as feasible in theory.
 
-**The cache keys machines by `machine.name`, never by the static hostname**, including its
-inventory check, pointers, builder identity, self runs and the host a builder reaches.
-A machine can therefore change its static hostname without changing its cache identity.
+**The update path keys machines by `machine.name`, never by the static hostname**, its pointers'
+paths and the machine each pointer names among them, [update.md](update.md). A machine can
+therefore change its static hostname without changing its update identity.
 
 `machine.region` and `machine.provider` are required enums whose closed lists live once in
 `system/labels.nix`. A provider is the vendor's lowercase name, or `selfhost` for one's own
 machines. A new region or provider is legal only after that file is edited. The flake exports
-that same data as `lib.labels`, beside `lib.fleet`, so a deployment reads the lists from the
-commit it locks.
+that same data as `lib.labels`, so a deployment reads the lists from the commit it locks.
 
 `machine.account` is a required nonempty string. Its value is never verified.
 **A failure domain is the same provider and the same account**; the same account string at two
@@ -39,4 +38,4 @@ providers denotes two domains. Nothing computes failure domains yet. A local con
 are placeholders nothing reads.
 
 `system/names-test.nix` evaluates the names, validation, labels and rendered settings without a
-live network. The cache's eval tests cover a static hostname that differs from the Network Name.
+live network.

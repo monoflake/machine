@@ -66,12 +66,6 @@ in
             "credentialsFile"
             "endpointFile"
           ]
-        ++ [
-          {
-            assertion = !config.machine.cache.enable;
-            message = "machine.update.enable refuses machine.cache.enable.";
-          }
-        ]
       );
     }
     (lib.mkIf cfg.enable {

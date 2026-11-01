@@ -39,9 +39,14 @@ Each stage is logged with `update:`; a failed realise or switch shows its tool's
 the endpoint's host and the key pair masked. `machine-update-check` runs this dry run by hand with the service's
 paths.
 
-The old `system/nix/cache/` mechanism stays frozen until monoflake/cloud's reset. Both mechanisms
-cannot be enabled on one machine. Its builder and fetch documentation remains in [cache.md](cache.md).
-The release lock still supplies frozen machines until monoflake/cloud's reset.
+**Every machine asks a substituter again soon**, `narinfo-cache-positive-ttl = 3600` and
+`narinfo-cache-negative-ttl = 60` in `system/nix/default.nix`, provisional, chosen by the advisor on
+2026-10-27, so a path the bucket expired, or one uploaded after an earlier miss, is not trusted from
+a stale local answer for long.
+
+The old builder cache, `machine.cache` and `system/nix/cache/`, was retired on 2026-11-01, when
+monoflake/cloud deleted its bucket and its builders. The release lock still supplies frozen
+machines until monoflake/cloud's reset.
 
 ## Driver channel
 

@@ -56,7 +56,7 @@ fi
 
 mkdir -p "$networks"
 put "$work/network" "$networks/10-seed.network" 0644
-# The directory is shared with the cache's units at their default mode, docs/cache.md, and the
+# The directory is shared with the addresses' unit at its default mode, docs/network.md, and the
 # archive alone is private.
 [ -d "${archive%/*}" ] || mkdir -m 0755 "${archive%/*}"
 put "$work/network" "$archive" 0600

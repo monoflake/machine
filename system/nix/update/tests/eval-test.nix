@@ -51,10 +51,6 @@ let
     let
       c = configured system options { machine.upgrade.flake = "fixture"; };
       disabled = configured system { enable = false; } { };
-      conflict = configured system options {
-        machine.cache.enable = true;
-        machine.cache.bucket = "/tmp/fixture";
-      };
       package = c.machine.update.package;
       checkPackage = lib.findFirst (
         p: p.name == "machine-update-check"
@@ -70,7 +66,6 @@ let
       );
     in
     assert lib.all rejected missing;
-    assert rejected conflict;
     assert !rejected c;
     assert !rejected disabled;
     assert !(disabled.systemd.services ? "update-now@");

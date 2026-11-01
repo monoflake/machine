@@ -78,7 +78,7 @@ depends = ["//:build"]
 run = "node {{env.WORKSPACE}}/scripts/clean.res.mjs"
 
 [tasks.verify]
-description = "What a commit has to pass: everything formatted, the scripts compiled, the Nix linted, the flake evaluated for every system, the Rust formatted, linted and tested on each HTTPS provider with its licenses checked, the cache's and the seed's tests run; the workflows are the workspace's check"
+description = "What a commit has to pass: everything formatted, the scripts compiled, the Nix linted, the flake evaluated for every system, the Rust formatted, linted and tested on each HTTPS provider with its licenses checked, the seed's tests run; the workflows are the workspace's check"
 run = "mise run verify:format ::: verify:nix ::: verify:rust ::: verify:tests"
 
 [tasks."verify:format"]

@@ -74,8 +74,7 @@ Tailscale's own traffic is accounted for in [tailnet.md](tailnet.md#the-host-fir
 the author on 2026-10-26; the seconds it is open around a boot or a switch are accepted. Every
 machine sets `services.openssh.openFirewall`, so the base firewall always accepts 22, and SSH takes
 the machine's keys alone, never a password. **A machine authorizes the author's key alone, written
-without its comment**, decided by the author the same day; a machine's builders reach the user
-`machine-cache` by their own restricted keys, `nix/cache/fetch.nix`.
+without its comment**, decided by the author the same day.
 
 `machine.ssh.public`, `until-healthy` by default, runs `machine-ssh-close` each minute,
 `system/network/ssh.nix`: while Tailscale reports itself running and online, it adds a table of its
@@ -105,6 +104,9 @@ change only when a second check a minute later agrees again, `system/network/add
 answer is `/var/lib/machine/addresses.json`, each family `confirmed`, `disputed`, `unknown` or
 `none`, the last confirmed address kept through the rest, so a restart loses nothing. Who reads it
 and changes a name is still RFC co32d's open question, and nothing reads it yet.
+**`/var/lib/machine` keeps systemd's default mode**, provisional, chosen by the advisor on
+2026-10-27: the seed's archive and the addresses' unit share it, so no unit sets a
+`StateDirectoryMode` for it and secrecy comes per file, `system/network/addresses/eval-test.nix`.
 
 ## Its clock
 
@@ -114,5 +116,5 @@ first and a third party serve otherwise, `system/base/time/`: `machine.time.prov
 Oracle's own NTP service or Azure's host clock, the region's resolvers add Alibaba Cloud's and
 Tencent's servers in China, and every machine falls back to Cloudflare's over NTS. Google's servers
 are never among them, since they smear a leap second and must not mix with sources that do not.
-Clocks matter to the cache, whose fetch refuses a pointer more than an hour ahead of its own,
-docs/cache.md.
+Clocks matter to the update path, whose updater refuses a pointer more than an hour ahead of its
+own, [update.md](update.md).

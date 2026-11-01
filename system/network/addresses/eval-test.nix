@@ -39,28 +39,6 @@ let
   off = template flake { };
   without = template flake { disabledModules = [ ./default.nix ]; };
   on = template flake { machine.addresses.enable = true; };
-  shared = template flake {
-    machine.addresses.enable = true;
-    machine.cache = {
-      enable = true;
-      bucket = "/var/empty/cache";
-      builds.example = {
-        flake = "/var/empty/flake";
-        host = "192.0.2.10";
-      };
-      builder = lib.genAttrs [ "signingKey" "pointerKey" "accessKey" ] (_: "/var/empty/key");
-      fetch = {
-        from = [ "192.0.2.0/24" ];
-        builders = [
-          {
-            pointer = "example";
-            nix = "example";
-            access = "example";
-          }
-        ];
-      };
-    };
-  };
   service = on.systemd.services.machine-addresses;
   timer = on.systemd.timers.machine-addresses;
   tests = {
@@ -83,7 +61,7 @@ let
         usesMachine = lib.any (name: builtins.head (lib.splitString ":" name) == "machine") names;
       in
       usesMachine -> (unit.serviceConfig.StateDirectoryMode or "0755") == "0755"
-    ) (builtins.attrValues shared.systemd.services);
+    ) (builtins.attrValues on.systemd.services);
     hourly =
       timer.timerConfig.OnBootSec == "0"
       && timer.timerConfig.OnUnitActiveSec == "1h"

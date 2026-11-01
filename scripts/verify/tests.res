@@ -23,7 +23,6 @@ type test = {name: string, cwd: string, program: string, args: array<string>}
 
 let root = metaUrl->fileURLToPath->dirname->dirname->dirname
 
-let cache = "system/nix/cache/tests"
 let update = "system/nix/update/tests"
 
 let shell = (~cwd=".", path, ~args=[]) => {
@@ -42,34 +41,6 @@ let evaluated = path => {
 
 /** Every test verify runs, each holding its own temporary directory, so none waits on another. */
 let tests = [
-  ...[
-    "endpoint-test.sh",
-    "fetch/protocol-test.sh",
-    "delivery-test.sh",
-    "lock-test.sh",
-    "outcome-test.sh",
-    "fleet-test.sh",
-    "module-test.sh",
-    "compatibility-test.sh",
-    "self-test.sh",
-    "upload/run-test.sh",
-    "upload/upstream-test.sh",
-    "build/build-test.sh",
-    "fetch/gc-test.sh",
-  ]->Array.map(path => shell(~cwd=cache, path)),
-  ...[
-    "success",
-    "failure",
-    "term",
-    "self",
-    "self-copy-failure",
-    "self-gc",
-    "gc-error",
-  ]->Array.map(mode => shell(~cwd=cache, "build/run-test.sh", ~args=[mode])),
-  ...["configured", "copy"]->Array.map(mode =>
-    shell(~cwd=cache, "build/self-test.sh", ~args=[mode])
-  ),
-  shell(~cwd=cache, "fetch/gc-test.sh", ~args=["valid"]),
   ...["driver-eval-test.sh", "eval-test.sh", "nudge-eval-test.sh"]->Array.map(path =>
     shell(`${update}/${path}`)
   ),

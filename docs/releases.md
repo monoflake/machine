@@ -43,8 +43,8 @@ and names the driver's version in its message beside the runtimes'.
 **The driver is fetched like any other source**, decided by the author on 2026-10-27. Each
 architecture's entry in the lock is its one GitHub Releases URL and its SHA-256; whichever builder
 builds a system fetches the archive by that fixed output and packages it, and the package travels
-by the cache's own rules, an own path reaching the object storage through the cache, RFC mgzfp. The
-release needs no bucket of its own.
+as any own path does, uploaded to a platform's bucket by CI, RFC mgzfp. The release needs no bucket
+of its own.
 
 **`machine.driver.package` defaults to that package** on the host's architecture, set in
 `system/driver.nix` by `lib.mkDefault`, so a package a configuration sets replaces it. A test
@@ -59,7 +59,7 @@ URL and hash, both services' executable and the override. The update workflow ru
 verify once any declared input has moved.
 
 **Systems can now follow CI’s signed pointer**, through `machine.update`,
-[update.md](update.md). The old cache mechanism stays frozen until monoflake/cloud’s reset.
+[update.md](update.md). The old cache mechanism was retired on 2026-11-01.
 Machines with `machine.driver.channel` take the driver from their signed driver pointer,
 independently of system releases. NixOS supplies their units, runtime arguments, directories and
 trusted signer without selecting a driver version. The release lock described here stays for

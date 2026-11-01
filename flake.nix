@@ -59,7 +59,6 @@
       lib = {
         swap = import ./system/base/swap.nix;
         labels = import ./system/labels.nix;
-        fleet = import ./system/nix/cache/fleet.nix { inherit (nixpkgs) lib; };
 
         # A test machine as a container in Docker, of the system and with the SSH keys given, which
         # `mise run local` starts, RFC n0o4l.
