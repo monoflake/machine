@@ -52,4 +52,7 @@ impl Units for Bus {
 	async fn result(&self, unit: &str) -> Result<String, UnitError> {
 		self.connection().await?.result(unit).await
 	}
+	async fn identity(&self, unit: &str) -> Result<(u32, u32), UnitError> {
+		self.connection().await?.identity(unit).await
+	}
 }

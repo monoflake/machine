@@ -16,6 +16,7 @@ update: reading the running driver
 update: downloading driver archive
 update: checking driver archive SHA-256
 update: unpacking driver archive
+update: first driver install, level 3 skipped
 update: switching driver links
 update: restarting driver services
 update: https://<endpoint>
@@ -34,8 +35,11 @@ update: reading the running driver
 update: downloading driver archive
 update: checking driver archive SHA-256
 update: unpacking driver archive
+update: first driver install, level 3 skipped
 update: switching driver links
 update: restarting driver services
+update: checking driver health
+update: driver check passed
 update: accepted pointer recorded
 update: removing older driver versions
 update: driver install succeeded
@@ -254,6 +258,7 @@ update: reading the running driver
 update: downloading driver archive
 update: checking driver archive SHA-256
 update: unpacking driver archive
+update: taking driver snapshot
 update: switching driver links
 update: restarting driver services
 update: https://<endpoint>
@@ -280,8 +285,11 @@ update: reading the running driver
 update: downloading driver archive
 update: checking driver archive SHA-256
 update: unpacking driver archive
+update: taking driver snapshot
 update: switching driver links
 update: restarting driver services
+update: checking driver health
+update: driver check passed
 update: accepted pointer recorded
 update: removing older driver versions
 update: driver install succeeded
@@ -318,8 +326,11 @@ update: reading the running driver
 update: downloading driver archive
 update: checking driver archive SHA-256
 update: unpacking driver archive
+update: taking driver snapshot
 update: switching driver links
 update: restarting driver services
+update: checking driver health
+update: driver check passed
 update: accepted pointer recorded
 update: removing older driver versions
 update: driver install succeeded
@@ -356,8 +367,11 @@ update: reading the running driver
 update: downloading driver archive
 update: checking driver archive SHA-256
 update: unpacking driver archive
+update: taking driver snapshot
 update: switching driver links
 update: restarting driver services
+update: checking driver health
+update: driver check passed
 update: accepted pointer recorded
 update: removing older driver versions
 update: driver install succeeded
@@ -371,8 +385,11 @@ update: reading the running driver
 update: downloading driver archive
 update: checking driver archive SHA-256
 update: unpacking driver archive
+update: taking driver snapshot
 update: switching driver links
 update: restarting driver services
+update: checking driver health
+update: driver check passed
 update: accepted pointer recorded
 update: removing older driver versions
 update: driver install succeeded
@@ -386,8 +403,11 @@ update: reading the running driver
 update: downloading driver archive
 update: checking driver archive SHA-256
 update: unpacking driver archive
+update: taking driver snapshot
 update: switching driver links
 update: restarting driver services
+update: checking driver health
+update: driver check passed
 update: accepted pointer recorded
 update: removing older driver versions
 update: driver install succeeded

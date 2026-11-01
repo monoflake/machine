@@ -1,8 +1,17 @@
 //! Taking a signed driver pointer and restoring links after a failed restart.
 
+use super::health::{self, Judged};
 use super::*;
-use crate::effects::Download;
-use crate::{archive, pointer};
+use crate::effects::{Download, Program};
+use crate::{archive, failed, pointer};
+
+/// Why an install goes back, and how each outcome of going back is refused.
+struct Unwell {
+	stage: &'static str,
+	why: String,
+	restore: Refusal,
+	refusal: Refusal,
+}
 
 /// Fetches and installs a driver pointer, returning its success or refusal code.
 #[allow(clippy::too_many_arguments)]
@@ -10,6 +19,7 @@ pub async fn fetch_driver(
 	bucket: &impl Bucket,
 	download: &impl Download,
 	units: &impl Units,
+	program: &impl Program,
 	config: &Config,
 	paths: &Paths,
 	clock: &impl Clock,
@@ -28,7 +38,7 @@ pub async fn fetch_driver(
 			Err(_) => return 1,
 		}
 	};
-	let result = run(bucket, download, units, config, paths, clock, secrets, dry, out).await;
+	let result = run(bucket, download, units, program, config, paths, clock, secrets, dry, out).await;
 	finish(result, out)
 }
 
@@ -37,6 +47,7 @@ async fn run(
 	bucket: &impl Bucket,
 	download: &impl Download,
 	units: &impl Units,
+	program: &impl Program,
 	config: &Config,
 	paths: &Paths,
 	clock: &impl Clock,
@@ -74,6 +85,7 @@ async fn run(
 		out.say(Step::RunningDriver);
 		if !dry {
 			record(paths, &bytes, out).map_err(|_| Refusal::State)?;
+			failed::clear(&paths.failed());
 		}
 		return Ok(());
 	}
@@ -102,33 +114,75 @@ async fn run(
 		fs::remove_dir_all(&installed).map_err(|_| Refusal::ArchiveBinary)?;
 	}
 	fs::rename(&temporary.0, installed).map_err(|_| Refusal::ArchiveBinary)?;
+	// Written by the version being replaced, before anything of it stops, and gone with this run.
+	let baseline = health::baseline(program, config, paths, current.as_deref(), secrets, out).await;
 	out.say(Step::SwitchingLinks);
 	host::link(&paths.driver, "current", &pointer.version).map_err(|_| Refusal::DriverRestart)?;
 	if let Some(current) = &current {
 		host::link(&paths.driver, "previous", current).map_err(|_| Refusal::DriverRestart)?;
 	}
+	let running = current.as_deref().and_then(|path| path.rsplit('/').next());
+	let older = running.is_some_and(|running| health::older(&pointer.version, running));
 	out.say(Step::RestartingDriver);
-	if let Err(error) = restart(units).await {
-		if let Some(error) = error {
-			out.masked(&error.to_string(), secrets);
+	let unwell = match restart(units).await {
+		Err(error) => {
+			if let Some(error) = &error {
+				out.masked(&error.to_string(), secrets);
+			}
+			let why = error.map_or("a service did not become active".to_owned(), |e| e.to_string());
+			out.say(Step::RestoringDriver);
+			Some(Unwell {
+				stage: "restart",
+				why: secrets.mask(&why),
+				restore: Refusal::DriverRestore,
+				refusal: Refusal::DriverRestart,
+			})
 		}
-		out.say(Step::RestoringDriver);
+		Ok(()) => {
+			match health::check(program, units, older, config, paths, &baseline, secrets, out).await {
+				Judged::Passed => None,
+				Judged::Failed(why) => {
+					out.say(Step::CheckFailed);
+					Some(Unwell {
+						stage: "check",
+						why,
+						restore: Refusal::DriverCheckRestore,
+						refusal: Refusal::DriverCheck,
+					})
+				}
+			}
+		}
+	};
+	if let Some(unwell) = unwell {
+		// Written first, so a restoration that fails leaves the reason beside it.
+		let attempt = failed::Attempt {
+			version: &pointer.version,
+			run: &pointer.run,
+			pointer_at: &pointer.at,
+			stage: unwell.stage,
+			why: &unwell.why,
+			at: clock.now(),
+		};
+		if failed::write(&paths.failed(), &attempt).is_err() {
+			out.error("update: failed install not recorded");
+		}
 		if let Some(current) = &current {
-			host::link(&paths.driver, "current", current).map_err(|_| Refusal::DriverRestore)?;
+			host::link(&paths.driver, "current", current).map_err(|_| unwell.restore)?;
 			match &previous {
 				Some(previous) => host::link(&paths.driver, "previous", previous),
 				None => remove_link(&paths.driver, "previous"),
 			}
-			.map_err(|_| Refusal::DriverRestore)?;
-			restart(units).await.map_err(|_| Refusal::DriverRestore)?;
+			.map_err(|_| unwell.restore)?;
+			restart(units).await.map_err(|_| unwell.restore)?;
 		} else {
-			remove_link(&paths.driver, "current").map_err(|_| Refusal::DriverRestore)?;
-			remove_link(&paths.driver, "previous").map_err(|_| Refusal::DriverRestore)?;
+			remove_link(&paths.driver, "current").map_err(|_| unwell.restore)?;
+			remove_link(&paths.driver, "previous").map_err(|_| unwell.restore)?;
 			let _ = units.stop(SERVICES).await;
 		}
-		return Err(Refusal::DriverRestart);
+		return Err(unwell.refusal);
 	}
 	record(paths, &bytes, out).map_err(|_| Refusal::State)?;
+	failed::clear(&paths.failed());
 	out.say(Step::RemovingOlder);
 	for entry in fs::read_dir(&paths.driver).map_err(|_| Refusal::DriverRestart)? {
 		let entry = entry.map_err(|_| Refusal::DriverRestart)?;

@@ -2,7 +2,9 @@
 //! bucket and the store are written by the store lane, the units and the switch by the host lane.
 
 use std::future::Future;
+use std::path::Path;
 use std::pin::Pin;
+use std::time::Duration;
 
 use harmonia_store_path::StorePath;
 use tokio::io::AsyncRead;
@@ -67,6 +69,9 @@ pub trait Units {
 
 	/// A unit's `Result`, as `success` or `exit-code`.
 	fn result(&self, unit: &str) -> impl Future<Output = Result<String, UnitError>>;
+
+	/// A service's `MainPID` and `NRestarts`, which change where it ended and started again.
+	fn identity(&self, unit: &str) -> impl Future<Output = Result<(u32, u32), UnitError>>;
 }
 
 /// Why systemd did not do what was asked.
@@ -100,6 +105,31 @@ pub trait Switch {
 pub struct SwitchError {
 	/// Its standard output and error, interleaved as written.
 	pub output: String,
+}
+
+/// How a program the run started ended, its standard output and error interleaved as written.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Ran {
+	/// It exited, by its code, none where a signal ended it.
+	Exited {
+		/// The exit code.
+		code: Option<i32>,
+		/// What it wrote.
+		output: String,
+	},
+	/// It outlived its limit and was killed.
+	TimedOut {
+		/// What it wrote before.
+		output: String,
+	},
+	/// It could not be started, and why.
+	Unstarted(String),
+}
+
+/// The driver's own program, run to judge an update, RFC okz12.
+pub trait Program {
+	/// Runs it with its arguments, killing it past the limit.
+	fn run(&self, program: &Path, args: &[String], limit: Duration) -> impl Future<Output = Ran>;
 }
 
 /// The machine's clock.

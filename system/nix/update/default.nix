@@ -27,6 +27,11 @@ let
           ''mac namespaces="driver-pointer" ${cfg.testSigner}'' + "\n"
         )
       );
+      # What the driver's snapshot and check are started with, opaque to the updater, RFC okz12.
+      driverHealth = map (file: "--bindings=${file}") config.machine.driver.bindings ++ [
+        "--entry=${config.machine.driver.entry}"
+        "--systemctl=${config.systemd.package}/bin/systemctl"
+      ];
       trusted = lib.concatStringsSep " " config.nix.settings.trusted-public-keys;
     }
   );

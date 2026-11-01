@@ -5,6 +5,7 @@ pub mod archive;
 pub mod bucket;
 pub mod config;
 pub mod effects;
+pub mod failed;
 pub mod flow;
 pub mod host;
 pub mod output;

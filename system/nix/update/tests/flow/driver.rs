@@ -3,6 +3,7 @@
 use std::fs;
 use std::os::unix::fs::{PermissionsExt, symlink};
 
+use machine_update::effects::Ran;
 use machine_update::output::Output;
 use machine_update::{archive, flow, host};
 use serde_json::json;
@@ -363,4 +364,369 @@ async fn inactive_after_completed_jobs_has_no_restart_detail() {
 	assert_eq!(f.current().as_deref(), Some("1.0"));
 	assert_eq!(f.previous(), None);
 	assert_eq!(f.accepted(), accepted);
+}
+
+fn exited(code: i32, output: &str) -> Ran {
+	Ran::Exited { code: Some(code), output: output.to_owned() }
+}
+
+/// A machine holding version 1.0 with its pointer accepted, and 2.0 offered.
+async fn offered() -> (Fixture, Vec<u8>) {
+	let mut f = Fixture::new(true);
+	*f.download.bytes.borrow_mut() = archive_file("driver-machine", 0o755, tar::EntryType::Regular);
+	f.signed(&f.driver_pointer("1.0", 0));
+	assert_eq!(f.fetch(false).await.0, 0);
+	let accepted = f.accepted();
+	f.signed(&f.driver_pointer("2.0", 1));
+	f.units.calls.borrow_mut().clear();
+	f.program.calls.borrow_mut().clear();
+	(f, accepted)
+}
+
+fn commands(f: &Fixture) -> Vec<String> {
+	f.program.calls.borrow().iter().map(|args| args[0].clone()).collect()
+}
+
+/// Back on 1.0 with its pointer alone accepted and both services restarted twice.
+fn went_back(f: &Fixture, accepted: &[u8]) {
+	assert_eq!(f.current().as_deref(), Some("1.0"));
+	assert_eq!(f.previous(), None);
+	assert_eq!(f.accepted(), accepted);
+	assert_eq!(f.units.calls.borrow().iter().filter(|call| call.starts_with("restart")).count(), 2);
+	assert!(!f.paths.snapshot().exists(), "a baseline never outlives its run");
+}
+
+fn failure(f: &Fixture) -> serde_json::Value {
+	serde_json::from_slice(&fs::read(f.paths.failed()).unwrap()).unwrap()
+}
+
+#[tokio::test(start_paused = true)]
+async fn the_old_version_snapshots_before_the_links_move_and_the_new_one_checks_after_the_restart()
+{
+	let (mut f, _) = offered().await;
+	let (code, text) = f.fetch(false).await;
+	assert_eq!(code, 0, "{text}");
+	assert_eq!(commands(&f), ["snapshot", "check"]);
+	let calls = f.program.calls.borrow().clone();
+	let snapshot = f.paths.snapshot().display().to_string();
+	assert_eq!(calls[0], ["snapshot", "--bindings=/run/secrets/token", snapshot.as_str()]);
+	assert_eq!(calls[1], ["check", "--bindings=/run/secrets/token", snapshot.as_str()]);
+	let at = |line: &str| text.find(line).unwrap_or_else(|| panic!("{line} in {text}"));
+	assert!(at("update: taking driver snapshot") < at("update: switching driver links"));
+	assert!(at("update: restarting driver services") < at("update: checking driver health"));
+	assert!(at("update: driver check passed") < at("update: accepted pointer recorded"));
+	assert_eq!(f.current().as_deref(), Some("2.0"));
+	assert!(!f.paths.snapshot().exists());
+	assert!(!f.paths.failed().exists());
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_check_exiting_non_zero_restores_links_restarts_and_records_no_pointer() {
+	let (mut f, accepted) = offered().await;
+	f.program.runs.borrow_mut().extend([
+		exited(0, ""),
+		exited(
+			1,
+			"check: level 1 passed\ncheck: level 3, deployment 0000000a lost at private.example.invalid\n",
+		),
+	]);
+	let (code, text) = f.fetch(false).await;
+	assert_eq!(code, 1, "{text}");
+	assert!(
+		text.contains("update: check: level 3, deployment 0000000a lost at <endpoint>\n"),
+		"{text}"
+	);
+	assert!(text.contains("update: check failed, restoring previous driver\n"), "{text}");
+	assert!(text.ends_with("update: refused, driver check failed\n"), "{text}");
+	went_back(&f, &accepted);
+	let failed = failure(&f);
+	assert_eq!(failed["version"], "2.0");
+	assert_eq!(failed["run"], "1");
+	assert_eq!(failed["stage"], "check");
+	assert_eq!(failed["why"], "check: level 3, deployment 0000000a lost at <endpoint>");
+	assert_eq!(failed["times"], 1);
+	assert_eq!(failed["at"], "2026-10-29T14:00:00Z");
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_check_past_its_limit_takes_the_same_path() {
+	let (mut f, accepted) = offered().await;
+	let timed = Ran::TimedOut { output: "check: level 1 passed\n".to_owned() };
+	f.program.runs.borrow_mut().extend([exited(0, ""), timed]);
+	let (code, text) = f.fetch(false).await;
+	assert_eq!(code, 1, "{text}");
+	assert!(text.ends_with("update: refused, driver check failed\n"), "{text}");
+	went_back(&f, &accepted);
+	assert_eq!(failure(&f)["why"], "no result within 180 s");
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_check_that_cannot_start_or_is_killed_takes_the_same_path() {
+	for ran in [
+		Ran::Unstarted("no such file".to_owned()),
+		Ran::Exited { code: None, output: String::new() },
+		exited(2, "error: unrecognized subcommand"),
+	] {
+		let (mut f, accepted) = offered().await;
+		f.program.runs.borrow_mut().extend([exited(0, ""), ran]);
+		let (code, text) = f.fetch(false).await;
+		assert_eq!(code, 1, "{text}");
+		went_back(&f, &accepted);
+	}
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_failed_check_is_tried_again_counted_and_gone_once_a_pointer_is_taken() {
+	let (mut f, accepted) = offered().await;
+	for times in 1..=2 {
+		f.program.runs.borrow_mut().extend([exited(0, ""), exited(1, "check: level 2, no answer")]);
+		assert_eq!(f.fetch(false).await.0, 1);
+		assert_eq!(f.accepted(), accepted);
+		assert_eq!(failure(&f)["times"], times);
+	}
+	assert_eq!(f.fetch(false).await.0, 0);
+	assert_eq!(f.current().as_deref(), Some("2.0"));
+	assert!(!f.paths.failed().exists());
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_restart_that_fails_is_recorded_as_a_restart() {
+	let (mut f, accepted) = offered().await;
+	f.units.restarts.borrow_mut().push_back(true);
+	assert_eq!(f.fetch(false).await.0, 1);
+	assert_eq!(f.accepted(), accepted);
+	assert_eq!(commands(&f), ["snapshot"], "no check of a service that did not start");
+	assert_eq!(failure(&f)["stage"], "restart");
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_failed_check_with_a_failed_restoration_says_both() {
+	let (mut f, accepted) = offered().await;
+	f.program.runs.borrow_mut().extend([exited(0, ""), exited(1, "check: level 1, down")]);
+	// The first restart holds, and the one restoring the old version fails.
+	f.units.restarts.borrow_mut().extend([false, true]);
+	let (code, text) = f.fetch(false).await;
+	assert_eq!(code, 1, "{text}");
+	assert!(
+		text.ends_with("update: refused, check failed and driver restoration failed\n"),
+		"{text}"
+	);
+	assert_eq!(f.accepted(), accepted);
+	assert_eq!(failure(&f)["stage"], "check");
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_first_install_has_no_snapshot_and_skips_level_3() {
+	let mut f = Fixture::new(true);
+	*f.download.bytes.borrow_mut() = archive_file("driver-machine", 0o755, tar::EntryType::Regular);
+	f.signed(&f.driver_pointer("1.0", 0));
+	let (code, text) = f.fetch(false).await;
+	assert_eq!(code, 0, "{text}");
+	assert!(text.contains("update: first driver install, level 3 skipped\n"), "{text}");
+	assert_eq!(*f.program.calls.borrow(), [["check", "--bindings=/run/secrets/token"]]);
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_first_install_failing_its_check_goes_back_to_nothing() {
+	let mut f = Fixture::new(true);
+	*f.download.bytes.borrow_mut() = archive_file("driver-machine", 0o755, tar::EntryType::Regular);
+	f.signed(&f.driver_pointer("1.0", 0));
+	f.program.runs.borrow_mut().push_back(exited(1, "check: level 2, no answer"));
+	let (code, text) = f.fetch(false).await;
+	assert_eq!(code, 1, "{text}");
+	assert_eq!(f.current(), None);
+	assert_eq!(f.previous(), None);
+	assert!(!f.paths.accepted().exists());
+	assert!(f.units.calls.borrow().last().unwrap().starts_with("stop"));
+	assert_eq!(failure(&f)["stage"], "check");
+}
+
+#[tokio::test(start_paused = true)]
+async fn an_old_version_with_no_snapshot_command_skips_level_3_saying_so() {
+	let (mut f, _) = offered().await;
+	f.program.runs.borrow_mut().push_back(exited(2, "error: unrecognized subcommand 'snapshot'"));
+	let (code, text) = f.fetch(false).await;
+	assert_eq!(code, 0, "{text}");
+	assert!(
+		text.contains(
+			"update: warning, running driver has no snapshot command, no baseline, level 3 skipped\n"
+		),
+		"{text}"
+	);
+	assert_eq!(f.program.calls.borrow()[1], ["check", "--bindings=/run/secrets/token"]);
+	assert!(
+		text.contains(
+			"update: warning, driver check passed on levels 1 and 2 alone, deployments not compared\n"
+		),
+		"{text}"
+	);
+	assert!(!text.contains("update: driver check passed\n"), "{text}");
+	assert_eq!(f.current().as_deref(), Some("2.0"));
+}
+
+#[tokio::test(start_paused = true)]
+async fn the_update_after_the_first_passage_holds_fully() {
+	let (mut f, _) = offered().await;
+	f.program.runs.borrow_mut().push_back(exited(2, "error: unrecognized subcommand 'snapshot'"));
+	assert_eq!(f.fetch(false).await.0, 0);
+	f.signed(&f.driver_pointer("3.0", 2));
+	let (code, text) = f.fetch(false).await;
+	assert_eq!(code, 0, "{text}");
+	assert!(text.contains("update: driver check passed\n"), "{text}");
+	assert!(!text.contains("warning"), "{text}");
+	let calls = f.program.calls.borrow();
+	let snapshot = f.paths.snapshot().display().to_string();
+	assert_eq!(calls[3], ["check", "--bindings=/run/secrets/token", snapshot.as_str()]);
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_snapshot_that_fails_skips_level_3_saying_why_and_never_uses_what_it_left() {
+	for ran in [
+		exited(1, "snapshot: containerd unreachable"),
+		Ran::TimedOut { output: "snapshot: slow".to_owned() },
+		Ran::Unstarted("no such file".to_owned()),
+	] {
+		let (mut f, _) = offered().await;
+		fs::write(f.paths.snapshot(), "stale").unwrap();
+		f.program.runs.borrow_mut().push_back(ran);
+		let (code, text) = f.fetch(false).await;
+		assert_eq!(code, 0, "{text}");
+		assert!(
+			text.contains("update: warning, driver snapshot failed, no baseline, level 3 skipped\n"),
+			"{text}"
+		);
+		assert_eq!(f.program.calls.borrow()[1], ["check", "--bindings=/run/secrets/token"]);
+		assert!(!f.paths.snapshot().exists());
+	}
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_dry_run_and_a_pointer_of_the_running_version_run_no_program() {
+	let (mut f, _) = offered().await;
+	assert_eq!(f.fetch(true).await.0, 0);
+	assert!(f.program.calls.borrow().is_empty());
+	f.signed(&f.driver_pointer("1.0", 2));
+	assert_eq!(f.fetch(false).await.0, 0);
+	assert!(f.program.calls.borrow().is_empty());
+}
+
+/// A machine holding `running` with its pointer accepted, and `target` offered.
+async fn moving(running: &str, target: &str) -> (Fixture, Vec<u8>) {
+	let mut f = Fixture::new(true);
+	*f.download.bytes.borrow_mut() = archive_file("driver-machine", 0o755, tar::EntryType::Regular);
+	f.signed(&f.driver_pointer(running, 0));
+	assert_eq!(f.fetch(false).await.0, 0);
+	let accepted = f.accepted();
+	f.signed(&f.driver_pointer(target, 1));
+	f.units.calls.borrow_mut().clear();
+	// The old version writes its snapshot, and the target has no check.
+	f.program
+		.runs
+		.borrow_mut()
+		.extend([exited(0, ""), exited(2, "error: unrecognized subcommand 'check'")]);
+	(f, accepted)
+}
+
+const KEPT_OLDER: &str = "update: warning, older driver has no check command, level 1 alone, levels 2 and 3 could not run\n";
+
+#[tokio::test(start_paused = true)]
+async fn a_lower_version_with_no_check_is_kept_on_level_1_with_a_warning() {
+	for (running, target) in
+		[("0.1.4", "0.1.3"), ("0.1.4+abc", "0.1.3+def"), ("0.2.0", "0.1.9"), ("1.0.0", "0.9.9")]
+	{
+		let (mut f, _) = moving(running, target).await;
+		let (code, text) = f.fetch(false).await;
+		assert_eq!(code, 0, "{text}");
+		assert!(text.contains(KEPT_OLDER), "{text}");
+		assert!(!text.contains("update: driver check passed\n"), "{text}");
+		assert_eq!(f.current().as_deref(), Some(target));
+		let reads = f.units.calls.borrow().iter().filter(|c| c.starts_with("identity")).count();
+		assert_eq!(reads, 2 * 21, "both services at the start and at each second of the settle");
+		assert!(!f.paths.failed().exists());
+	}
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_lower_version_that_restarts_within_the_settle_goes_back() {
+	let (mut f, accepted) = moving("0.1.4", "0.1.3").await;
+	let same = (7, 0);
+	f.units.identities.borrow_mut().extend([same, same, same, same, same, (9, 1)]);
+	let (code, text) = f.fetch(false).await;
+	assert_eq!(code, 1, "{text}");
+	assert!(!text.contains(KEPT_OLDER), "{text}");
+	assert!(text.ends_with("update: refused, driver check failed\n"), "{text}");
+	assert_eq!(f.current().as_deref(), Some("0.1.4"));
+	assert_eq!(f.accepted(), accepted);
+	assert_eq!(failure(&f)["why"], "level 1, a service restarted within the settle");
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_lower_version_with_a_service_not_active_goes_back() {
+	let (mut f, accepted) = moving("0.1.4", "0.1.3").await;
+	// The restart's own two reads pass, then the driver is down at the third second of the settle.
+	let mut active = vec![true; 2 + 2 + 4];
+	active.push(false);
+	f.units.active.borrow_mut().extend(active);
+	let (code, text) = f.fetch(false).await;
+	assert_eq!(code, 1, "{text}");
+	assert_eq!(f.current().as_deref(), Some("0.1.4"));
+	assert_eq!(f.accepted(), accepted);
+	assert_eq!(failure(&f)["why"], "level 1, driver-machine.service is not active");
+}
+
+#[tokio::test(start_paused = true)]
+async fn the_same_or_a_higher_version_with_no_check_goes_back() {
+	for (running, target) in [
+		("0.1.3", "0.1.3+abc"),
+		("0.1.3+abc", "0.1.3"),
+		("0.1.3+abc", "0.1.3+def"),
+		("0.1.3", "0.1.4"),
+		("0.1.9", "0.2.0"),
+		// Numbers compared as numbers, never as text.
+		("0.1.9", "0.1.10"),
+	] {
+		let (mut f, accepted) = moving(running, target).await;
+		let (code, text) = f.fetch(false).await;
+		assert_eq!(code, 1, "{running} to {target}: {text}");
+		assert!(!text.contains(KEPT_OLDER), "{text}");
+		assert!(!f.units.calls.borrow().iter().any(|c| c.starts_with("identity")));
+		assert_eq!(f.current().as_deref(), Some(running));
+		assert_eq!(f.accepted(), accepted);
+	}
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_lower_number_higher_as_text_is_still_lower() {
+	let (mut f, _) = moving("0.1.10", "0.1.9").await;
+	let (code, text) = f.fetch(false).await;
+	assert_eq!(code, 0, "{text}");
+	assert!(text.contains(KEPT_OLDER), "{text}");
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_version_with_no_semver_core_is_never_lower() {
+	for (running, target) in [("nightly", "0.1.3"), ("0.1.4", "nightly"), ("1.0", "0.9")] {
+		let (mut f, _) = moving(running, target).await;
+		let (code, text) = f.fetch(false).await;
+		assert_eq!(code, 1, "{running} to {target}: {text}");
+		assert_eq!(f.current().as_deref(), Some(running));
+	}
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_lower_version_failing_its_check_otherwise_still_goes_back() {
+	for ran in [
+		exited(1, "check: level 2, no answer"),
+		Ran::TimedOut { output: String::new() },
+		Ran::Unstarted("no such file".to_owned()),
+		Ran::Exited { code: None, output: String::new() },
+	] {
+		let (mut f, accepted) = moving("0.1.4", "0.1.3").await;
+		f.program.runs.borrow_mut().clear();
+		f.program.runs.borrow_mut().extend([exited(0, ""), ran]);
+		let (code, text) = f.fetch(false).await;
+		assert_eq!(code, 1, "{text}");
+		assert_eq!(f.current().as_deref(), Some("0.1.4"));
+		assert_eq!(f.accepted(), accepted);
+	}
 }

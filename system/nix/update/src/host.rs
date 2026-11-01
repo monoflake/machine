@@ -16,7 +16,7 @@ use rustix::fs::{FlockOperation, flock, fstat};
 use zbus::OwnedObjectPath;
 use zbus::{Connection, Proxy};
 
-use crate::effects::{Clock, Switch, SwitchError, UnitError, Units};
+use crate::effects::{Clock, Program, Ran, Switch, SwitchError, UnitError, Units};
 
 const DESTINATION: &str = "org.freedesktop.systemd1";
 const MANAGER_PATH: &str = "/org/freedesktop/systemd1";
@@ -208,6 +208,15 @@ impl Units for Systemd {
 		let proxy = self.unit_proxy(path, SERVICE).await?;
 		proxy.get_property("Result").await.map_err(bus)
 	}
+
+	async fn identity(&self, unit: &str) -> Result<(u32, u32), UnitError> {
+		let manager = self.manager().await?;
+		let path: OwnedObjectPath = manager.call("LoadUnit", &(unit,)).await.map_err(bus)?;
+		let proxy = self.unit_proxy(path, SERVICE).await?;
+		let pid: u32 = proxy.get_property("MainPID").await.map_err(bus)?;
+		let restarts: u32 = proxy.get_property("NRestarts").await.map_err(bus)?;
+		Ok((pid, restarts))
+	}
 }
 
 /// The system's own `switch-to-configuration`, run as a child.
@@ -233,9 +242,9 @@ impl Switch for Process {
 	}
 }
 
-/// Runs a program with one argument, merging its output in write order and waiting for its exit.
-pub async fn run_merged(program: &Path, argument: &str) -> io::Result<(String, bool)> {
-	let (output, reader) = loop {
+/// A file taking a child's standard output and error in write order, unlinked at once, and a reader.
+fn merged_output() -> io::Result<(File, File)> {
+	loop {
 		let path = std::env::temp_dir().join(format!(
 			"machine-update.{}.{}",
 			std::process::id(),
@@ -245,12 +254,25 @@ pub async fn run_merged(program: &Path, argument: &str) -> io::Result<(String, b
 			Ok(file) => {
 				let reader = File::open(&path)?;
 				std::fs::remove_file(path)?;
-				break (file, reader);
+				return Ok((file, reader));
 			}
 			Err(error) if error.kind() == io::ErrorKind::AlreadyExists => continue,
 			Err(error) => return Err(error),
 		}
-	};
+	}
+}
+
+/// What was written so far, as a descendant may still write past the parent's exit.
+fn written_so_far(output: &File, reader: File) -> io::Result<String> {
+	let mut bytes = Vec::new();
+	let length = output.metadata()?.len();
+	reader.take(length).read_to_end(&mut bytes)?;
+	Ok(String::from_utf8_lossy(&bytes).into_owned())
+}
+
+/// Runs a program with one argument, merging its output in write order and waiting for its exit.
+pub async fn run_merged(program: &Path, argument: &str) -> io::Result<(String, bool)> {
+	let (output, reader) = merged_output()?;
 	let status = tokio::process::Command::new(program)
 		.arg(argument)
 		.stdin(Stdio::null())
@@ -258,11 +280,46 @@ pub async fn run_merged(program: &Path, argument: &str) -> io::Result<(String, b
 		.stderr(Stdio::from(output.try_clone()?))
 		.status()
 		.await?;
-	let mut bytes = Vec::new();
-	// A descendant may still write, so only read the bytes present at the parent's exit.
-	let length = output.metadata()?.len();
-	reader.take(length).read_to_end(&mut bytes)?;
-	Ok((String::from_utf8_lossy(&bytes).into_owned(), status.success()))
+	Ok((written_so_far(&output, reader)?, status.success()))
+}
+
+/// The driver's own program, run as a child and killed past its limit.
+#[derive(Debug, Default)]
+pub struct Child;
+
+impl Program for Child {
+	async fn run(&self, program: &Path, args: &[String], limit: Duration) -> Ran {
+		let unstarted = |error: io::Error| Ran::Unstarted(error.to_string());
+		let (output, reader) = match merged_output() {
+			Ok(files) => files,
+			Err(error) => return unstarted(error),
+		};
+		let (out, err) = match (output.try_clone(), output.try_clone()) {
+			(Ok(out), Ok(err)) => (out, err),
+			(Err(error), _) | (_, Err(error)) => return unstarted(error),
+		};
+		let spawned = tokio::process::Command::new(program)
+			.args(args)
+			.stdin(Stdio::null())
+			.stdout(Stdio::from(out))
+			.stderr(Stdio::from(err))
+			.kill_on_drop(true)
+			.spawn();
+		let mut child = match spawned {
+			Ok(child) => child,
+			Err(error) => return unstarted(error),
+		};
+		let waited = tokio::time::timeout(limit, child.wait()).await;
+		if waited.is_err() {
+			let _ = child.kill().await;
+		}
+		let written = written_so_far(&output, reader).unwrap_or_default();
+		match waited {
+			Ok(Ok(status)) => Ran::Exited { code: status.code(), output: written },
+			Ok(Err(error)) => unstarted(error),
+			Err(_) => Ran::TimedOut { output: written },
+		}
+	}
 }
 
 /// The machine's real clock.

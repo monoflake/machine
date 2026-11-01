@@ -78,6 +78,8 @@ let
     assert builds.machine.update.testSigner == null;
     assert !(given signer).driverBuilds;
     assert (given c).driverChannel;
+    assert builtins.elem "--entry=${c.machine.driver.entry}" (given c).driverHealth;
+    assert builtins.elem "--systemctl=${c.systemd.package}/bin/systemctl" (given c).driverHealth;
     assert lib.hasSuffix ".drv" c.system.build.toplevel.drvPath;
     assert rejected (configured system { inherit package; } { });
     assert rejected (configured system { override = "/tmp/driver-machine"; } { });

@@ -27,6 +27,10 @@ pub struct Config {
 	pub driver_builds: bool,
 	/// The machine's Nix system, as `x86_64-linux`, which picks the driver's archive.
 	pub architecture: String,
+	/// What the driver's `snapshot` and `check` are started with, its token files and the entry's
+	/// address, opaque here, so the updater learns no driver protocol.
+	#[serde(default)]
+	pub driver_health: Vec<String>,
 	/// The keys a narinfo may be signed by, space separated, as `trusted-public-keys` holds them.
 	pub trusted: String,
 }
@@ -70,5 +74,15 @@ impl Paths {
 	/// The accepted pointer's file.
 	pub fn accepted(&self) -> PathBuf {
 		self.state.join("accepted.json")
+	}
+
+	/// The last failed install's file, read over ssh by cloud's `pointer --driver`, RFC okz12.
+	pub fn failed(&self) -> PathBuf {
+		self.state.join("failed-check.json")
+	}
+
+	/// The baseline the version being replaced writes.
+	pub fn snapshot(&self) -> PathBuf {
+		self.state.join("driver-snapshot.json")
 	}
 }

@@ -129,6 +129,8 @@ pub struct UnitsFake {
 	pub obstruct_link: RefCell<Option<PathBuf>>,
 	/// The next active checks, followed by success.
 	pub active: RefCell<VecDeque<bool>>,
+	/// The next identities read, followed by one that never changes.
+	pub identities: RefCell<VecDeque<(u32, u32)>>,
 	/// Whether the start job fails.
 	pub start_failed: Cell<bool>,
 	/// Whether the result is unreadable.
@@ -141,12 +143,17 @@ impl Default for UnitsFake {
 			restarts: RefCell::default(),
 			obstruct_link: RefCell::default(),
 			active: RefCell::default(),
+			identities: RefCell::default(),
 			start_failed: Cell::new(false),
 			result_failed: Cell::new(false),
 		}
 	}
 }
 impl Units for UnitsFake {
+	async fn identity(&self, unit: &str) -> Result<(u32, u32), UnitError> {
+		self.calls.borrow_mut().push(format!("identity {unit}"));
+		Ok(self.identities.borrow_mut().pop_front().unwrap_or((7, 0)))
+	}
 	async fn restart(&self, units: &[&str]) -> Result<(), UnitError> {
 		self.calls.borrow_mut().push(format!("restart {}", units.join(" ")));
 		if let Some(link) = self.obstruct_link.borrow_mut().take() {
@@ -178,6 +185,28 @@ impl Units for UnitsFake {
 		} else {
 			Ok(if self.start_failed.get() { "exit-code" } else { "success" }.into())
 		}
+	}
+}
+
+/// The driver's program, each run answered as queued and success after.
+#[derive(Default)]
+pub struct ProgramFake {
+	/// What each next run ends as.
+	pub runs: RefCell<VecDeque<Ran>>,
+	/// The arguments of each run, first the command.
+	pub calls: RefCell<Vec<Vec<String>>>,
+}
+impl Program for ProgramFake {
+	async fn run(&self, _: &Path, args: &[String], _: std::time::Duration) -> Ran {
+		self.calls.borrow_mut().push(args.to_vec());
+		let ran = self.runs.borrow_mut().pop_front();
+		let ran = ran.unwrap_or(Ran::Exited { code: Some(0), output: String::new() });
+		if args.first().is_some_and(|c| c == "snapshot")
+			&& matches!(ran, Ran::Exited { code: Some(0), .. })
+		{
+			fs::write(args.last().unwrap(), "{}").unwrap();
+		}
+		ran
 	}
 }
 
@@ -226,6 +255,8 @@ pub struct Fixture {
 	pub switch: SwitchFake,
 	/// The fake systemd connection.
 	pub units: UnitsFake,
+	/// The fake driver program.
+	pub program: ProgramFake,
 	/// The exit codes and output of every fetch.
 	pub transcript: Vec<(i32, String)>,
 	/// Whether this fixture runs the driver channel.
@@ -278,6 +309,7 @@ impl Fixture {
 			driver_signers: signers,
 			driver_channel: true,
 			driver_builds: false,
+			driver_health: vec!["--bindings=/run/secrets/token".into()],
 			architecture: "x86_64-linux".into(),
 			trusted: "fixture".into(),
 		};
@@ -296,6 +328,7 @@ impl Fixture {
 			download: Downloader::default(),
 			store: StoreFake::default(),
 			units: UnitsFake::default(),
+			program: ProgramFake::default(),
 			transcript: Vec::new(),
 			driver,
 		}
@@ -353,6 +386,7 @@ impl Fixture {
 				&self.bucket,
 				&self.download,
 				&self.units,
+				&self.program,
 				&self.config,
 				&self.paths,
 				&ClockFake,

@@ -10,9 +10,9 @@ use std::time::Duration;
 
 use futures_util::{StreamExt, stream};
 use harmonia_store_path::{StoreDir, StorePath};
-use machine_update::effects::{Clock, Switch, UnitError};
+use machine_update::effects::{Clock, Program, Ran, Switch, UnitError};
 use machine_update::host::{
-	Jobs, Process, Removed, SystemClock, is_active_state, link, lock, read_link, run_merged,
+	Child, Jobs, Process, Removed, SystemClock, is_active_state, link, lock, read_link, run_merged,
 	set_profile, subscription, wait_removed,
 };
 use rustix::fs::{FlockOperation, flock};
@@ -381,4 +381,41 @@ fn set_profile_waits_for_its_generation_lock() {
 	drop(held);
 	waiter.join().unwrap();
 	assert!(blocked, "set_profile must hold the profile lock");
+}
+
+#[allow(clippy::unwrap_used)]
+fn script(directory: &Path, text: &str) -> std::path::PathBuf {
+	let program = directory.join("program");
+	fs::write(&program, text).unwrap();
+	fs::set_permissions(&program, fs::Permissions::from_mode(0o755)).unwrap();
+	program
+}
+
+#[tokio::test]
+async fn a_program_exits_with_its_code_and_its_output_merged() {
+	let directory = tempfile::tempdir().unwrap();
+	let program = script(directory.path(), "#!/bin/sh\necho \"$1 $2\"\necho err >&2\nexit 2\n");
+	let limit = Duration::from_secs(30);
+	let ran = Child.run(&program, &["check".into(), "--x=y".into()], limit).await;
+	assert_eq!(ran, Ran::Exited { code: Some(2), output: "check --x=y\nerr\n".into() });
+}
+
+#[tokio::test]
+async fn a_program_past_its_limit_is_killed_and_what_it_wrote_kept() {
+	let directory = tempfile::tempdir().unwrap();
+	let program = script(directory.path(), "#!/bin/sh\necho waiting\nexec sleep 30\n");
+	let began = std::time::Instant::now();
+	let ran = Child.run(&program, &[], Duration::from_millis(300)).await;
+	assert_eq!(ran, Ran::TimedOut { output: "waiting\n".into() });
+	assert!(began.elapsed() < Duration::from_secs(10));
+}
+
+#[tokio::test]
+async fn a_program_ended_by_a_signal_has_no_code_and_one_missing_does_not_start() {
+	let directory = tempfile::tempdir().unwrap();
+	let program = script(directory.path(), "#!/bin/sh\nkill -9 $$\n");
+	let limit = Duration::from_secs(30);
+	assert!(matches!(Child.run(&program, &[], limit).await, Ran::Exited { code: None, .. }));
+	let missing = directory.path().join("missing");
+	assert!(matches!(Child.run(&missing, &[], limit).await, Ran::Unstarted(_)));
 }

@@ -6,7 +6,7 @@ use harmonia_store_path::StorePath;
 use machine_update::bucket::{Https, Remote};
 use machine_update::config::{Config, Instance, Paths};
 use machine_update::effects::{Bucket, BucketError, Object, Store, StoreError};
-use machine_update::host::{Process, SystemClock};
+use machine_update::host::{Child, Process, SystemClock};
 use machine_update::output::{Output, Refusal};
 use machine_update::{flow, store::Daemon, tls};
 
@@ -105,6 +105,7 @@ async fn run(out: &mut Output<'_>) -> i32 {
 				&remote,
 				&Https,
 				&Bus::new(),
+				&Child,
 				&config,
 				&paths,
 				&SystemClock,
@@ -147,5 +148,8 @@ impl Units for Bus {
 	}
 	async fn result(&self, unit: &str) -> Result<String, UnitError> {
 		self.connection().await?.result(unit).await
+	}
+	async fn identity(&self, unit: &str) -> Result<(u32, u32), UnitError> {
+		self.connection().await?.identity(unit).await
 	}
 }

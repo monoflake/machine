@@ -70,6 +70,24 @@ pub enum Step {
 	RemovingOlder,
 	/// The driver install done.
 	InstallSucceeded,
+	/// The version being replaced writing what stands.
+	TakingSnapshot,
+	/// A first install, which has no version to judge it against.
+	FirstInstall,
+	/// A running version with no snapshot command, as 0.1.3 and before.
+	NoSnapshotCommand,
+	/// A running version whose snapshot failed.
+	SnapshotFailed,
+	/// The version just restarted judging itself.
+	CheckingDriver,
+	/// A failed check going back to the driver before it.
+	CheckFailed,
+	/// The new version judged healthy.
+	CheckPassed,
+	/// An older version with no check command kept on level 1 alone.
+	OlderKept,
+	/// The new version let through with deployments that stood before it never compared.
+	CheckPassedUncompared,
 }
 
 impl Step {
@@ -108,6 +126,21 @@ impl Step {
 			Self::RestoringDriver => &"restart failed, restoring previous driver",
 			Self::RemovingOlder => &"removing older driver versions",
 			Self::InstallSucceeded => &"driver install succeeded",
+			Self::TakingSnapshot => &"taking driver snapshot",
+			Self::FirstInstall => &"first driver install, level 3 skipped",
+			Self::NoSnapshotCommand => {
+				&"warning, running driver has no snapshot command, no baseline, level 3 skipped"
+			}
+			Self::SnapshotFailed => &"warning, driver snapshot failed, no baseline, level 3 skipped",
+			Self::CheckingDriver => &"checking driver health",
+			Self::CheckFailed => &"check failed, restoring previous driver",
+			Self::CheckPassed => &"driver check passed",
+			Self::OlderKept => {
+				&"warning, older driver has no check command, level 1 alone, levels 2 and 3 could not run"
+			}
+			Self::CheckPassedUncompared => {
+				&"warning, driver check passed on levels 1 and 2 alone, deployments not compared"
+			}
 		}
 	}
 }
@@ -238,6 +271,12 @@ pub enum Refusal {
 	/// The restart failed and the driver before it runs again, or none where none did.
 	#[error("driver restart failed")]
 	DriverRestart,
+	/// The check failed and so did restoring the driver before it.
+	#[error("check failed and driver restoration failed")]
+	DriverCheckRestore,
+	/// The check failed and the driver before it runs again, or none where none did.
+	#[error("driver check failed")]
+	DriverCheck,
 }
 
 /// Prints a step on standard output.
@@ -259,6 +298,21 @@ pub struct Secrets {
 	pub key: String,
 	/// The access key's secret, `<secret>`.
 	pub secret: String,
+}
+
+impl Secrets {
+	/// A line with the host, key and secret replaced by their placeholders.
+	pub fn mask(&self, line: &str) -> String {
+		let mut line = line.to_owned();
+		for (value, replacement) in
+			[(&self.host, "<endpoint>"), (&self.key, "<key>"), (&self.secret, "<secret>")]
+		{
+			if !value.is_empty() {
+				line = line.replace(value, replacement);
+			}
+		}
+		line
+	}
 }
 
 /// Prints the last five diagnostic lines on standard error with the update prefix.
@@ -304,15 +358,7 @@ impl<'a> Output<'a> {
 	pub fn masked(&mut self, lines: &str, secrets: &Secrets) {
 		let all: Vec<&str> = lines.lines().collect();
 		for line in all.iter().skip(all.len().saturating_sub(5)) {
-			let mut line = (*line).to_owned();
-			for (value, replacement) in
-				[(&secrets.host, "<endpoint>"), (&secrets.key, "<key>"), (&secrets.secret, "<secret>")]
-			{
-				if !value.is_empty() {
-					line = line.replace(value, replacement);
-				}
-			}
-			self.error(&format!("update: {line}"));
+			self.error(&format!("update: {}", secrets.mask(line)));
 		}
 	}
 }

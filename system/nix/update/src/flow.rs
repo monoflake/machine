@@ -14,6 +14,7 @@ use crate::signature::{self, Namespace};
 use crate::{host, state};
 
 mod driver;
+mod health;
 mod nudge;
 mod rollback;
 mod system;

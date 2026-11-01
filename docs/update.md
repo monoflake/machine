@@ -83,8 +83,11 @@ A new version downloads over HTTPS without credentials, or from its build key wi
 credentials and endpoint as the pointers, verifies the hash and unpacks regular release files into a
 temporary directory under `/var/lib/driver`. It requires an executable `driver-machine`, installs
 `/var/lib/driver/<version>`, atomically replaces `current`, and points `previous` at the version it
-replaced. Both services restart and must become active within a bounded wait. Failure restores the
-links and restarts again without recording state. On the first install there is no earlier binary,
+replaced. Both services restart and must become active
+within a bounded wait, and the new version then judges itself, `driver-machine check`, against a
+snapshot the old version took, RFC okz12. Failure restores the links and restarts again without
+recording state, and is written to `failed-check.json`, which `mise run pointer <machine> --driver`
+shows. On the first install there is no earlier binary,
 so failure removes `current` and `previous`, stops both services and does not wait for them to
 become active. Only success records the pointer and removes all version directories except `current`
 and exactly one `previous`. An installed build outlives its object in the bucket; an expired archive
