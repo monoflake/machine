@@ -10,6 +10,10 @@
     account = "example";
     disk = "/dev/vda";
     memory = 4096;
+    network.public = {
+      ipv4 = "direct";
+      ipv6 = "none";
+    };
     keys = [ "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPlaceholderReplaceWithYourOwnPublicKey0000" ];
     # tailnet.authKeyFile = "/var/lib/secrets/tailnet";
     # upgrade = {

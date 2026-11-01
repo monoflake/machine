@@ -39,6 +39,10 @@ in
     # Neither is read in a container, which has no disk of its own to install to and takes no swap.
     disk = "/dev/null";
     memory = 4096;
+    network.public = {
+      ipv4 = "none";
+      ipv6 = "none";
+    };
     # monoflake/platform's conform runs a second driver here beside the live one.
     conform.enable = true;
   };

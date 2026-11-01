@@ -103,7 +103,14 @@ Cloudflare's trace for each family apart, takes an address only where both agree
 change only when a second check a minute later agrees again, `system/network/addresses/`. Its
 answer is `/var/lib/machine/addresses.json`, each family `confirmed`, `disputed`, `unknown` or
 `none`, the last confirmed address kept through the rest, so a restart loses nothing. Who reads it
-and changes a name is still RFC co32d's open question, and nothing reads it yet.
+and changes a name is still an open question, RFC fds59, and nothing reads it yet.
+
+**Each machine declares its public network, `machine.network.public`, with no default**, RFC co32d,
+decided by the author on 2026-11-01, so every fleet machine must state it. `ipv4` and `ipv6` are each
+`direct`, on the interface; `mapped`, a provider's one to one; `forwarded`, a router's forward; or
+`none`, none at all or outbound only. Nothing in the system reads it, and a peer relay is not derived
+from it, `machine.tailnet.relayPort` staying its own option. What compares it with the machine is
+monoflake/cloud's `mise run pointer`, which tests only the families declared.
 **`/var/lib/machine` keeps systemd's default mode**, provisional, chosen by the advisor on
 2026-10-27: the seed's archive and the addresses' unit share it, so no unit sets a
 `StateDirectoryMode` for it and secrecy comes per file, `system/network/addresses/eval-test.nix`.

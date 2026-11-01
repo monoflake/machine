@@ -110,6 +110,53 @@ let
     in
     lib.hasSuffix (toString file) cfg.systemd.services.machine-ssh-close.serviceConfig.ExecStart;
   tests = {
+    publicDeclaration =
+      defaults.machine.network.public == {
+        ipv4 = "direct";
+        ipv6 = "none";
+      };
+    publicRequired =
+      lib.all
+        (
+          family:
+          !(builtins.hasAttr "default"
+            (lib.nixosSystem {
+              modules = [
+                flake.nixosModules.machine
+                { nixpkgs.hostPlatform = "x86_64-linux"; }
+              ];
+            }).options.machine.network.public.${family}
+          )
+        )
+        [
+          "ipv4"
+          "ipv6"
+        ];
+    publicStates =
+      lib.all
+        (
+          state:
+          lib.all
+            (
+              family:
+              (template { machine.network.public.${family} = lib.mkForce state; })
+              .machine.network.public.${family} == state
+            )
+            [
+              "ipv4"
+              "ipv6"
+            ]
+        )
+        [
+          "direct"
+          "mapped"
+          "forwarded"
+          "none"
+        ];
+    publicInvalid =
+      !(builtins.tryEval
+        (template { machine.network.public.ipv4 = lib.mkForce "invalid"; }).machine.network.public.ipv4
+      ).success;
     defaultRoutes =
       defaults.services.tailscale.extraSetFlags == [
         "--accept-dns=false"

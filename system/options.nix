@@ -51,6 +51,18 @@ in
         default = false;
         description = "Whether the machine learns its public IPv4 and IPv6 addresses at boot and every hour from Tailscale's netcheck and Cloudflare's trace, agreeing, into /var/lib/machine/addresses.json, RFC co32d.";
       };
+      network.public = lib.genAttrs [ "ipv4" "ipv6" ] (
+        family:
+        mkOption {
+          type = types.enum [
+            "direct"
+            "mapped"
+            "forwarded"
+            "none"
+          ];
+          description = "Public ${family} connectivity, direct on an interface, mapped by a provider one to one, forwarded by a router, or none including outbound only. This declaration changes no machine behavior.";
+        }
+      );
       ssh.public = mkOption {
         type = types.enum [
           "until-healthy"
