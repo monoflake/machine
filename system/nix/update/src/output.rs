@@ -38,6 +38,18 @@ pub enum Step {
 	Switching,
 	/// A failed switch going back to the system before it.
 	RestoringSystem,
+	/// `/boot` being frozen and thawed, which puts its journal in place.
+	RestingBoot,
+	/// `/boot` frozen and thawed.
+	BootRested,
+	/// `/boot` is no mount of its own, so nothing was frozen.
+	BootNotMounted,
+	/// `/boot`'s filesystem cannot be frozen, as vfat.
+	BootUnsupported,
+	/// Freezing `/boot` failed.
+	BootFreezeFailed,
+	/// Thawing `/boot` failed, so it may stay frozen.
+	BootThawFailed,
 	/// The system switch done.
 	SwitchSucceeded,
 	/// The driver pointer being read from the bucket.
@@ -112,6 +124,12 @@ impl Step {
 			Self::SettingProfile => &"setting system profile",
 			Self::Switching => &"switching system",
 			Self::RestoringSystem => &"switch failed, restoring previous system",
+			Self::RestingBoot => &"resting /boot, freezing and thawing it",
+			Self::BootRested => &"/boot rested",
+			Self::BootNotMounted => &"warning, /boot is not a mount of its own, left as it is",
+			Self::BootUnsupported => &"warning, /boot's filesystem cannot be frozen, left as it is",
+			Self::BootFreezeFailed => &"warning, freezing /boot failed, left as it is",
+			Self::BootThawFailed => &"warning, thawing /boot failed, it may stay frozen",
 			Self::SwitchSucceeded => &"system switch succeeded",
 			Self::FetchingDriverPointer => &"fetching driver pointer",
 			Self::NoDriverPointer => &"no driver pointer, nothing to do",

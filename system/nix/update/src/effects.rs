@@ -2,6 +2,7 @@
 //! bucket and the store are written by the store lane, the units and the switch by the host lane.
 
 use std::future::Future;
+use std::io;
 use std::path::Path;
 use std::pin::Pin;
 use std::time::Duration;
@@ -105,6 +106,27 @@ pub trait Switch {
 pub struct SwitchError {
 	/// Its standard output and error, interleaved as written.
 	pub output: String,
+}
+
+/// The filesystem holding `/boot`, brought to rest once a switch has written the boot loader's
+/// files, so a power cut cannot leave the loader reading what the journal has not yet put in place.
+pub trait Boot {
+	/// Freezes `/boot`, which commits its journal and writes it into place.
+	fn freeze(&self) -> io::Result<Freeze>;
+
+	/// Thaws `/boot` after a freeze that held.
+	fn thaw(&self) -> io::Result<()>;
+}
+
+/// What a freeze of `/boot` came to, other than failing.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Freeze {
+	/// `/boot` is frozen and awaits its thaw.
+	Held,
+	/// `/boot` is no mount of its own, so freezing it would freeze the root.
+	NotMounted,
+	/// The filesystem, named by its type, cannot be frozen, as vfat.
+	Unsupported(String),
 }
 
 /// How a program the run started ended, its standard output and error interleaved as written.

@@ -1,11 +1,12 @@
 //! The machine the run changes, systemd over D-Bus, the switch, the clock, the system profile, the
 //! driver's links and lock.
 
+use std::cell::Cell;
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
 use std::io::{self, Read};
 use std::os::unix::fs::OpenOptionsExt;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -16,7 +17,7 @@ use rustix::fs::{FlockOperation, flock, fstat};
 use zbus::OwnedObjectPath;
 use zbus::{Connection, Proxy};
 
-use crate::effects::{Clock, Program, Ran, Switch, SwitchError, UnitError, Units};
+use crate::effects::{Boot, Clock, Freeze, Program, Ran, Switch, SwitchError, UnitError, Units};
 
 const DESTINATION: &str = "org.freedesktop.systemd1";
 const MANAGER_PATH: &str = "/org/freedesktop/systemd1";
@@ -318,6 +319,137 @@ impl Program for Child {
 			Ok(Ok(status)) => Ran::Exited { code: status.code(), output: written },
 			Ok(Err(error)) => unstarted(error),
 			Err(_) => Ran::TimedOut { output: written },
+		}
+	}
+}
+
+/// What `mountinfo` says of the mount at `point`: its filesystem type when it is a filesystem of
+/// its own, `None` when nothing is mounted there or it shares its device with the root, as a bind
+/// of a directory of it, which freezing would take with the root.
+pub fn own_mount(mountinfo: &str, point: &str) -> Option<String> {
+	let mut at_point = None;
+	let mut root_device = None;
+	for (device, mounted, kind) in mountinfo.lines().filter_map(mount_fields) {
+		// The last mount at a path is the one that shows.
+		if mounted == point {
+			at_point = Some((device, kind));
+		}
+		if mounted == "/" {
+			root_device = Some(device);
+		}
+	}
+	let (device, kind) = at_point?;
+	(root_device != Some(device)).then(|| kind.to_owned())
+}
+
+/// A mount table line's device, mount point and filesystem type.
+fn mount_fields(line: &str) -> Option<(&str, String, &str)> {
+	let (before, after) = line.split_once(" - ")?;
+	let mut fields = before.split(' ');
+	let device = fields.nth(2)?;
+	let mounted = unescape(fields.nth(1)?);
+	Some((device, mounted, after.split(' ').next()?))
+}
+
+/// A mount point as `mountinfo` escapes it, `\040` for a space.
+fn unescape(field: &str) -> String {
+	let bytes = field.as_bytes();
+	let mut out = Vec::with_capacity(bytes.len());
+	let mut i = 0;
+	while i < bytes.len() {
+		let octal = bytes.get(i..i + 4).and_then(|four| {
+			let digits = four.strip_prefix(b"\\")?;
+			digits
+				.iter()
+				.try_fold(0_u32, |n, d| (b'0'..=b'7').contains(d).then(|| n * 8 + u32::from(d - b'0')))
+		});
+		match octal.and_then(|n| u8::try_from(n).ok()) {
+			Some(byte) => {
+				out.push(byte);
+				i += 4;
+			}
+			None => {
+				out.extend(bytes.get(i));
+				i += 1;
+			}
+		}
+	}
+	String::from_utf8_lossy(&out).into_owned()
+}
+
+/// The machine's `/boot`, found in the mount table and frozen by the kernel's `FIFREEZE`.
+#[derive(Debug)]
+pub struct BootMount {
+	mountinfo: PathBuf,
+	point: PathBuf,
+	held: std::cell::RefCell<Option<File>>,
+	frozen: Cell<bool>,
+}
+
+impl BootMount {
+	/// A `/boot` found at `point` in the mount table `mountinfo`.
+	pub fn at(mountinfo: &Path, point: &Path) -> Self {
+		Self {
+			mountinfo: mountinfo.to_owned(),
+			point: point.to_owned(),
+			held: std::cell::RefCell::new(None),
+			frozen: Cell::new(false),
+		}
+	}
+}
+
+impl Default for BootMount {
+	fn default() -> Self {
+		Self::at(Path::new("/proc/self/mountinfo"), Path::new("/boot"))
+	}
+}
+
+impl Boot for BootMount {
+	fn freeze(&self) -> io::Result<Freeze> {
+		let point = self.point.to_str().ok_or_else(|| io::Error::from(io::ErrorKind::InvalidInput))?;
+		let table = std::fs::read_to_string(&self.mountinfo)?;
+		let Some(kind) = own_mount(&table, point) else {
+			return Ok(Freeze::NotMounted);
+		};
+		let file = File::open(&self.point)?;
+		match machine_update_abort::freeze::freeze(&file) {
+			Ok(()) => {
+				self.frozen.set(true);
+				*self.held.borrow_mut() = Some(file);
+				Ok(Freeze::Held)
+			}
+			// A filesystem with no freeze answers one of these, as vfat does.
+			Err(error)
+				if error.kind() == io::ErrorKind::Unsupported
+					|| error.raw_os_error().map(rustix::io::Errno::from_raw_os_error).is_some_and(
+						|errno| errno == rustix::io::Errno::NOTTY || errno == rustix::io::Errno::NOTSUP,
+					) =>
+			{
+				Ok(Freeze::Unsupported(kind))
+			}
+			Err(error) => Err(error),
+		}
+	}
+
+	fn thaw(&self) -> io::Result<()> {
+		let held = self.held.borrow_mut().take();
+		let Some(file) = held else {
+			return Ok(());
+		};
+		let thawed = machine_update_abort::freeze::thaw(&file);
+		if thawed.is_ok() {
+			self.frozen.set(false);
+		} else {
+			*self.held.borrow_mut() = Some(file);
+		}
+		thawed
+	}
+}
+
+impl Drop for BootMount {
+	fn drop(&mut self) {
+		if self.frozen.get() {
+			let _ = self.thaw();
 		}
 	}
 }

@@ -1,6 +1,8 @@
 //! The line a process writes as SIGABRT kills it, naming its last step, RFC cbtjl item 10.
 //! This crate holds the only `unsafe` of this repository, behind a safe API.
 
+pub mod freeze;
+
 use std::ffi::c_int;
 use std::sync::atomic::{AtomicPtr, Ordering};
 

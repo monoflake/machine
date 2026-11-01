@@ -6,7 +6,7 @@ use harmonia_store_path::StorePath;
 use machine_update::bucket::{Https, Remote};
 use machine_update::config::{Config, Instance, Paths};
 use machine_update::effects::{Bucket, BucketError, Object, Store, StoreError};
-use machine_update::host::{Child, Process, SystemClock};
+use machine_update::host::{BootMount, Child, Process, SystemClock};
 use machine_update::output::{Output, Refusal};
 use machine_update::{flow, store::Daemon, tls};
 
@@ -91,6 +91,7 @@ async fn run(out: &mut Output<'_>) -> i32 {
 				&remote,
 				&mut store,
 				&Process::default(),
+				&BootMount::default(),
 				&config,
 				&paths,
 				&SystemClock,

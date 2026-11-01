@@ -1,7 +1,8 @@
 //! Recorded system update behavior in its original order, with state and effects checked.
 
-use std::fs;
+use std::{fs, io};
 
+use machine_update::effects::Freeze;
 use machine_update::host;
 use serde_json::json;
 
@@ -244,4 +245,81 @@ async fn only_an_absent_system_pointer_is_nothing_to_do() {
 		assert_eq!(f.accepted(), accepted);
 		f.bucket.errors.borrow_mut().clear();
 	}
+}
+
+fn order(f: &Fixture) -> Vec<String> {
+	f.boot.order.borrow().clone()
+}
+
+#[tokio::test(start_paused = true)]
+async fn boot_is_frozen_and_thawed_after_the_switch_and_before_it_is_recorded() {
+	let mut f = Fixture::new(false);
+	f.signed(&f.system_pointer(0, "1"));
+	let (code, text) = f.fetch(false).await;
+	assert_eq!(code, 0, "{text}");
+	assert_eq!(
+		order(&f),
+		[format!("switch {NEW}"), "freeze unrecorded".into(), "thaw unrecorded".into()]
+	);
+	assert!(text.contains("update: resting /boot, freezing and thawing it\nupdate: /boot rested\n"));
+	assert!(f.paths.accepted().exists());
+}
+
+#[tokio::test(start_paused = true)]
+async fn boot_is_left_alone_unless_the_switch_succeeded() {
+	let mut f = Fixture::new(false);
+	f.signed(&f.system_pointer(0, "1"));
+	assert_eq!(f.fetch(true).await.0, 0);
+	assert!(order(&f).is_empty());
+	f.switch.failures.borrow_mut().extend([true, false]);
+	let (code, text) = f.fetch(false).await;
+	assert_eq!(code, 1, "{text}");
+	assert_eq!(order(&f), [format!("switch {NEW}"), format!("switch {OLD}")]);
+	assert!(!text.contains("/boot"));
+	f.signed(&f.system_pointer(1, "2"));
+	f.reset_system();
+	f.switch.failures.borrow_mut().extend([true, true]);
+	assert_eq!(f.fetch(false).await.0, 1);
+	assert!(order(&f).iter().all(|call| call.starts_with("switch")));
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_boot_that_cannot_be_frozen_is_named_and_does_not_fail_the_update() {
+	for (outcome, line) in [
+		(Ok(Freeze::NotMounted), "update: warning, /boot is not a mount of its own, left as it is\n"),
+		(
+			Ok(Freeze::Unsupported("vfat".into())),
+			"update: warning, /boot's filesystem cannot be frozen, left as it is\nupdate: /boot is vfat\n",
+		),
+		(
+			Err(io::ErrorKind::PermissionDenied),
+			"update: warning, freezing /boot failed, left as it is\n",
+		),
+	] {
+		let mut f = Fixture::new(false);
+		f.signed(&f.system_pointer(0, "1"));
+		*f.boot.outcome.borrow_mut() = outcome.clone();
+		let (code, text) = f.fetch(false).await;
+		assert_eq!(code, 0, "{text}");
+		assert!(text.contains(line), "{text}");
+		assert!(!text.contains("rested"));
+		assert_eq!(order(&f), [format!("switch {NEW}"), "freeze unrecorded".into()], "{outcome:?}");
+		assert!(f.paths.accepted().exists());
+	}
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_failed_thaw_is_named_and_does_not_fail_the_update() {
+	let mut f = Fixture::new(false);
+	f.signed(&f.system_pointer(0, "1"));
+	f.boot.thaw_fails.set(true);
+	let (code, text) = f.fetch(false).await;
+	assert_eq!(code, 0, "{text}");
+	assert!(text.contains("update: warning, thawing /boot failed, it may stay frozen\n"), "{text}");
+	assert!(!text.contains("rested"));
+	assert_eq!(
+		order(&f),
+		[format!("switch {NEW}"), "freeze unrecorded".into(), "thaw unrecorded".into()]
+	);
+	assert!(f.paths.accepted().exists());
 }

@@ -94,11 +94,14 @@ pub struct SwitchFake {
 	pub calls: RefCell<Vec<String>>,
 	/// A profile to obstruct after a failed switch.
 	pub obstruct_profile: RefCell<Option<PathBuf>>,
+	/// The switches and the boot's calls in the order they came.
+	pub order: Rc<RefCell<Vec<String>>>,
 }
 impl Switch for SwitchFake {
 	async fn switch(&self, system: &StorePath) -> Result<(), SwitchError> {
 		let path = format!("/nix/store/{system}");
 		self.calls.borrow_mut().push(path.clone());
+		self.order.borrow_mut().push(format!("switch {path}"));
 		if self.failures.borrow_mut().pop_front().unwrap_or(false) {
 			if let Some(profile) = self.obstruct_profile.borrow_mut().take() {
 				fs::remove_file(&profile).unwrap();
@@ -108,6 +111,34 @@ impl Switch for SwitchFake {
 		}
 		host::link(self.current.parent().unwrap(), "current-system", &path).unwrap();
 		Ok(())
+	}
+}
+
+/// A `/boot` that records its calls and what the accepted state held at each.
+pub struct BootFake {
+	/// What a freeze answers, an error by its kind.
+	pub outcome: RefCell<Result<Freeze, io::ErrorKind>>,
+	/// Whether a thaw fails.
+	pub thaw_fails: Cell<bool>,
+	/// The switches and these calls in the order they came.
+	pub order: Rc<RefCell<Vec<String>>>,
+	/// The accepted pointer's file, whose presence a call notes.
+	pub accepted: PathBuf,
+}
+impl Boot for BootFake {
+	fn freeze(&self) -> io::Result<Freeze> {
+		self.note("freeze");
+		self.outcome.borrow().clone().map_err(io::Error::from)
+	}
+	fn thaw(&self) -> io::Result<()> {
+		self.note("thaw");
+		if self.thaw_fails.get() { Err(io::Error::from(io::ErrorKind::TimedOut)) } else { Ok(()) }
+	}
+}
+impl BootFake {
+	fn note(&self, call: &str) {
+		let recorded = if self.accepted.exists() { "recorded" } else { "unrecorded" };
+		self.order.borrow_mut().push(format!("{call} {recorded}"));
 	}
 }
 
@@ -253,6 +284,8 @@ pub struct Fixture {
 	pub store: StoreFake,
 	/// The fake switch.
 	pub switch: SwitchFake,
+	/// The fake `/boot`.
+	pub boot: BootFake,
 	/// The fake systemd connection.
 	pub units: UnitsFake,
 	/// The fake driver program.
@@ -313,17 +346,26 @@ impl Fixture {
 			architecture: "x86_64-linux".into(),
 			trusted: "fixture".into(),
 		};
+		let order = Rc::new(RefCell::new(Vec::new()));
 		let switch = SwitchFake {
 			current: paths.current_system.clone(),
 			failures: RefCell::default(),
 			calls: RefCell::default(),
 			obstruct_profile: RefCell::default(),
+			order: Rc::clone(&order),
+		};
+		let boot = BootFake {
+			outcome: RefCell::new(Ok(Freeze::Held)),
+			thaw_fails: Cell::new(false),
+			order,
+			accepted: paths.accepted(),
 		};
 		Self {
 			temporary,
 			config,
 			paths,
 			switch,
+			boot,
 			bucket: BucketFake::default(),
 			download: Downloader::default(),
 			store: StoreFake::default(),
@@ -400,6 +442,7 @@ impl Fixture {
 				&self.bucket,
 				&mut self.store,
 				&self.switch,
+				&self.boot,
 				&self.config,
 				&self.paths,
 				&ClockFake,

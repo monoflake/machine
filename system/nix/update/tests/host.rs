@@ -10,10 +10,10 @@ use std::time::Duration;
 
 use futures_util::{StreamExt, stream};
 use harmonia_store_path::{StoreDir, StorePath};
-use machine_update::effects::{Clock, Program, Ran, Switch, UnitError};
+use machine_update::effects::{Boot, Clock, Freeze, Program, Ran, Switch, UnitError};
 use machine_update::host::{
-	Child, Jobs, Process, Removed, SystemClock, is_active_state, link, lock, read_link, run_merged,
-	set_profile, subscription, wait_removed,
+	BootMount, Child, Jobs, Process, Removed, SystemClock, is_active_state, link, lock, own_mount,
+	read_link, run_merged, set_profile, subscription, wait_removed,
 };
 use rustix::fs::{FlockOperation, flock};
 
@@ -418,4 +418,50 @@ async fn a_program_ended_by_a_signal_has_no_code_and_one_missing_does_not_start(
 	assert!(matches!(Child.run(&program, &[], limit).await, Ran::Exited { code: None, .. }));
 	let missing = directory.path().join("missing");
 	assert!(matches!(Child.run(&missing, &[], limit).await, Ran::Unstarted(_)));
+}
+
+const TABLE: &str = "\
+22 1 179:2 / / rw,relatime shared:1 - ext4 /dev/mmcblk0p2 rw
+31 22 0:25 / /run rw,nosuid shared:2 - tmpfs tmpfs rw
+40 22 179:1 / /boot rw,relatime shared:3 - vfat /dev/mmcblk0p1 rw
+41 22 259:3 / /srv/with\\040space rw,relatime - ext4 /dev/nvme0n1p3 rw
+";
+
+#[test]
+fn a_mount_of_its_own_is_found_by_its_point_and_named_by_its_type() {
+	assert_eq!(own_mount(TABLE, "/boot").as_deref(), Some("vfat"));
+	assert_eq!(own_mount(TABLE, "/srv/with space").as_deref(), Some("ext4"));
+	assert_eq!(own_mount(TABLE, "/nowhere"), None);
+	assert_eq!(own_mount("", "/boot"), None);
+	assert_eq!(own_mount("not a mount line\n", "/boot"), None);
+}
+
+#[test]
+fn a_boot_sharing_the_roots_device_is_not_a_mount_of_its_own() {
+	let bound = format!("{TABLE}50 22 179:2 /boot /boot rw - ext4 /dev/mmcblk0p2 rw\n");
+	assert_eq!(own_mount(&bound, "/boot"), None);
+	let only = "22 1 8:1 / / rw - ext4 /dev/sda1 rw\n";
+	assert_eq!(own_mount(only, "/"), None);
+}
+
+#[test]
+fn the_last_mount_at_a_point_is_the_one_that_shows() {
+	let covered = format!("{TABLE}60 22 8:5 / /boot rw - ext4 /dev/sda5 rw\n");
+	assert_eq!(own_mount(&covered, "/boot").as_deref(), Some("ext4"));
+}
+
+#[test]
+#[allow(clippy::unwrap_used)]
+fn a_boot_missing_from_the_mount_table_is_left_unfrozen() {
+	let dir = tempfile::tempdir().unwrap();
+	let table = dir.path().join("mountinfo");
+	let boot = dir.path().join("boot");
+	fs::create_dir(&boot).unwrap();
+	fs::write(&table, TABLE).unwrap();
+	let mount = BootMount::at(&table, &boot);
+	assert_eq!(mount.freeze().unwrap(), Freeze::NotMounted);
+	mount.thaw().unwrap();
+	let unreadable = BootMount::at(&dir.path().join("absent"), &boot);
+	assert!(unreadable.freeze().is_err());
+	unreadable.thaw().unwrap();
 }

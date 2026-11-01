@@ -18,6 +18,8 @@ update: pointer differs from the running system
 update: realising system without builds
 update: setting system profile
 update: switching system
+update: resting /boot, freezing and thawing it
+update: /boot rested
 update: accepted pointer recorded
 update: system switch succeeded
 ### run 3: (no arguments), exit 0

@@ -30,7 +30,10 @@ A different system is realized from the public NixOS cache and the bucket, requi
 their trusted Nix keys. The global substituters stay unchanged. This command sets `max-jobs` to zero
 and clears `builders`, so the machine never builds, locally or remotely. Missing substitutes fail
 the update. The realization roots the system until its system profile holds it. Only a successful
-switch records the pointer, by an atomic rename. Fetch, verification and realization failures leave
+switch records the pointer, by an atomic rename. After a successful switch, and before the pointer is recorded, the updater
+brings /boot to rest by freezing and thawing it, as U-Boot is inferred to read ext4 without replaying
+its journal. A /boot sharing the root's device, a filesystem that cannot freeze and a failed freeze
+or thaw each print a warning and leave the update successful. Fetch, verification and realization failures leave
 the running system and accepted state untouched. An absent system pointer or signature, a not found
 answer alone, is nothing to do and exits successfully, as the bucket expires what a roll wrote a day
 or two later. A failed switch keeps the accepted state and

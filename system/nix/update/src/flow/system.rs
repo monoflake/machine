@@ -3,7 +3,7 @@
 use harmonia_store_path::{StoreDir, StorePath};
 
 use super::*;
-use crate::effects::{Store, Switch};
+use crate::effects::{Boot, Freeze, Store, Switch};
 use crate::pointer;
 
 /// Fetches and takes a system pointer, printing each stage and returning its exit code.
@@ -12,6 +12,7 @@ pub async fn fetch_system(
 	bucket: &impl Bucket,
 	store: &mut impl Store,
 	switch: &impl Switch,
+	boot: &impl Boot,
 	config: &Config,
 	paths: &Paths,
 	clock: &impl Clock,
@@ -19,7 +20,7 @@ pub async fn fetch_system(
 	dry: bool,
 	out: &mut Output<'_>,
 ) -> i32 {
-	let result = run(bucket, store, switch, config, paths, clock, secrets, dry, out).await;
+	let result = run(bucket, store, switch, boot, config, paths, clock, secrets, dry, out).await;
 	finish(result, out)
 }
 
@@ -28,6 +29,7 @@ async fn run(
 	bucket: &impl Bucket,
 	store: &mut impl Store,
 	switch: &impl Switch,
+	boot: &impl Boot,
 	config: &Config,
 	paths: &Paths,
 	clock: &impl Clock,
@@ -96,7 +98,32 @@ async fn run(
 		switch.switch(&previous).await.map_err(|_| Refusal::SystemRestore)?;
 		return Err(Refusal::Switch);
 	}
+	rest_boot(boot, out);
 	record(paths, &bytes, out).map_err(|_| Refusal::State)?;
 	out.say(Step::SwitchSucceeded);
 	Ok(())
+}
+
+/// Freezes and thaws `/boot` once a switch has succeeded. Nothing runs between the two calls, so a
+/// freeze that held is always thawed, and no outcome fails the update, as the switch already did.
+fn rest_boot(boot: &impl Boot, out: &mut Output<'_>) {
+	out.say(Step::RestingBoot);
+	match boot.freeze() {
+		Ok(Freeze::Held) => match boot.thaw() {
+			Ok(()) => out.say(Step::BootRested),
+			Err(error) => {
+				out.say(Step::BootThawFailed);
+				out.error(&format!("update: {error}"));
+			}
+		},
+		Ok(Freeze::NotMounted) => out.say(Step::BootNotMounted),
+		Ok(Freeze::Unsupported(kind)) => {
+			out.say(Step::BootUnsupported);
+			out.line(&format!("update: /boot is {kind}"));
+		}
+		Err(error) => {
+			out.say(Step::BootFreezeFailed);
+			out.error(&format!("update: {error}"));
+		}
+	}
 }
