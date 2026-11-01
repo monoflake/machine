@@ -102,3 +102,12 @@ EUPL-1.2 and snix's GPL-3.0.
 The update path's final step is done on 2026-10-31, after the fleet's test machines took both
 pointers and the driver through Rust. Its replaced shell and shell tests are removed, with the
 eval tests and recorded behavior transcripts retained.
+
+9. **ring for a CPU aws-lc's entropy source aborts on**, decided by the author on 2026-11-01: on
+   pine's board the first TLS handshake's `RAND_bytes` reached aws-lc 0.47's tree jitter entropy
+   source, whose one-time initialization called `abort()`, so `machine-update-fetch` died with
+   SIGABRT after "update: fetching system pointer" and no line of its own. `machine.update.tls`
+   picks the build, aws-lc-rs by default and ring where set, pine alone.
+10. **Open: the update path says which step it was in when it is aborted.** A C dependency's
+    `abort()` passes every Rust panic hook, so the journal held only the core dump; a SIGABRT
+    handler writing one line naming the step is the likely shape, not built yet.

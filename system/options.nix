@@ -104,6 +104,14 @@ in
           description = "The update path's programs, the flake's build.";
         };
         enable = lib.mkEnableOption "signed system pointer updates";
+        tls = mkOption {
+          type = types.enum [
+            "aws-lc-rs"
+            "ring"
+          ];
+          default = "aws-lc-rs";
+          description = "HTTPS's crypto provider for the update path, ring on a CPU aws-lc's entropy source aborts on.";
+        };
         bucket = mkOption {
           type = types.nullOr types.nonEmptyStr;
           default = null;

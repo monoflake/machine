@@ -46,14 +46,17 @@
 
       # A fleet machine, the base layer and the driver, containers and updates above it.
       nixosModules.machine =
-        { pkgs, ... }:
+        { config, pkgs, ... }:
         {
           imports = [
             disko.nixosModules.disko
             self.nixosModules.base
             system
           ];
-          machine.update.package = self.packages.${pkgs.stdenv.hostPlatform.system}.machine-update;
+          machine.update.package =
+            self.packages.${pkgs.stdenv.hostPlatform.system}.${
+              if config.machine.update.tls == "ring" then "machine-update-ring" else "machine-update"
+            };
         };
 
       lib = {
@@ -153,6 +156,10 @@
       packages = each (pkgs: {
         machine-update = pkgs.callPackage ./system/nix/update/package.nix {
           craneLib = crane.mkLib pkgs;
+        };
+        machine-update-ring = pkgs.callPackage ./system/nix/update/package.nix {
+          craneLib = crane.mkLib pkgs;
+          tls = "ring";
         };
       });
 

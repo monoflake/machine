@@ -23,6 +23,9 @@ times more than an hour ahead are refused. The accepted pointer prevents rollbac
 after a manual rollback. An accepted run cannot change its path. The same running
 system ends the run without realizing or switching, recording the pointer if needed.
 
+HTTPS is rustls on aws-lc-rs, or on ring where `machine.update.tls = "ring"` is set, for a board
+whose CPU fails aws-lc's entropy source, RFC cbtjl item 9.
+
 A different system is realized from the public NixOS cache and the bucket, requiring signatures
 from their trusted Nix keys. The global substituters stay unchanged. This command sets `max-jobs`
 to zero and clears `builders`, so the machine never builds, locally or remotely. Missing

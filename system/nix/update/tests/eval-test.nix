@@ -102,6 +102,11 @@ let
       '';
     assert !(builtins.elem package c.environment.systemPackages);
     assert !lib.any (p: p.name == "machine-driver-rollback") c.environment.systemPackages;
+    assert package == flake.packages.${system}.machine-update;
+    assert
+      (configured system (options // { tls = "ring"; }) { }).machine.update.package
+      == flake.packages.${system}.machine-update-ring;
+    assert package.drvPath != flake.packages.${system}.machine-update-ring.drvPath;
     assert timer.OnCalendar == "*-*-* 13:00:00 UTC";
     assert timer.Persistent;
     {
