@@ -12,6 +12,7 @@ external spawnSync: (string, array<string>, spawnOptions) => spawned = "spawnSyn
 @module("node:fs") external existsSync: string => bool = "existsSync"
 @module("node:fs") external readdirSync: string => array<string> = "readdirSync"
 @module("node:fs") external mkdtempSync: string => string = "mkdtempSync"
+@module("node:fs") external realpathSync: string => string = "realpathSync"
 @module("node:os") external tmpdir: unit => string = "tmpdir"
 @module("node:os") external homedir: unit => string = "homedir"
 @module("node:path") @variadic external join: array<string> => string = "join"
@@ -253,7 +254,8 @@ let copyRun = (~cwd, args) =>
 let copied = (~paths=[], ~excluded=excluded, ~into=?, ~run=copyRun, directory) => {
   let copy = switch into {
   | Some(copy) => copy
-  | None => mkdtempSync(join([tmpdir(), "flake-"]))
+  // Nix refuses a path flake reached through a symlink, as macOS gives its temporary directory.
+  | None => realpathSync(mkdtempSync(join([tmpdir(), "flake-"])))
   }
   run(
     ~cwd=directory,
