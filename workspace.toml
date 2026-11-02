@@ -23,4 +23,4 @@ ids = "monoflake"
 # Suffixes this repository alone tracks, formatted by nothing, the workspace's
 # docs/toolchain/lint-format.md.
 [format]
-unformatted = [".jq", ".narinfo", ".pub", ".sig", ".zst"]
+unformatted = [".jq", ".narinfo", ".patch", ".pub", ".sig", ".zst"]

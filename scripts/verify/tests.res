@@ -45,6 +45,8 @@ let tests = [
     shell(`${update}/${path}`)
   ),
   shell("system/base/seed/tests.sh"),
+  shell("system/boot/extlinux-test.sh"),
+  evaluated("system/boot/extlinux-test.nix"),
   shell("system/network/tests.sh"),
   shell("system/network/addresses/tests.sh"),
   shell(".github/update/driver-test.sh"),

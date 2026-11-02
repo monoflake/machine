@@ -1,6 +1,9 @@
 # How a fleet machine boots, GRUB on BIOS and EFI, its console base/console.nix.
 {
-  imports = [ ./disk.nix ];
+  imports = [
+    ./disk.nix
+    ./extlinux.nix
+  ];
 
   # BIOS and EFI on a PC; EFI alone on Arm, which has no BIOS GRUB, so its partition idles.
   boot.loader.grub = {
