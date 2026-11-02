@@ -7,6 +7,61 @@
 				"owes": "the author's word"
 			},
 			"waits": "author"
+		},
+		{
+			"id": "host-firewall",
+			"says": "`table inet filter` is declared by the machine's module in place of NixOS's firewall, with its zones checked by reverse path, `fib saddr . iif oif missing drop`, and a default drop on the public interface, so nothing comes in from the public network, SSH included; system/base/network.nix still enables NixOS's own firewall",
+			"holds": {
+				"owes": "the author's word"
+			},
+			"why": "p95sv",
+			"waits": "author"
+		},
+		{
+			"id": "filter-activation",
+			"says": "The filter's activation is tried then kept: it is started by the rules' text changing and never by a store path, a failed apply never cancels the previous rollback's timer, nothing becomes the boot default before it is confirmed, and a failed rollback is reported as a failure",
+			"after": ["host-firewall"],
+			"holds": {
+				"owes": "the author's word"
+			},
+			"why": "p95sv",
+			"waits": "author"
+		},
+		{
+			"id": "firewall-points",
+			"says": "Three points of the filter are settled into rules as it is built: whether Tailscale keeps writing its own rules beside the table or the table holds the one it needs, whether the bridge plugin's masquerade stays the plugin's or moves into the table, and how a deployment's `network` is written as addresses and ports",
+			"after": ["host-firewall"],
+			"holds": {
+				"owes": "the author's word"
+			},
+			"why": "p95sv",
+			"waits": "author"
+		},
+		{
+			"id": "region-substituters",
+			"says": "A machine option with the values `global` and `china` sets the substituters, `china` taking a mainland mirror first, then the NixOS cache, then the bucket, and `global` the NixOS cache then the bucket, with require-sigs on, so ivy and dusk drop their hand-written mirror; machine.region in system/options.nix selects nothing today",
+			"holds": {
+				"owes": "the author's word"
+			},
+			"why": "mgzfp",
+			"waits": "author"
+		},
+		{
+			"id": "address-discovery-rust",
+			"says": "The address discovery is a Rust crate under system/network/addresses/, reading interface addresses over netlink, the trace over an HTTP client bound to each family and names through a resolver crate, and discover.sh, parse.jq and tests.sh go once it has taken a pointer on okra, sora and oak; it waits on the author choosing Tailscale's netcheck, its LocalAPI or a STUN client",
+			"holds": {
+				"owes": "the author's choice among netcheck, LocalAPI and STUN"
+			},
+			"why": "cbtjl",
+			"waits": "author"
+		},
+		{
+			"id": "seed-rust",
+			"says": "The seed's render and boot are a Rust crate and their shell under system/base/seed/ is removed",
+			"holds": {
+				"owes": "the crate, and the shell removed"
+			},
+			"why": "cbtjl"
 		}
 	]
 }

@@ -1,10 +1,8 @@
 ---
 name: 'Public Paths From Upstream'
 title: 'Public paths from upstream or a mirror near the machine, the bucket only our own'
-status: accepted
+status: decided
 supersedes: []
-blocked-by: []
-commits: []
 references: []
 ---
 
@@ -29,9 +27,7 @@ machine's modules and its generated configuration.
 ### Ledger
 
 - **A region picks the substituters**, provisional, chosen by the advisor on 2026-10-26: a
-  machine option with the values `global`, the default, and `china`. Whether it becomes one region
-  field from which `machine.network.resolvers` is derived as well is open, and resolvers is not
-  changed with it.
+  machine option with the values `global`, the default, and `china`.
 - **The order and the keys**, provisional, chosen by the advisor on 2026-10-26: `china` takes the
   mirror first, then the NixOS cache, then the bucket; `global` takes the NixOS cache, then the
   bucket. The trusted keys are the NixOS cache's own key and the machine's builders' keys, with
@@ -41,19 +37,11 @@ machine's modules and its generated configuration.
   a path counts toward the upload only where the NixOS cache has no narinfo for it, the builders
   being where that query is fast. What is uploaded still goes in two passes, every object before
   its narinfo, as the self marker's change requires.
-- **Consumers move first**, provisional, chosen by the advisor on 2026-10-26: every machine trusts
-  the NixOS cache and holds the new substituter list before any builder stops uploading public
-  paths, the principle of the pointer layout's rollout, held by a check beside the one that keeps
-  a builder's and its consumers' locks on one layout, or by extending it.
-- **When**, provisional, chosen by the advisor on 2026-10-26: built in a lane after the pointer
-  layout's rollout, landing with the self marker or after it. A machine installed before it lands
-  may carry its substituters by hand in its deployment's configuration, citing this RFC, and drops
-  them when the option lands.
 - **What it does to a self upload**: a builder above 4096 MB uploads only the paths of its own
   closure that the NixOS cache lacks, its system's own derivations and what a deployment builds,
   in place of every path the bucket lacks; a first day's self upload shrinks from the whole
   closure's missing part to that remainder, and so does what the self marker keeps against the
-  cap. The sizes are measured when it lands.
+  cap.
 
 **Noted on 2026-10-27**: RFC ttcli supersedes this ledger's self marker and its self upload. A
 run's own set is what upstream lacks, uploaded whole each day; a self run publishes nothing; the
@@ -62,16 +50,9 @@ before its narinfo.
 
 ## State
 
-Written on 2026-11-01. The half that keeps public paths out of the bucket is built, and the half
-that chooses a mirror by region is not.
+Written on 2026-11-01. The half that keeps public paths out of the bucket is built.
 
 Built: CI no longer uploads what upstream has. `scripts/systems/systems.res` in monoflake/cloud
 sets the NixOS cache and the owner's bucket as the substituters and asks upstream which paths it
 lacks before it uploads, under RFC oej2a, which replaced the builders, their keys, the self upload
 and the consumers-first rollout this ledger describes. Those parts of the ledger are history.
-
-Not built: the machine option that picks substituters by region. `machine.region` in
-`system/options.nix` is a label and selects nothing, and no module of this repository sets
-substituters. A mainland machine still carries its mirror by hand, as the ledger allowed: ivy and
-dusk in `organizations/canmi/machines/*/configuration.nix` of monoflake/cloud list SJTU's mirror
-first, then the NixOS cache, and say they do so until this option lands.

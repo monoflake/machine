@@ -1,10 +1,8 @@
 ---
 name: 'A Driver Update Judged'
 title: 'A driver update is judged after its restart by the driver itself, and a failed check rolls it back'
-status: accepted
+status: decided
 supersedes: []
-blocked-by: []
-commits: []
 references: []
 ---
 

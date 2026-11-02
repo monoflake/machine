@@ -1,10 +1,8 @@
 ---
 name: 'Update path in Rust'
 title: "The update path and the address discovery are rewritten in Rust where their shell lives, reaching Nix through harmonia's libraries and reading the bucket themselves"
-status: accepted
+status: decided
 supersedes: []
-blocked-by: []
-commits: []
 references: []
 ---
 
@@ -59,16 +57,17 @@ EUPL-1.2 and snix's GPL-3.0.
 
 ## Decision
 
-1. **It is done now**, before RFC oej2a's step 5, as the author decided on 2026-10-31: A and B are
-   frozen and only the test platform runs the update path, so it is tried there by pointer and no
-   other machine is touched.
-2. **The scope is the update path and the address discovery**: `fetch`, `driver`,
+1. **It was done before RFC oej2a's step 5**, as the author decided on 2026-10-31: A and B were
+   frozen and only the test platform ran the update path, so it was tried there by pointer and no
+   other machine was touched.
+2. **The scope is the update path, the address discovery and the seed's render and boot scripts**, the seed added by the author on 2026-11-02: `fetch`, `driver`,
    `driver-links`, `driver-protocol`, `nudge`, `protocol` and `rollback` under
-   `system/nix/update/`, and the `discover` script. `system/nix/cache/` and `builder/` stay as they are,
-   being the old builders' code that oej2a removes after the reset.
+   `system/nix/update/`, the `discover` script, and the scripts under `system/base/seed/`. `system/nix/cache/` stays as it was, being the old builders' code
+   that oej2a removes after the reset, and `builder/` stays, its `builder/entry.sh` live for the container a
+   developer builds a system in.
 3. **The Rust lives where its shell lives**, a crate under `system/nix/update/` and one under
    `system/network/addresses/`, members of a Cargo workspace this repository starts at its root,
-   each built by Nix, the shell it replaces removed as item 7 says.
+   each built by Nix.
 4. **Nix is reached through harmonia's libraries**, never its binaries:
    `harmonia-store-remote` for the daemon, with `harmonia-store-path`, `harmonia-store-nar-info`
    and `harmonia-utils-signature`, as git dependencies pinned to a release tag. The one program
@@ -84,8 +83,7 @@ EUPL-1.2 and snix's GPL-3.0.
    bound to each family, and names through a resolver crate. How it takes Tailscale's netcheck,
    its LocalAPI or a STUN client of its own, is settled with the author before that part starts.
 7. **The shell tests' cases are carried over** as Rust tests, run on the Mac against a fake bucket
-   and the Mac's own daemon. The shell of a part is removed once its Rust has taken a pointer on
-   okra, sora and oak.
+   and the Mac's own daemon.
 8. **Settled at its first wave, with the advisor on 2026-10-31.** `cargo deny check` runs in
    verify with monoflake/driver's allowed licenses, harmonia's repository the one git source, so a
    copyleft dependency is refused. `rust-version` is the release's rustc, 1.95, which builds it on
@@ -122,23 +120,10 @@ eval tests and recorded behavior transcripts retained.
 
 ## State
 
-Written on 2026-11-01. The update path is built in Rust, and the address discovery is not.
+Written on 2026-11-01. The update path is built in Rust.
 
 Built: the root `Cargo.toml` lists the `machine-update` crate at `system/nix/update/` and the
 `abort` crate under it. The crate builds `machine-update-fetch`, `machine-update-nudge` and
 `machine-driver-rollback`. `src/store.rs` calls `AddToStoreNar` through harmonia, `src/bucket.rs`
 reads the bucket, and `docs/update.md` states the rule. The update path's shell and shell tests
 are gone. `system/nix/cache/` is gone too.
-
-Not built: the address discovery. `system/network/addresses/default.nix` still wraps
-the discover script in `writeShellApplication` with `curl`, `jq` and `iproute2`, its shell tests and
-`parse.jq` remain, and the root `Cargo.toml` has no crate for it. Item 6's question about
-Tailscale's netcheck, LocalAPI or a STUN client is therefore still open.
-
-A claim in item 2 is wrong about the present. `builder/` is not removed code. `builder/entry.sh` is
-live: `scripts/builder.res` reads it, `mise.toml` has the `builder` task, and `docs/local.md`
-describes the container it starts on a developer's computer for building a system. What RFC oej2a
-retired is the fleet's builder cache, which was `system/nix/cache/`, and `builder/` stays.
-
-The seed's render and boot scripts under `system/base/seed/` are neither in item 2's scope nor scheduled:
-they still run at boot, `docs/network.md`, and no RFC here decides whether they are rewritten.
