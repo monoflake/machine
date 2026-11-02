@@ -67,7 +67,9 @@
 			"id": "extlinux-durable",
 			"says": "A machine booted by extlinux writes its new boot files and syncs them before the boot default changes, by a patched extlinux builder in the machine's module, so a power cut inside the switch boots the old generation or the new one whole; model/protocol/powercut.tla's DEFAULT_BEFORE_REST is the order it closes",
 			"holds": {
-				"owes": "the patched builder and a test that its default moves only after the files are synced"
+				"committed": {
+					"commit": "13d9b4f2"
+				}
 			}
 		}
 	]
