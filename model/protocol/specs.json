@@ -19,6 +19,23 @@
 				"checks": ["Runs"],
 				"inputs": ["model/protocol/update_runs.res.mjs"]
 			}
+		},
+		{
+			"name": "powercut",
+			"module": "powercut.tla",
+			"quick": "powercut.cfg",
+			"inputs": ["model/protocol/powercut.tla", "model/protocol/powercut.cfg"],
+			"switches": [
+				{ "name": "DEFAULT_BEFORE_REST", "breaks": "WholeBoot" },
+				{ "name": "RECORD_BEFORE_REST", "breaks": "RecordedBoots" },
+				{ "name": "OVERWRITE_OLD", "breaks": "WholeBoot" }
+			],
+			"export": {
+				"command": ["node", "model/protocol/update_runs.res.mjs", "{output}"],
+				"file": "model/protocol/powercut-runs.json",
+				"checks": ["Runs"],
+				"inputs": ["model/protocol/update_runs.res.mjs"]
+			}
 		}
 	]
 }

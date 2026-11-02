@@ -183,3 +183,13 @@ async fn each_run_tlc_makes_takes_its_steps_in_their_order() {
 		assert_eq!(replay(&run.case).await, run.steps, "{:?}", run.case);
 	}
 }
+
+#[tokio::test(start_paused = true)]
+async fn powercut_outer_order_matches_the_updater() {
+	let fixture = include_str!("../../../../../model/protocol/powercut-runs.json");
+	let fixture: Runs = serde_json::from_str(fixture).unwrap();
+	assert_eq!(fixture.runs.len(), 2);
+	for run in &fixture.runs {
+		assert_eq!(replay(&run.case).await, run.steps, "{:?}", run.case);
+	}
+}

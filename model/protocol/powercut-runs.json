@@ -1,0 +1,28 @@
+{
+	"runs": [
+		{
+			"case": {
+				"pointer": "present",
+				"running": false,
+				"taken": false,
+				"realise": "ok",
+				"switch": "ok",
+				"freeze": "held",
+				"sync": "unasked"
+			},
+			"steps": ["realise", "profile", "switch", "freeze", "thaw", "record"]
+		},
+		{
+			"case": {
+				"pointer": "present",
+				"running": false,
+				"taken": false,
+				"realise": "ok",
+				"switch": "ok",
+				"freeze": "unsupported",
+				"sync": "ok"
+			},
+			"steps": ["realise", "profile", "switch", "freeze", "sync", "record"]
+		}
+	]
+}
