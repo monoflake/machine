@@ -120,6 +120,8 @@ pub struct BootFake {
 	pub outcome: RefCell<Result<Freeze, io::ErrorKind>>,
 	/// Whether a thaw fails.
 	pub thaw_fails: Cell<bool>,
+	/// Whether a sync fails.
+	pub sync_fails: Cell<bool>,
 	/// The switches and these calls in the order they came.
 	pub order: Rc<RefCell<Vec<String>>>,
 	/// The accepted pointer's file, whose presence a call notes.
@@ -133,6 +135,10 @@ impl Boot for BootFake {
 	fn thaw(&self) -> io::Result<()> {
 		self.note("thaw");
 		if self.thaw_fails.get() { Err(io::Error::from(io::ErrorKind::TimedOut)) } else { Ok(()) }
+	}
+	fn sync(&self) -> io::Result<()> {
+		self.note("sync");
+		if self.sync_fails.get() { Err(io::Error::from(io::ErrorKind::TimedOut)) } else { Ok(()) }
 	}
 }
 impl BootFake {
@@ -357,6 +363,7 @@ impl Fixture {
 		let boot = BootFake {
 			outcome: RefCell::new(Ok(Freeze::Held)),
 			thaw_fails: Cell::new(false),
+			sync_fails: Cell::new(false),
 			order,
 			accepted: paths.accepted(),
 		};

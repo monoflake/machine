@@ -48,7 +48,13 @@ update: verifying system pointer signature
 update: validating system pointer
 update: reading the running system
 update: pointer is the running system
+update: realising system without builds
+update: setting system profile
+update: switching system
+update: resting /boot, freezing and thawing it
+update: /boot rested
 update: accepted pointer recorded
+update: system switch succeeded
 ### run 6: (no arguments), exit 0
 update: reading runtime access files
 update: fetching system pointer

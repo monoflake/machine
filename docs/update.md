@@ -20,8 +20,9 @@ namespace `system-pointer`, then requires exactly the machine name, store path, 
 nonempty `run`. Invalid signatures, a driver namespace, another machine, malformed fields and times
 more than an hour ahead are refused. The accepted pointer prevents rollback to an older `at`, or an
 equal `at` from another run. The same accepted pointer is not switched again, even after a manual
-rollback. An accepted run cannot change its path. The same running system ends the run without
-realizing or switching, recording the pointer if needed.
+rollback. An accepted run cannot change its path. A running system whose pointer is already recorded ends
+the run; one not recorded yet is realized and switched to again before it is recorded, as /boot may
+name another generation.
 
 HTTPS is rustls on aws-lc-rs, or on ring where `machine.update.tls = "ring"` is set, for a board
 whose CPU fails aws-lc's entropy source, RFC cbtjl.
@@ -32,8 +33,11 @@ and clears `builders`, so the machine never builds, locally or remotely. Missing
 the update. The realization roots the system until its system profile holds it. Only a successful
 switch records the pointer, by an atomic rename. After a successful switch, and before the pointer is recorded, the updater
 brings /boot to rest by freezing and thawing it, as U-Boot is inferred to read ext4 without replaying
-its journal. A /boot sharing the root's device, a filesystem that cannot freeze and a failed freeze
-or thaw each print a warning and leave the update successful. Fetch, verification and realization failures leave
+its journal. A filesystem that cannot freeze, as a vfat /boot, is synced instead; a /boot sharing the root's
+device and a failed freeze leave the pointer unrecorded and the update refused, the next run
+switching again. That order meeting a power cut at any step is `model/protocol/update.tla`, which
+`mise run protocol` checks with TLC, and the runs it exports are replayed against the update by
+`tests/flow/runs.rs`, RFC w0w82. Fetch, verification and realization failures leave
 the running system and accepted state untouched. An absent system pointer or signature, a not found
 answer alone, is nothing to do and exits successfully, as the bucket expires what a roll wrote a day
 or two later. A failed switch keeps the accepted state and

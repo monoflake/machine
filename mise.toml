@@ -5,6 +5,8 @@ _.path = ['''{{exec(command="if [ -f '" ~ config_root ~ "/scripts/channel/channe
 
 [tools]
 cargo-deny = "0.20"
+# What runs TLC over model/protocol, RFC w0w82.
+java = "temurin-25"
 
 # What oxfmt formats here.
 [vars]
@@ -118,6 +120,16 @@ run = "cargo deny check"
 [tasks."verify:tests"]
 description = "Run the shell and eval tests at once, one per core"
 run = "rescript build > /dev/null && node scripts/verify/tests.res.mjs"
+
+# TLC over model/protocol through the workspace's shared runner, RFC w0w82.
+[tasks.protocol]
+description = "Run TLC over each specification and hold the fixture it exports: `protocol [--write] [--full]`"
+usage = '''
+flag "--write" help="Write the fixture TLC exports"
+flag "--full" help="Also check the temporal property and its switch"
+'''
+depends = ["//:build"]
+run = 'rescript build > /dev/null && node {{env.WORKSPACE}}/scripts/protocol/protocol.res.mjs ${usage_write:+--write} ${usage_full:+--full}'
 
 [tasks.prepare]
 description = "Install the packages and take the channel's Nix for CI"

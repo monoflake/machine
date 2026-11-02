@@ -1,0 +1,196 @@
+{
+	"runs": [
+		{
+			"case": {
+				"pointer": "absent",
+				"running": false,
+				"taken": false,
+				"realise": "unasked",
+				"switch": "unasked",
+				"freeze": "unasked",
+				"sync": "unasked"
+			},
+			"steps": []
+		},
+		{
+			"case": {
+				"pointer": "present",
+				"running": false,
+				"taken": false,
+				"realise": "fails",
+				"switch": "unasked",
+				"freeze": "unasked",
+				"sync": "unasked"
+			},
+			"steps": ["realise"]
+		},
+		{
+			"case": {
+				"pointer": "present",
+				"running": false,
+				"taken": false,
+				"realise": "ok",
+				"switch": "fails",
+				"freeze": "unasked",
+				"sync": "unasked"
+			},
+			"steps": ["realise", "profile", "switch", "profile", "switch"]
+		},
+		{
+			"case": {
+				"pointer": "present",
+				"running": false,
+				"taken": false,
+				"realise": "ok",
+				"switch": "ok",
+				"freeze": "failed",
+				"sync": "unasked"
+			},
+			"steps": ["realise", "profile", "switch", "freeze"]
+		},
+		{
+			"case": {
+				"pointer": "present",
+				"running": false,
+				"taken": false,
+				"realise": "ok",
+				"switch": "ok",
+				"freeze": "held",
+				"sync": "unasked"
+			},
+			"steps": ["realise", "profile", "switch", "freeze", "thaw", "record"]
+		},
+		{
+			"case": {
+				"pointer": "present",
+				"running": false,
+				"taken": false,
+				"realise": "ok",
+				"switch": "ok",
+				"freeze": "unmounted",
+				"sync": "unasked"
+			},
+			"steps": ["realise", "profile", "switch", "freeze"]
+		},
+		{
+			"case": {
+				"pointer": "present",
+				"running": false,
+				"taken": false,
+				"realise": "ok",
+				"switch": "ok",
+				"freeze": "unsupported",
+				"sync": "fails"
+			},
+			"steps": ["realise", "profile", "switch", "freeze", "sync"]
+		},
+		{
+			"case": {
+				"pointer": "present",
+				"running": false,
+				"taken": false,
+				"realise": "ok",
+				"switch": "ok",
+				"freeze": "unsupported",
+				"sync": "ok"
+			},
+			"steps": ["realise", "profile", "switch", "freeze", "sync", "record"]
+		},
+		{
+			"case": {
+				"pointer": "present",
+				"running": true,
+				"taken": false,
+				"realise": "fails",
+				"switch": "unasked",
+				"freeze": "unasked",
+				"sync": "unasked"
+			},
+			"steps": ["realise"]
+		},
+		{
+			"case": {
+				"pointer": "present",
+				"running": true,
+				"taken": false,
+				"realise": "ok",
+				"switch": "fails",
+				"freeze": "unasked",
+				"sync": "unasked"
+			},
+			"steps": ["realise", "profile", "switch", "profile", "switch"]
+		},
+		{
+			"case": {
+				"pointer": "present",
+				"running": true,
+				"taken": false,
+				"realise": "ok",
+				"switch": "ok",
+				"freeze": "failed",
+				"sync": "unasked"
+			},
+			"steps": ["realise", "profile", "switch", "freeze"]
+		},
+		{
+			"case": {
+				"pointer": "present",
+				"running": true,
+				"taken": false,
+				"realise": "ok",
+				"switch": "ok",
+				"freeze": "held",
+				"sync": "unasked"
+			},
+			"steps": ["realise", "profile", "switch", "freeze", "thaw", "record"]
+		},
+		{
+			"case": {
+				"pointer": "present",
+				"running": true,
+				"taken": false,
+				"realise": "ok",
+				"switch": "ok",
+				"freeze": "unmounted",
+				"sync": "unasked"
+			},
+			"steps": ["realise", "profile", "switch", "freeze"]
+		},
+		{
+			"case": {
+				"pointer": "present",
+				"running": true,
+				"taken": false,
+				"realise": "ok",
+				"switch": "ok",
+				"freeze": "unsupported",
+				"sync": "fails"
+			},
+			"steps": ["realise", "profile", "switch", "freeze", "sync"]
+		},
+		{
+			"case": {
+				"pointer": "present",
+				"running": true,
+				"taken": false,
+				"realise": "ok",
+				"switch": "ok",
+				"freeze": "unsupported",
+				"sync": "ok"
+			},
+			"steps": ["realise", "profile", "switch", "freeze", "sync", "record"]
+		},
+		{
+			"case": {
+				"pointer": "present",
+				"running": true,
+				"taken": true,
+				"realise": "unasked",
+				"switch": "unasked",
+				"freeze": "unasked",
+				"sync": "unasked"
+			},
+			"steps": []
+		}
+	]
+}

@@ -1,6 +1,9 @@
 {
 	"name": "@monoflake/machine",
-	"sources": [{ "dir": "scripts", "subdirs": true }],
+	"sources": [
+		{ "dir": "model", "subdirs": true },
+		{ "dir": "scripts", "subdirs": true }
+	],
 	"dependencies": [],
 	"package-specs": [{ "module": "esmodule", "in-source": true }],
 	"suffix": ".res.mjs",

@@ -40,10 +40,11 @@ async fn system_update_transcript_and_invariants() {
 	fs::remove_file(f.paths.accepted()).unwrap();
 	assert_eq!(f.fetch(false).await.0, 0);
 	assert_eq!(f.accepted(), accepted);
-	assert_eq!(f.switch.calls.borrow().len(), 1);
+	assert_eq!(f.store.calls.len(), 2);
+	assert_eq!(f.switch.calls.borrow().len(), 2);
 	f.reset_system();
 	assert_eq!(f.fetch(false).await.0, 0);
-	assert_eq!(f.switch.calls.borrow().len(), 1);
+	assert_eq!(f.switch.calls.borrow().len(), 2);
 	f.bucket.objects.borrow_mut().insert(format!("{}.sig", f.key()), b"broken".to_vec());
 	refused(&mut f, "invalid system-pointer signature", &accepted).await;
 	f.publish(&f.system_pointer(0, "1"), "driver-pointer", "ci");
@@ -284,28 +285,56 @@ async fn boot_is_left_alone_unless_the_switch_succeeded() {
 }
 
 #[tokio::test(start_paused = true)]
-async fn a_boot_that_cannot_be_frozen_is_named_and_does_not_fail_the_update() {
+async fn a_boot_not_at_rest_leaves_the_pointer_unrecorded_and_the_next_run_switches_again() {
+	let refusal = "update: refused, switched, but /boot not at rest, pointer not recorded\n";
 	for (outcome, line) in [
-		(Ok(Freeze::NotMounted), "update: warning, /boot is not a mount of its own, left as it is\n"),
 		(
-			Ok(Freeze::Unsupported("vfat".into())),
-			"update: warning, /boot's filesystem cannot be frozen, left as it is\nupdate: /boot is vfat\n",
+			Ok(Freeze::NotMounted),
+			"update: /boot is not a mount of its own, so it cannot be brought to rest\n",
 		),
-		(
-			Err(io::ErrorKind::PermissionDenied),
-			"update: warning, freezing /boot failed, left as it is\n",
-		),
+		(Err(io::ErrorKind::PermissionDenied), "update: freezing /boot failed\n"),
 	] {
 		let mut f = Fixture::new(false);
 		f.signed(&f.system_pointer(0, "1"));
 		*f.boot.outcome.borrow_mut() = outcome.clone();
 		let (code, text) = f.fetch(false).await;
-		assert_eq!(code, 0, "{text}");
+		assert_eq!(code, 1, "{text}");
 		assert!(text.contains(line), "{text}");
-		assert!(!text.contains("rested"));
+		assert!(text.ends_with(refusal), "{text}");
 		assert_eq!(order(&f), [format!("switch {NEW}"), "freeze unrecorded".into()], "{outcome:?}");
+		assert!(!f.paths.accepted().exists());
+		*f.boot.outcome.borrow_mut() = Ok(Freeze::Held);
+		let (code, text) = f.fetch(false).await;
+		assert_eq!(code, 0, "{text}");
+		assert!(text.contains("update: pointer is the running system\nupdate: realising"), "{text}");
+		assert_eq!(f.switch.calls.borrow().len(), 2);
 		assert!(f.paths.accepted().exists());
 	}
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_boot_that_cannot_freeze_is_synced_and_recorded_only_once_the_sync_returns() {
+	let mut f = Fixture::new(false);
+	f.signed(&f.system_pointer(0, "1"));
+	*f.boot.outcome.borrow_mut() = Ok(Freeze::Unsupported("vfat".into()));
+	f.boot.sync_fails.set(true);
+	let (code, text) = f.fetch(false).await;
+	assert_eq!(code, 1, "{text}");
+	assert!(
+		text.contains(
+			"update: /boot's filesystem cannot be frozen, syncing it instead\nupdate: /boot is vfat\n\
+			 update: syncing /boot failed\n"
+		),
+		"{text}"
+	);
+	assert!(!f.paths.accepted().exists());
+	f.boot.sync_fails.set(false);
+	let (code, text) = f.fetch(false).await;
+	assert_eq!(code, 0, "{text}");
+	assert!(text.contains("update: /boot synced\nupdate: accepted pointer recorded\n"), "{text}");
+	let calls = [format!("switch {NEW}"), "freeze unrecorded".into(), "sync unrecorded".into()];
+	assert_eq!(order(&f), [calls.clone(), calls].concat());
+	assert!(f.paths.accepted().exists());
 }
 
 #[tokio::test(start_paused = true)]

@@ -1,0 +1,12 @@
+{
+	"items": [
+		{
+			"id": "boot-on-root-rest",
+			"says": "A machine with /boot on its root's device brings /boot to rest, by EXT4_IOC_CHECKPOINT or freezing the root, before recording its pointer; until then its update is refused daily with the pointer unrecorded, the one exception model/protocol/update.tla's Converges names, RFC w0w82",
+			"holds": {
+				"owes": "the author's word"
+			},
+			"waits": "author"
+		}
+	]
+}

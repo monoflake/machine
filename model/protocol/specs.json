@@ -1,0 +1,24 @@
+{
+	"specs": [
+		{
+			"name": "update",
+			"module": "update.tla",
+			"quick": "update.cfg",
+			"inputs": ["model/protocol/update.tla", "model/protocol/update.cfg"],
+			"switches": [
+				{ "name": "RECORD_BEFORE_FLUSH", "breaks": "RecordedBoots" },
+				{ "name": "FREEZE_SKIPPED", "breaks": "RecordedBoots" },
+				{ "name": "ADOPT_UNSWITCHED", "breaks": "RecordedBoots" },
+				{ "name": "FREEZE_FAILED_RECORDS", "breaks": "RecordedBoots" },
+				{ "name": "RECORD_BEFORE_FLUSH", "breaks": "Converges" }
+			],
+			"temporal": ["Converges"],
+			"export": {
+				"command": ["node", "model/protocol/update_runs.res.mjs", "{output}"],
+				"file": "model/protocol/update-runs.json",
+				"checks": ["Runs"],
+				"inputs": ["model/protocol/update_runs.res.mjs"]
+			}
+		}
+	]
+}

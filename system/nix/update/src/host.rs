@@ -444,6 +444,16 @@ impl Boot for BootMount {
 		}
 		thawed
 	}
+
+	#[cfg(target_os = "linux")]
+	fn sync(&self) -> io::Result<()> {
+		rustix::fs::syncfs(File::open(&self.point)?).map_err(io::Error::from)
+	}
+
+	#[cfg(not(target_os = "linux"))]
+	fn sync(&self) -> io::Result<()> {
+		Err(io::Error::from(io::ErrorKind::Unsupported))
+	}
 }
 
 impl Drop for BootMount {

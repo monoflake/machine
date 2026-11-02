@@ -116,6 +116,9 @@ pub trait Boot {
 
 	/// Thaws `/boot` after a freeze that held.
 	fn thaw(&self) -> io::Result<()>;
+
+	/// Writes out `/boot`'s filesystem by `syncfs`, which puts one with no journal in place, as vfat.
+	fn sync(&self) -> io::Result<()>;
 }
 
 /// What a freeze of `/boot` came to, other than failing.

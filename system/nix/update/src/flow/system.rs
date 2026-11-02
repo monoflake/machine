@@ -61,17 +61,19 @@ async fn run(
 	}
 	out.say(Step::ReadingRunningSystem);
 	let current = host::read_link(&paths.current_system).ok().flatten().ok_or(Refusal::Running)?;
+	// A pointer running but not recorded is switched to again, as /boot may name another generation,
+	// model/protocol/update.tla.
 	if current == pointer.path {
 		out.say(Step::RunningSystem);
-		if !dry && !taken {
-			record(paths, &bytes, out).map_err(|_| Refusal::State)?;
+		if taken {
+			return Ok(());
 		}
-		return Ok(());
-	}
-	out.say(Step::DiffersFromRunning);
-	if taken {
-		out.say(Step::WouldNotSwitchAgain);
-		return Ok(());
+	} else {
+		out.say(Step::DiffersFromRunning);
+		if taken {
+			out.say(Step::WouldNotSwitchAgain);
+			return Ok(());
+		}
 	}
 	if dry {
 		out.say(Step::WouldSwitch);
@@ -98,32 +100,52 @@ async fn run(
 		switch.switch(&previous).await.map_err(|_| Refusal::SystemRestore)?;
 		return Err(Refusal::Switch);
 	}
-	rest_boot(boot, out);
+	if !rest_boot(boot, out) {
+		return Err(Refusal::BootUnrested);
+	}
 	record(paths, &bytes, out).map_err(|_| Refusal::State)?;
 	out.say(Step::SwitchSucceeded);
 	Ok(())
 }
 
-/// Freezes and thaws `/boot` once a switch has succeeded. Nothing runs between the two calls, so a
-/// freeze that held is always thawed, and no outcome fails the update, as the switch already did.
-fn rest_boot(boot: &impl Boot, out: &mut Output<'_>) {
+/// Brings `/boot` to rest after a switch, by a freeze and thaw or else `syncfs` on vfat, and says
+/// whether it rested, as only then is the pointer recorded, model/protocol/update.tla.
+fn rest_boot(boot: &impl Boot, out: &mut Output<'_>) -> bool {
 	out.say(Step::RestingBoot);
 	match boot.freeze() {
-		Ok(Freeze::Held) => match boot.thaw() {
-			Ok(()) => out.say(Step::BootRested),
-			Err(error) => {
-				out.say(Step::BootThawFailed);
-				out.error(&format!("update: {error}"));
+		Ok(Freeze::Held) => {
+			match boot.thaw() {
+				Ok(()) => out.say(Step::BootRested),
+				Err(error) => {
+					out.say(Step::BootThawFailed);
+					out.error(&format!("update: {error}"));
+				}
 			}
-		},
-		Ok(Freeze::NotMounted) => out.say(Step::BootNotMounted),
+			true
+		}
+		Ok(Freeze::NotMounted) => {
+			out.say(Step::BootNotMounted);
+			false
+		}
 		Ok(Freeze::Unsupported(kind)) => {
 			out.say(Step::BootUnsupported);
 			out.line(&format!("update: /boot is {kind}"));
+			match boot.sync() {
+				Ok(()) => {
+					out.say(Step::BootSynced);
+					true
+				}
+				Err(error) => {
+					out.say(Step::BootSyncFailed);
+					out.error(&format!("update: {error}"));
+					false
+				}
+			}
 		}
 		Err(error) => {
 			out.say(Step::BootFreezeFailed);
 			out.error(&format!("update: {error}"));
+			false
 		}
 	}
 }

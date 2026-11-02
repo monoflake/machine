@@ -44,8 +44,12 @@ pub enum Step {
 	BootRested,
 	/// `/boot` is no mount of its own, so nothing was frozen.
 	BootNotMounted,
-	/// `/boot`'s filesystem cannot be frozen, as vfat.
+	/// `/boot`'s filesystem cannot be frozen, as vfat, so it is synced instead.
 	BootUnsupported,
+	/// `/boot` synced, which puts a filesystem with no journal in place.
+	BootSynced,
+	/// Syncing `/boot` failed.
+	BootSyncFailed,
 	/// Freezing `/boot` failed.
 	BootFreezeFailed,
 	/// Thawing `/boot` failed, so it may stay frozen.
@@ -126,9 +130,11 @@ impl Step {
 			Self::RestoringSystem => &"switch failed, restoring previous system",
 			Self::RestingBoot => &"resting /boot, freezing and thawing it",
 			Self::BootRested => &"/boot rested",
-			Self::BootNotMounted => &"warning, /boot is not a mount of its own, left as it is",
-			Self::BootUnsupported => &"warning, /boot's filesystem cannot be frozen, left as it is",
-			Self::BootFreezeFailed => &"warning, freezing /boot failed, left as it is",
+			Self::BootNotMounted => &"/boot is not a mount of its own, so it cannot be brought to rest",
+			Self::BootUnsupported => &"/boot's filesystem cannot be frozen, syncing it instead",
+			Self::BootSynced => &"/boot synced",
+			Self::BootSyncFailed => &"syncing /boot failed",
+			Self::BootFreezeFailed => &"freezing /boot failed",
 			Self::BootThawFailed => &"warning, thawing /boot failed, it may stay frozen",
 			Self::SwitchSucceeded => &"system switch succeeded",
 			Self::FetchingDriverPointer => &"fetching driver pointer",
@@ -265,6 +271,10 @@ pub enum Refusal {
 	/// The switch failed and the system before it runs again.
 	#[error("switch failed")]
 	Switch,
+	/// The switch succeeded but `/boot` was not brought to rest, so the pointer stays unrecorded and
+	/// the next run switches again.
+	#[error("switched, but /boot not at rest, pointer not recorded")]
+	BootUnrested,
 	/// The driver instance runs where the driver channel is off.
 	#[error("driver channel disabled")]
 	DriverChannel,
