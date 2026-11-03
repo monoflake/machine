@@ -31,9 +31,11 @@ says so; `builder up` alone makes it anew then. A key only the agent shows does 
 
 `down` stops and removes a container and keeps its volumes, so `up` starts again where it left off:
 the builder's store, and the local machine's store, disk, driver state and sshd host key. A local
-machine running without a port this script publishes is started again rather than switched, as
-Docker publishes a port only when it starts a container. Dropping a volume with `docker volume rm`
-starts that part afresh.
+machine running without a port this script publishes, or on a command other than its system
+profile's `init`, is started again rather than switched, as Docker publishes a port and sets a
+command only when it starts a container. **It boots `/nix/var/nix/profiles/system/init`**, the
+profile a switch moves, so after Docker restarts it the local machine runs the system last switched
+to, with no `up` by hand. Dropping a volume with `docker volume rm` starts that part afresh.
 
 ## The builder
 

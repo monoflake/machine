@@ -155,8 +155,8 @@ let booted = path =>
     }
   }
 
-/** Whether it runs, publishes every port and resolves as `named` has it, so one started before
- * either was given is started again rather than switched. */
+/** Whether it runs, publishes every port, resolves as `named` has it and boots `booting`, so one
+ * started before any of them was given is started again rather than switched. */
 let current = () =>
   Builder.running(container) &&
   published->Array.every(((outside, inside)) =>
@@ -209,7 +209,8 @@ if isMain {
   | Some("up") if dry =>
     Console.log(`would start ${Builder.container} unless it runs, and build local/ in it`)
     Console.log(`would switch ${container} to it over ssh on localhost:${port} if it runs with`)
-    Console.log(`  its entry published and the nameservers ${nameservers->Array.join(" ")}`)
+    Console.log(`  its entry published, the nameservers ${nameservers->Array.join(" ")} and`)
+    Console.log(`  its command ${booting}`)
     Console.log(`would otherwise remove ${container}, copy it into the volume ${nix} and start`)
     Console.log(`  ${container} on it, privileged, its state the volume ${state}, its sshd on`)
     Console.log(`  localhost:${port}, its entry on localhost:${entry} and localhost:${entered}`)
