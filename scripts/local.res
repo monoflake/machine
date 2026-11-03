@@ -34,6 +34,9 @@ let named = [
 /** The store, and what outlives the container, the disk, the driver's state and sshd's key. */
 let nix = "machine-local-nix"
 let state = "machine-local-state"
+
+/** What the container boots, the profile a deploy moves, so a restart boots the current system. */
+let booting = "/nix/var/nix/profiles/system/init"
 /** An image of an empty root owned by root, which the system's activation fills; its tag is
  * raised when what it holds changes. */
 let empty = "machine-empty:1"
@@ -87,12 +90,10 @@ let seeded = path =>
       "--volume",
       `${nix}:/local/nix`,
       Builder.image,
-      "nix",
-      "copy",
-      "--no-check-sigs",
-      "--to",
-      "/local",
-      path,
+      "sh",
+      "-c",
+      // The profile is linked before the first boot, which `booting` starts from.
+      `nix copy --no-check-sigs --to /local ${path} && mkdir -p /local/nix/var/nix/profiles && ln -sfn ${path} /local/nix/var/nix/profiles/system`,
     ],
   )
     ? Ok(path)
@@ -136,7 +137,7 @@ let booted = path =>
         "--volume",
         `${state}:/var/lib`,
         empty,
-        `${path}/init`,
+        booting,
       ],
     )->Option.isNone
   ) {
@@ -171,7 +172,10 @@ let current = () =>
       `{{join .HostConfig.Dns " "}} {{join .HostConfig.ExtraHosts " "}}`,
       container,
     ],
-  ) == Some(`${nameservers->Array.join(" ")} ${hosts->Array.join(" ")}`)
+  ) == Some(`${nameservers->Array.join(" ")} ${hosts->Array.join(" ")}`) &&
+  // One created to boot a fixed system is started again, so it boots the profile.
+  Builder.quiet("docker", ["inspect", "--format", "{{join .Config.Cmd \" \"}}", container]) ==
+    Some(booting)
 
 let up = () =>
   system()
