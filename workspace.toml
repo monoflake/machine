@@ -24,3 +24,25 @@ ids = "monoflake"
 # docs/toolchain/lint-format.md.
 [format]
 unformatted = [".jq", ".narinfo", ".patch", ".pub", ".sig", ".zst"]
+
+# The verify parts each path covers, so a check runs those a change touches, the workspace's
+# docs/agents/checking.md; a path no row matches runs the whole verify.
+[[check.touched]]
+paths = ["README.md", "docs/**"]
+parts = ["format"]
+
+[[check.touched]]
+paths = ["scripts/**", "builder/**"]
+parts = ["format", "tests"]
+
+[[check.touched]]
+paths = ["flake.nix", "flake.lock", "local/**", "system/**", ".github/**/*.nix"]
+parts = ["nix"]
+
+[[check.touched]]
+paths = ["system/nix/update/**"]
+parts = ["rust"]
+
+[[check.touched]]
+paths = ["model/**"]
+parts = []
