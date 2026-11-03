@@ -3,18 +3,18 @@
 # update. Its sources are monoflake/runtime and monoflake/driver.
 source = "monoflake/runtime"
 
-# https://github.com/monoflake/runtime/releases/tag/2026.11.01
+# https://github.com/monoflake/runtime/releases/tag/2026.11.02
 [workerd]
-version = "1.20261031.1"
-release = "2026.11.01"
+version = "1.20261101.1"
+release = "2026.11.02"
 
 [workerd.x86_64-linux]
-url = "https://github.com/monoflake/runtime/releases/download/2026.11.01/workerd-1.20261031.1-linux-x86_64.tar"
-sha256 = "656a398d328d25dceab857b82fbf30b16455642eb87767a86e3408b8e224d95e"
+url = "https://github.com/monoflake/runtime/releases/download/2026.11.02/workerd-1.20261101.1-linux-x86_64.tar"
+sha256 = "881ec0c75cbf30c2bb91ca5d6c4058fd1b298fe5c2dff715732c7d6d4406f896"
 
 [workerd.aarch64-linux]
-url = "https://github.com/monoflake/runtime/releases/download/2026.11.01/workerd-1.20261031.1-linux-aarch64.tar"
-sha256 = "30bc7af5f84adc1c3c46f869f5729dcfbdab3e43f0bdd835ab494cb4ee89b273"
+url = "https://github.com/monoflake/runtime/releases/download/2026.11.02/workerd-1.20261101.1-linux-aarch64.tar"
+sha256 = "cd4a82c69d0d272c796366d746e2e937f78b6e7a058dc2188bcd3ecd985d4427"
 
 # https://github.com/monoflake/runtime/releases/tag/2026.10.31
 [wasmtime]
@@ -29,16 +29,16 @@ sha256 = "236b1eec04eec1d027e72281772fcbc619d79b264c1c0849082026564f22504d"
 url = "https://github.com/monoflake/runtime/releases/download/2026.10.31/wasmtime-50.0.1-linux-aarch64.tar"
 sha256 = "f24039ae50ea215b5c24de03d8aabe122c5c46e2f1814ef9d7b46c050bf4fbea"
 
-# https://github.com/monoflake/driver/releases/tag/2026.11.01
+# https://github.com/monoflake/driver/releases/tag/2026.11.02
 [driver-machine]
-version = "0.1.4"
-release = "2026.11.01"
+version = "0.1.6"
+release = "2026.11.02"
 source = "monoflake/driver"
 
 [driver-machine.x86_64-linux]
-url = "https://github.com/monoflake/driver/releases/download/2026.11.01/driver-machine-0.1.4-linux-x86_64.tar.gz"
-sha256 = "66bda14862adee113f88a71012f8238aef27befc7280043ff921b8e5b64c0eb2"
+url = "https://github.com/monoflake/driver/releases/download/2026.11.02/driver-machine-0.1.6-linux-x86_64.tar.gz"
+sha256 = "a9a4281c55890605b96d31ab2e9b5be8e74996836c2f96f8fba0bd8166a3a5fa"
 
 [driver-machine.aarch64-linux]
-url = "https://github.com/monoflake/driver/releases/download/2026.11.01/driver-machine-0.1.4-linux-aarch64.tar.gz"
-sha256 = "663fb4adfb02b179012de5fa013257880fc51949230b22a8c45cb0b07c1d3239"
+url = "https://github.com/monoflake/driver/releases/download/2026.11.02/driver-machine-0.1.6-linux-aarch64.tar.gz"
+sha256 = "999af48822ac2e6cec6a96067b0e86db4f44df7274a1fed056ed5f5e294bc11b"
