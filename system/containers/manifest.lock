@@ -3,18 +3,18 @@
 # update. Its sources are monoflake/runtime and monoflake/driver.
 source = "monoflake/runtime"
 
-# https://github.com/monoflake/runtime/releases/tag/2026.11.11
+# https://github.com/monoflake/runtime/releases/tag/2026.11.16
 [workerd]
-version = "1.20261110.1"
-release = "2026.11.11"
+version = "1.20261115.1"
+release = "2026.11.16"
 
 [workerd.x86_64-linux]
-url = "https://github.com/monoflake/runtime/releases/download/2026.11.11/workerd-1.20261110.1-linux-x86_64.tar"
-sha256 = "45a4333f1388bd21b2019812fbf163d8f9a3fbc60d51b040ef1bc830b0a82f30"
+url = "https://github.com/monoflake/runtime/releases/download/2026.11.16/workerd-1.20261115.1-linux-x86_64.tar"
+sha256 = "60734b9fbe9f9f2861170c08523cbbb6db0ef2acd94cd932e9343eae6bd40302"
 
 [workerd.aarch64-linux]
-url = "https://github.com/monoflake/runtime/releases/download/2026.11.11/workerd-1.20261110.1-linux-aarch64.tar"
-sha256 = "2ff65a525f505f990a5ad7c624c84a7f110d04e24ff599343ae11e2c5fc15e85"
+url = "https://github.com/monoflake/runtime/releases/download/2026.11.16/workerd-1.20261115.1-linux-aarch64.tar"
+sha256 = "bbf72269a4efa81ef355fddb6e18760e23e753d9f30f4a1717e63864bce9596f"
 
 # https://github.com/monoflake/runtime/releases/tag/2026.10.31
 [wasmtime]
