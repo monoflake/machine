@@ -99,7 +99,7 @@ switch argv->Array.slice(~start=2) {
     }
     run(
       "node",
-      [`${workspace}/scripts/deps/scheduled.res.mjs`, "message", "monoflake/machine", file],
+      [`${workspace}/.github/update/stage.res.mjs`, "message", "monoflake/machine", file],
     )->ignore
   }
 | _ => fail("message <file>")
