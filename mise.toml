@@ -4,7 +4,7 @@
 _.path = ['''{{exec(command="if [ -f '" ~ config_root ~ "/scripts/channel/channel.res.mjs' ]; then node '" ~ config_root ~ "/scripts/channel/channel.res.mjs' path --lock '" ~ config_root ~ "'; else echo 'channel: compiled resolver missing; using /nix/var/nix/profiles/default' >&2; echo /nix/var/nix/profiles/default; fi")}}/bin''', "{{config_root}}/node_modules/.bin", "/nix/var/nix/profiles/default/bin"]
 
 [tools]
-cargo-deny = "0.20"
+cargo-deny = "0.22"
 # What runs TLC over model/protocol, RFC w0w82.
 java = "temurin-25"
 
