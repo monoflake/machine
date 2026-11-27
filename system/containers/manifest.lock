@@ -3,31 +3,31 @@
 # update. Its sources are monoflake/runtime and monoflake/driver.
 source = "monoflake/runtime"
 
-# https://github.com/monoflake/runtime/releases/tag/2026.11.16
+# https://github.com/monoflake/runtime/releases/tag/2026.11.23
 [workerd]
-version = "1.20261115.1"
-release = "2026.11.16"
+version = "1.20261121.1"
+release = "2026.11.23"
 
 [workerd.x86_64-linux]
-url = "https://github.com/monoflake/runtime/releases/download/2026.11.16/workerd-1.20261115.1-linux-x86_64.tar"
-sha256 = "60734b9fbe9f9f2861170c08523cbbb6db0ef2acd94cd932e9343eae6bd40302"
+url = "https://github.com/monoflake/runtime/releases/download/2026.11.23/workerd-1.20261121.1-linux-x86_64.tar"
+sha256 = "b0a49c76179385d99d2ec5360ea3a9b9eac09145125f0569291f5971709fe245"
 
 [workerd.aarch64-linux]
-url = "https://github.com/monoflake/runtime/releases/download/2026.11.16/workerd-1.20261115.1-linux-aarch64.tar"
-sha256 = "bbf72269a4efa81ef355fddb6e18760e23e753d9f30f4a1717e63864bce9596f"
+url = "https://github.com/monoflake/runtime/releases/download/2026.11.23/workerd-1.20261121.1-linux-aarch64.tar"
+sha256 = "d6d919984387d1fd1c81b9879010294029b80f8ac4be22971583d654a37be8c9"
 
-# https://github.com/monoflake/runtime/releases/tag/2026.10.31
+# https://github.com/monoflake/runtime/releases/tag/2026.11.23
 [wasmtime]
-version = "50.0.1"
-release = "2026.10.31"
+version = "51.0.0"
+release = "2026.11.23"
 
 [wasmtime.x86_64-linux]
-url = "https://github.com/monoflake/runtime/releases/download/2026.10.31/wasmtime-50.0.1-linux-x86_64.tar"
-sha256 = "236b1eec04eec1d027e72281772fcbc619d79b264c1c0849082026564f22504d"
+url = "https://github.com/monoflake/runtime/releases/download/2026.11.23/wasmtime-51.0.0-linux-x86_64.tar"
+sha256 = "b1d1c70f4dcd9462f27c3bf14c9e26839700e65d359e123aa1323b093e179b0f"
 
 [wasmtime.aarch64-linux]
-url = "https://github.com/monoflake/runtime/releases/download/2026.10.31/wasmtime-50.0.1-linux-aarch64.tar"
-sha256 = "f24039ae50ea215b5c24de03d8aabe122c5c46e2f1814ef9d7b46c050bf4fbea"
+url = "https://github.com/monoflake/runtime/releases/download/2026.11.23/wasmtime-51.0.0-linux-aarch64.tar"
+sha256 = "a0d9dc247a90603a723d7cfc5aa847d5f9eaba50226158117f6bad52379fd41a"
 
 # https://github.com/monoflake/driver/releases/tag/2026.11.02
 [driver-machine]
