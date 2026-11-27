@@ -13,6 +13,7 @@ exports = ["machine-flake"]
 depends = ["monoflake/driver:driver-archive"]
 
 [update]
+packages = true
 actions = true
 releases = ["system/containers/manifest.toml"]
 

@@ -12,6 +12,12 @@ moves to `latest` unless the author names it. [The update workflow](../.github/w
 calls the workspace's reusable one, which moves all three with the flake's lock and verifies them
 before committing. Its message names Tailscale's version when it changes.
 
+**The update moves the crates, the npm packages and this repository's own tools beside the flake**,
+by the author's word: `packages` under `[update]` in `workspace.toml` takes the workspace's shared
+mover, the workspace's docs/toolchain/dependencies.md, so an advisory a newer crate clears is taken
+by the daily run rather than waiting on a hand. The flake's inputs stay this repository's own
+`update` task, and the update workflow keeps each move only where verify passes.
+
 **The Nix that builds, evaluates, signs or asks upstream for the fleet is the OS channel's, taken
 from the lock**. It moves only when the lock moves. CI takes its client through the mise path and
 its daemon through `channel daemon`; `nix-installer` only bootstraps. The author's Mac takes its
